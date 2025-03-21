@@ -14,7 +14,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/mindicador': {
-        target: 'https://mindicador.cl',
+        target: 'binding-wylma-spidy618-051ecfb8.koyeb.app',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/mindicador/, ''),
         secure: false
