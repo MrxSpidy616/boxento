@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 
 interface PasswordResetProps {
   onBack: () => void;
@@ -41,14 +41,18 @@ export function PasswordReset({ onBack, onSuccess }: PasswordResetProps) {
 
   return (
     <div className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle>Reset Password</CardTitle>
-        <CardDescription>
+      {/* Further reduced padding on xs */}
+      <CardHeader className="pb-2 px-3 sm:px-6 pt-6">
+        {/* Added responsive title size */}
+        <CardTitle className="text-xl sm:text-2xl">Reset Password</CardTitle>
+        <CardDescription className="text-sm"> {/* Added text-sm */}
           Enter your email address and we'll send you a link to reset your password
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Further reduced padding on xs */}
+      <CardContent className="px-3 sm:px-6 pt-4 pb-4">
+        {/* Further reduced vertical spacing on xs */}
+        <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input 
@@ -71,11 +75,13 @@ export function PasswordReset({ onBack, onSuccess }: PasswordResetProps) {
           </Button>
         </form>
       </CardContent>
-      <CardFooter>
+      {/* Further reduced padding on xs */}
+      <CardFooter className="px-3 sm:px-6 pb-6 pt-0">
         <Button 
           variant="link" 
           onClick={onBack}
-          className="w-full"
+          // Reduced font size on xs
+          className="w-full text-xs sm:text-sm"
           type="button"
         >
           Back to Sign In

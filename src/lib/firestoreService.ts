@@ -1,4 +1,4 @@
-import { db, auth } from './firebase';
+import { db, auth, isFirebaseInitialized } from './firebase';
 import { 
   doc, 
   getDoc, 
@@ -6,7 +6,8 @@ import {
   collection, 
   getDocs,
   deleteDoc,
-  writeBatch
+  writeBatch,
+  Firestore
 } from 'firebase/firestore';
 import { WidgetConfigStore } from './configManager';
 import { LayoutItem } from '@/types';
@@ -14,6 +15,14 @@ import { LayoutItem } from '@/types';
 // Breakpoints and columns configuration - must match App.tsx
 const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 };
 const cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+
+// Helper function to check if Firebase is initialized and return a non-null Firestore instance
+const checkFirebase = (): Firestore => {
+  if (!isFirebaseInitialized || !db) {
+    throw new Error('Firebase is not initialized');
+  }
+  return db;
+};
 
 // Helper function to create a default layout item for a widget
 const createDefaultLayoutItem = (
@@ -72,8 +81,9 @@ const createDefaultLayoutItem = (
   }
 };
 
-// Utility to get current user ID safely
+// Get the current user ID
 const getCurrentUserId = (): string | null => {
+  if (!isFirebaseInitialized || !auth) return null;
   return auth.currentUser?.uid || null;
 };
 
@@ -85,12 +95,13 @@ export const userDashboardService = {
     if (!userId) throw new Error('User not authenticated');
     
     try {
+      const firestore = checkFirebase();
+      
       // Sanitize the layouts object to remove undefined values
-      // Firestore doesn't accept undefined values
       const sanitizedLayouts = JSON.parse(JSON.stringify(layouts));
       
       // Store layouts directly without wrapping in another object
-      await setDoc(doc(db, 'users', userId, 'dashboard', 'layouts'), sanitizedLayouts, { merge: true });
+      await setDoc(doc(firestore, 'users', userId, 'dashboard', 'layouts'), sanitizedLayouts, { merge: true });
     } catch (error) {
       console.error('Error saving layouts to Firestore:', error);
       throw error;
@@ -103,11 +114,11 @@ export const userDashboardService = {
     if (!userId) return null;
     
     try {
-      const docRef = doc(db, 'users', userId, 'dashboard', 'layouts');
+      const firestore = checkFirebase();
+      const docRef = doc(firestore, 'users', userId, 'dashboard', 'layouts');
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        // Return the document data directly, not nested under 'layouts'
         return docSnap.data() as { [key: string]: LayoutItem[] };
       }
       return null;
@@ -123,11 +134,12 @@ export const userDashboardService = {
     if (!userId) throw new Error('User not authenticated');
     
     try {
+      const firestore = checkFirebase();
       // Sanitize the config object to remove undefined values
       const sanitizedConfig = JSON.parse(JSON.stringify(config));
       
       await setDoc(
-        doc(db, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId),
+        doc(firestore, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId),
         { config: sanitizedConfig },
         { merge: true }
       );
@@ -143,7 +155,8 @@ export const userDashboardService = {
     if (!userId) return null;
     
     try {
-      const docRef = doc(db, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId);
+      const firestore = checkFirebase();
+      const docRef = doc(firestore, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
@@ -162,12 +175,13 @@ export const userDashboardService = {
     if (!userId) throw new Error('User not authenticated');
     
     try {
+      const firestore = checkFirebase();
       // Create a batch of operations for better performance
-      const batch = writeBatch(db);
+      const batch = writeBatch(firestore);
       
       // Add each widget config to the batch
       Object.entries(configs).forEach(([widgetId, config]) => {
-        const docRef = doc(db, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId);
+        const docRef = doc(firestore, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId);
         batch.set(docRef, { config }, { merge: true });
       });
       
@@ -185,7 +199,8 @@ export const userDashboardService = {
     if (!userId) return null;
     
     try {
-      const colRef = collection(db, 'users', userId, 'dashboard', 'widget-configs', 'configs');
+      const firestore = checkFirebase();
+      const colRef = collection(firestore, 'users', userId, 'dashboard', 'widget-configs', 'configs');
       const querySnapshot = await getDocs(colRef);
       
       const configs: WidgetConfigStore = {};
@@ -209,9 +224,16 @@ export const userDashboardService = {
       // Strip out configuration data to avoid redundancy
       const essentialWidgetData = widgets.map(widget => {
         // Extract only the essential fields
+        const id = widget.id as string | undefined;
+        const type = widget.type as string | undefined;
+        
+        if (!id || !type) {
+          throw new Error('Widget data is missing required fields (id or type)');
+        }
+        
         return {
-          id: widget.id,
-          type: widget.type,
+          id,
+          type,
           // Add any other essential metadata fields here (but NOT config)
         };
       });
@@ -219,8 +241,9 @@ export const userDashboardService = {
       // Sanitize the widgets array to remove undefined values
       const sanitizedWidgets = JSON.parse(JSON.stringify(essentialWidgetData));
       
+      const firestore = checkFirebase();
       await setDoc(
-        doc(db, 'users', userId, 'dashboard', 'widget-list'),
+        doc(firestore, 'users', userId, 'dashboard', 'widget-list'),
         { widgets: sanitizedWidgets },
         { merge: true }
       );
@@ -236,7 +259,8 @@ export const userDashboardService = {
     if (!userId) return null;
     
     try {
-      const docRef = doc(db, 'users', userId, 'dashboard', 'widget-list');
+      const firestore = checkFirebase();
+      const docRef = doc(firestore, 'users', userId, 'dashboard', 'widget-list');
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
@@ -255,7 +279,8 @@ export const userDashboardService = {
     if (!userId) throw new Error('User not authenticated');
     
     try {
-      await deleteDoc(doc(db, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId));
+      const firestore = checkFirebase();
+      await deleteDoc(doc(firestore, 'users', userId, 'dashboard', 'widget-configs', 'configs', widgetId));
     } catch (error) {
       console.error('Error deleting widget config from Firestore:', error);
       throw error;
@@ -268,14 +293,15 @@ export const userDashboardService = {
     if (!userId) throw new Error('User not authenticated');
     
     try {
-      const docRef = doc(db, 'users', userId, 'dashboard', 'layouts');
+      const firestore = checkFirebase();
+      const docRef = doc(firestore, 'users', userId, 'dashboard', 'layouts');
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         const data = docSnap.data();
         
         // Check if layouts are nested under 'layouts' property (old format)
-        if (data.layouts && typeof data.layouts === 'object') {
+        if (data && 'layouts' in data && typeof data.layouts === 'object' && !Array.isArray(data.layouts)) {
           console.log('Migrating legacy layout structure...');
           
           // Save layouts directly without the wrapper
@@ -295,24 +321,41 @@ export const userDashboardService = {
     if (!userId) throw new Error('User not authenticated');
     
     try {
+      // Check if localStorage is available
+      if (typeof window === 'undefined' || !window.localStorage) {
+        console.log('localStorage is not available');
+        return;
+      }
+
+      // Helper function to safely parse JSON
+      const safeJSONParse = <T>(str: string | null): T | null => {
+        if (!str) return null;
+        try {
+          return JSON.parse(str) as T;
+        } catch (error) {
+          console.error('Error parsing JSON:', error);
+          return null;
+        }
+      };
+
       // Migrate layouts
       const storedLayouts = localStorage.getItem('boxento-layouts');
-      if (storedLayouts) {
-        const layouts = JSON.parse(storedLayouts);
+      const layouts = safeJSONParse<{ [key: string]: LayoutItem[] }>(storedLayouts);
+      if (layouts) {
         await userDashboardService.saveLayouts(layouts);
       }
       
       // Migrate widgets
       const storedWidgets = localStorage.getItem('boxento-widgets');
-      if (storedWidgets) {
-        const widgets = JSON.parse(storedWidgets);
+      const widgets = safeJSONParse<Record<string, unknown>[]>(storedWidgets);
+      if (widgets) {
         await userDashboardService.saveWidgets(widgets);
       }
       
       // Migrate widget configs
       const storedConfigs = localStorage.getItem('boxento-widget-configs');
-      if (storedConfigs) {
-        const configs = JSON.parse(storedConfigs);
+      const configs = safeJSONParse<WidgetConfigStore>(storedConfigs);
+      if (configs) {
         await userDashboardService.saveAllWidgetConfigs(configs);
       }
       
@@ -333,14 +376,15 @@ export const userDashboardService = {
     
     // Check each breakpoint to ensure all widgets have layout items
     Object.keys(breakpoints).forEach(breakpoint => {
-      if (!layouts[breakpoint]) {
+      // Ensure layouts[breakpoint] is an array
+      if (!layouts[breakpoint] || !Array.isArray(layouts[breakpoint])) {
         layouts[breakpoint] = [];
         layoutsNeedUpdate = true;
       }
       
       // Add layouts for widgets that don't have them
       widgets.forEach(widget => {
-        if (!layouts[breakpoint].some(item => item.i === widget.id)) {
+        if (!layouts[breakpoint]?.some(item => item.i === widget.id)) {
           // Create a new layout item at the end of the layout
           const colsForBreakpoint = breakpoint in cols ? cols[breakpoint as keyof typeof cols] : 12;
           const newItem = createDefaultLayoutItem(
@@ -356,8 +400,8 @@ export const userDashboardService = {
       });
       
       // Remove layouts for widgets that don't exist
-      const initialLength = layouts[breakpoint].length;
-      layouts[breakpoint] = layouts[breakpoint].filter(item => widgetIds.has(item.i));
+      const initialLength = layouts[breakpoint]?.length ?? 0;
+      layouts[breakpoint] = (layouts[breakpoint] ?? []).filter(item => widgetIds.has(item.i));
       if (layouts[breakpoint].length !== initialLength) {
         layoutsNeedUpdate = true;
         console.log(`Removed ${initialLength - layouts[breakpoint].length} orphaned layouts from breakpoint ${breakpoint}`);
@@ -382,8 +426,9 @@ export const userDashboardService = {
       // Sanitize the settings object to remove undefined values
       const sanitizedSettings = JSON.parse(JSON.stringify(settings));
       
+      const firestore = checkFirebase();
       await setDoc(
-        doc(db, 'users', userId, 'dashboard', 'app-settings'),
+        doc(firestore, 'users', userId, 'dashboard', 'app-settings'),
         { settings: sanitizedSettings },
         { merge: true }
       );
@@ -399,7 +444,8 @@ export const userDashboardService = {
     if (!userId) return null;
     
     try {
-      const docRef = doc(db, 'users', userId, 'dashboard', 'app-settings');
+      const firestore = checkFirebase();
+      const docRef = doc(firestore, 'users', userId, 'dashboard', 'app-settings');
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {

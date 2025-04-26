@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// Add Globe icon import
+import { Globe } from 'lucide-react';
 
 /**
  * Size categories for widget content rendering
@@ -213,18 +215,25 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
   const renderSmallView = () => {
     if (!quizActive) {
       return (
-        <div className="h-full flex flex-col justify-center items-center text-center space-y-2">
-          <h3 className="font-medium">Geography Quiz</h3>
-          <button 
+        <div className="h-full flex flex-col justify-center items-center text-center">
+          {/* Use Globe icon from Lucide with consistent styling */}
+          <Globe size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+          {/* Consistent text styling */}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Ready for a geography challenge?
+          </p>
+          {/* Consistent button styling */}
+          <Button
+            size="sm"
             onClick={startQuiz}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            variant="outline"
           >
             Start Quiz
-          </button>
+          </Button>
         </div>
       );
     }
-    
+
     if (quizCompleted) {
       return (
         <div className="h-full flex flex-col justify-center items-center text-center space-y-2">
@@ -276,19 +285,25 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
   const renderWideSmallView = () => {
     if (!quizActive) {
       return (
-        <div className="h-full flex flex-col justify-center items-center text-center space-y-3">
-          <h3 className="font-medium">Geography Quiz</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Test your geography knowledge!</p>
-          <button 
+        <div className="h-full flex flex-col justify-center items-center text-center">
+          {/* Use Globe icon from Lucide with consistent styling */}
+          <Globe size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+          {/* Consistent text styling */}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Test your geography knowledge!
+          </p>
+          {/* Consistent button styling */}
+          <Button
+            size="sm"
             onClick={startQuiz}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            variant="outline"
           >
             Start Quiz
-          </button>
+          </Button>
         </div>
       );
     }
-    
+
     if (quizCompleted) {
       return (
         <div className="h-full flex flex-col justify-center items-center text-center space-y-3">
@@ -366,19 +381,25 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
   const renderTallSmallView = () => {
     if (!quizActive) {
       return (
-        <div className="h-full flex flex-col justify-center items-center text-center space-y-3">
-          <h3 className="font-medium">Geography Quiz</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Test your geography knowledge!</p>
-          <button 
+        <div className="h-full flex flex-col justify-center items-center text-center">
+          {/* Use Globe icon from Lucide with consistent styling */}
+          <Globe size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+          {/* Consistent text styling */}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Test your geography knowledge!
+          </p>
+          {/* Consistent button styling */}
+          <Button
+            size="sm"
             onClick={startQuiz}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            variant="outline"
           >
             Start Quiz
-          </button>
+          </Button>
         </div>
       );
     }
-    
+
     if (quizCompleted) {
       return (
         <div className="h-full flex flex-col justify-center items-center text-center space-y-3">
@@ -452,24 +473,25 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
   const renderMediumView = () => {
     if (!quizActive) {
       return (
-        <div className="h-full flex flex-col justify-center items-center text-center space-y-4">
-          <h2 className="text-xl font-semibold">Geography Quiz</h2>
-          <p className="text-gray-500 dark:text-gray-400">Test your knowledge of world geography!</p>
-          <div className="flex flex-col space-y-1">
-            <span className="text-sm">Difficulty: {localConfig.difficulty}</span>
-            <span className="text-sm">Question Type: {localConfig.questionType}</span>
-            <span className="text-sm">Questions per round: {localConfig.questionsPerRound}</span>
-          </div>
-          <button 
+        <div className="h-full flex flex-col justify-center items-center text-center">
+          {/* Use Globe icon from Lucide with consistent styling */}
+          <Globe size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+          {/* Consistent text styling */}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Test your knowledge of world geography!
+          </p>
+          {/* Consistent button styling */}
+          <Button
+            size="sm"
             onClick={startQuiz}
-            className="mt-2 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            variant="outline"
           >
             Start Quiz
-          </button>
+          </Button>
         </div>
       );
     }
-    
+
     if (quizCompleted) {
       return (
         <div className="h-full flex flex-col justify-center items-center text-center space-y-4">
@@ -575,7 +597,7 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
             <DialogTitle>Geography Quiz Settings</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-4">
             {/* Title setting */}
             <div className="space-y-2">
               <Label htmlFor="title-input">Widget Title</Label>
@@ -658,7 +680,7 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
                   }}
                   aria-label="Delete this widget"
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               <Button

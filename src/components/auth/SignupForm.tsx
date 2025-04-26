@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,14 +45,18 @@ export function SignupForm({ onToggleForm, onSuccess }: SignupFormProps) {
 
   return (
     <div className="w-full">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-semibold tracking-tight">Create an account</CardTitle>
-        <CardDescription className="text-muted-foreground">
+      {/* Further reduced padding on xs, reduced bottom padding */}
+      <CardHeader className="space-y-1 px-3 sm:px-6 pt-6 pb-3">
+        {/* Reduced title size on xs */}
+        <CardTitle className="text-xl sm:text-2xl font-semibold tracking-tight">Create an account</CardTitle>
+        <CardDescription className="text-muted-foreground text-sm"> {/* Added text-sm */}
           Enter your details to create your account
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Further reduced padding and vertical spacing on xs */}
+      <CardContent className="space-y-3 sm:space-y-6 px-3 sm:px-6 pb-6">
+        {/* Further reduced vertical spacing on xs */}
+        <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-foreground">Email</Label>
             <Input
@@ -94,7 +98,8 @@ export function SignupForm({ onToggleForm, onSuccess }: SignupFormProps) {
         </form>
 
         <div className="text-center">
-          <Button variant="link" onClick={onToggleForm} type="button" className="text-primary">
+          {/* Reduced font size on xs */}
+          <Button variant="link" onClick={onToggleForm} type="button" className="text-primary text-xs sm:text-sm">
             Already have an account? Sign in
           </Button>
         </div>

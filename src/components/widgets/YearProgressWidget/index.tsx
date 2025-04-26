@@ -342,10 +342,13 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, con
           <DialogTitle>Year Progress Settings</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-5 py-2">
-          <div className="space-y-3">
+        {/* Change py-2 to py-4 and space-y-5 to space-y-4 */}
+        <div className="space-y-4 py-4">
+          {/* Change space-y-3 to space-y-4 */}
+          <div className="space-y-4">
             <Label className="text-sm font-medium">Display Options</Label>
-            <div className="space-y-3">
+            {/* Change space-y-3 to space-y-4 */}
+            <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <Switch
                   id="show-percentage"
@@ -381,7 +384,7 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, con
                   }
                 }}
               >
-                Delete Widget
+                Delete
               </Button>
             )}
             <Button

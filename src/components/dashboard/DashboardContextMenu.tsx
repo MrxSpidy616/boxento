@@ -5,7 +5,6 @@ import {
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
-  ContextMenuShortcut,
   ContextMenuGroup,
   ContextMenuLabel
 } from '@/components/ui/context-menu';
@@ -59,7 +58,6 @@ export function DashboardContextMenu({ children, onAddWidget }: DashboardContext
                 </div>
                 <span>Add Widget</span>
               </div>
-              <ContextMenuShortcut>⌘+A</ContextMenuShortcut>
             </ContextMenuItem>
           </ContextMenuGroup>
           
@@ -79,7 +77,6 @@ export function DashboardContextMenu({ children, onAddWidget }: DashboardContext
                 </div>
                 <span>App Settings</span>
               </div>
-              <ContextMenuShortcut>⌘+,</ContextMenuShortcut>
             </ContextMenuItem>
           </ContextMenuGroup>
         </ContextMenuContent>

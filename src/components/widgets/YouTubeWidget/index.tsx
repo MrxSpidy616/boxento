@@ -14,6 +14,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../ui/tabs';
 import { Label } from '../../ui/label';
 import { Input } from '../../ui/input';
 import { Checkbox } from '../../ui/checkbox';
+// Add Youtube icon import
+import { Youtube } from 'lucide-react';
 
 /**
  * Size categories for widget content rendering
@@ -447,21 +449,19 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
   const renderEmptyState = () => {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 mb-4">
-          <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
-          <line x1="10" y1="8" x2="14" y2="8"></line>
-          <line x1="12" y1="16" x2="12" y2="16.01"></line>
-        </svg>
-        <h3 className="text-lg font-medium">No video configured</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Click the settings icon to add a YouTube video
+        {/* Use Youtube icon from Lucide with consistent styling (red color) */}
+        <Youtube size={40} className="text-red-500 dark:text-red-400 mb-3" strokeWidth={1.5} />
+        {/* Consistent text styling */}
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          No YouTube video configured.
         </p>
-        <button 
+        {/* Consistent button styling */}
+        <Button
+          size="sm"
           onClick={() => setShowSettings(true)} 
-          className="mt-4 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
         >
-          Configure Widget
-        </button>
+          Configure Video
+        </Button>
       </div>
     );
   };
@@ -519,7 +519,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
               <TabsTrigger value="playback">Playback Options</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="general" className="space-y-4 py-2">
+            <TabsContent value="general" className="space-y-4 py-4">
               {/* Title setting */}
               <div className="space-y-2">
                 <Label htmlFor="title-input">Widget Title</Label>
@@ -575,7 +575,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
               </div>
             </TabsContent>
             
-            <TabsContent value="playback" className="space-y-4 py-2">
+            <TabsContent value="playback" className="space-y-4 py-4">
               {/* Autoplay toggle */}
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -667,7 +667,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
                     }
                   }}
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               <Button
@@ -677,7 +677,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
                   setShowSettings(false);
                 }}
               >
-                Save Changes
+                Save
               </Button>
             </div>
           </DialogFooter>

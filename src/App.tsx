@@ -176,6 +176,146 @@ const loadFromLocalStorage = <T,>(key: string, defaultValue: T): T => {
   return defaultValue;
 };
 
+// Define the Footer component
+const AppFooter = () => {
+  const currentYear = new Date().getFullYear();
+
+  return (
+    <footer className="py-4 sm:py-6 px-4 my-4 sm:my-8 border-t border-gray-200 dark:border-gray-800">
+      <div className="max-w-[1600px] mx-auto flex flex-col gap-4 sm:gap-6">
+        {/* Mobile layout (stacked) */}
+        {/* Reduced gap from gap-4 to gap-3 for tighter mobile spacing */}
+        <div className="flex flex-col items-center gap-3 sm:hidden">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Built by{' '}
+            <a 
+              href="https://sushaantu.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              Sushaantu
+            </a>
+          </p>
+          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+            <a
+              href="https://github.com/sushaantu/boxento"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+              <span className="sr-only sm:not-sr-only">View Source</span>
+            </a>
+            <a
+              href="https://twitter.com/intent/tweet?text=Check%20out%20Boxento%20-%20An%20awesome%20open-source%20dashboard%20built%20by%20%40su%20%F0%9F%9A%80&url=https%3A%2F%2Fgithub.com%2Fsushaantu%2Fboxento"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center gap-1.5"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+              </svg>
+              <span className="sr-only sm:not-sr-only">Share Project</span>
+            </a>
+          </div>
+          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+            <a
+              href="https://github.com/sushaantu/boxento/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              Report Issue
+            </a>
+            <a
+              href="https://github.com/sushaantu/boxento#contributing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              Contribute
+            </a>
+          </div>
+          <div className="text-sm text-gray-400 dark:text-gray-500">
+            © {currentYear}
+          </div>
+        </div>
+
+        {/* Desktop/Tablet layout (side by side) */}
+        <div className="hidden sm:flex sm:flex-row justify-between items-center">
+          <div className="flex items-center gap-4 md:gap-6">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Built by{' '}
+              <a 
+                href="https://sushaantu.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                Sushaantu
+              </a>
+            </p>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+              <a
+                href="https://github.com/sushaantu/boxento"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                View Source
+              </a>
+              <a
+                href="https://twitter.com/intent/tweet?text=Check%20out%20Boxento%20-%20An%20awesome%20open-source%20dashboard%20built%20by%20%40su%20%F0%9F%9A%80&url=https%3A%2F%2Fgithub.com%2Fsushaantu%2Fboxento"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                </svg>
+                Share Project
+              </a>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4 md:gap-6">
+            <div className="flex items-center gap-4 md:gap-6 text-sm text-gray-500 dark:text-gray-400">
+              <a
+                href="https://github.com/sushaantu/boxento/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                Report Issue
+              </a>
+              <a
+                href="https://github.com/sushaantu/boxento#contributing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+              >
+                Contribute
+              </a>
+            </div>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <div className="text-sm text-gray-400 dark:text-gray-500">
+              © {currentYear}
+            </div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+
 function App() {
   // Register service worker for PWA functionality
   useEffect(() => {
@@ -318,7 +458,7 @@ function App() {
       const savedWidgets = loadFromLocalStorage('boxento-widgets', []);
       
       // Only use default widgets if we're not logged in and no widgets in storage
-      if (savedWidgets.length === 0 && !auth.currentUser) {
+      if (savedWidgets.length === 0 && !auth?.currentUser) {
         return getDefaultWidgets();
       }
       
@@ -387,7 +527,7 @@ function App() {
     });
     
     // Save widgets to Firestore when user is logged in
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       try {
         await userDashboardService.saveWidgets(updatedWidgets);
         console.log('Saved widget metadata to Firestore');
@@ -406,7 +546,7 @@ function App() {
     localStorage.setItem('boxento-layouts', JSON.stringify(updatedLayouts));
     
     // Save to Firestore if logged in
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       if (debounce) {
         if (layoutUpdateTimeout.current !== null) {
           clearTimeout(layoutUpdateTimeout.current);
@@ -664,7 +804,7 @@ function App() {
     configManager.saveWidgetConfig(widgetId, configToSave);
     
     // Save to Firestore if logged in
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       saveWidgets(updatedWidgets);
     }
   };
@@ -937,7 +1077,7 @@ function App() {
           loadLocalData();
           
           // Migrate to Firestore if logged in
-          if (auth.currentUser && widgets.length > 0) {
+          if (auth?.currentUser && widgets.length > 0) {
             try {
               await saveWidgets(widgets);
               await saveLayouts(layouts, false);
@@ -962,6 +1102,8 @@ function App() {
   
   // Initialize auth listener
   useEffect(() => {
+    if (!auth) return;
+    
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         // User is signed in, load their data from Firestore
@@ -1060,32 +1202,6 @@ function App() {
       console.log('Default layouts created');
     }
   }, [widgets, layouts]);
-  
-  // Handle escape key to close modals
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Close widget selector with Escape
-      if (event.key === 'Escape' && widgetSelectorOpen) {
-        setWidgetSelectorOpen(false);
-      }
-      
-      // Add Widget with Cmd+A or Ctrl+A
-      if ((event.metaKey || event.ctrlKey) && event.key === 'a' && !widgetSelectorOpen) {
-        event.preventDefault(); // Prevent select all default behavior
-        toggleWidgetSelector();
-      }
-      
-      // App Settings with Cmd+, or Ctrl+,
-      if ((event.metaKey || event.ctrlKey) && event.key === ',') {
-        event.preventDefault();
-        // We need to access the context menu's state, so we'll dispatch a custom event
-        document.dispatchEvent(new CustomEvent('boxento:openAppSettings'));
-      }
-    };
-    
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [widgetSelectorOpen, toggleWidgetSelector]);
   
   // Handle URL detection
   const handleUrlDetected = (result: UrlMatchResult) => {
@@ -1200,10 +1316,10 @@ function App() {
       
       {/* Header */}
       <div className="fixed top-0 z-50 w-full backdrop-blur-sm app-header">
-        <div className="px-4 py-3 flex items-center justify-between">
+        <div className="px-2 sm:px-4 py-3 flex items-center justify-between"> {/* Use px-2 for xs, px-4 for sm+ */}
           <div className="flex items-center">
             <a href="/" rel="noopener noreferrer" className="text-gray-900 dark:text-white hover:text-gray-700 transition-colors">
-              <h1 className="text-lg font-semibold mr-3">Boxento</h1>
+              <h1 className="text-lg font-semibold mr-2 sm:mr-3">Boxento</h1> {/* Use mr-2 for xs, mr-3 for sm+ */}
             </a>
             {/* Sync indicator */}
             <TooltipProvider>
@@ -1212,7 +1328,7 @@ function App() {
                   <div className="flex items-center">
                     {!isOnline ? (
                       <CloudOff className="h-5 w-5 text-yellow-500 dark:text-yellow-400" />
-                    ) : auth.currentUser ? (
+                    ) : auth?.currentUser ? (
                       isSyncing ? (
                         <Loader2 className="h-5 w-5 text-green-500 dark:text-green-400" />
                       ) : syncStatus === 'success' ? (
@@ -1232,7 +1348,7 @@ function App() {
                     <p className="font-semibold">
                       {!isOnline ? (
                         "You are offline. Some features may be limited."
-                      ) : auth.currentUser ? (
+                      ) : auth?.currentUser ? (
                         isSyncing ? "Syncing..." : 
                         syncStatus === 'success' ? "Everything is synced!" :
                         syncStatus === 'error' ? "Sync error" :
@@ -1246,22 +1362,22 @@ function App() {
               </Tooltip>
             </TooltipProvider>
           </div>
-          
-          <div className="flex items-center space-x-2">
+
+          <div className="flex items-center space-x-1 sm:space-x-2"> {/* Use space-x-1 for xs, space-x-2 for sm+ */}
             <Button
               onClick={toggleWidgetSelector}
               aria-label="Add widget"
-              className="rounded-full h-9 cursor-pointer transition-colors"
+              className="rounded-full h-9 transition-colors"
               size="sm"
               variant="outline"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              <span>Add Widget</span>
+              <Plus className="h-4 w-4 sm:mr-2" /> {/* Remove margin on xs */}
+              <span className="hidden sm:inline">Add Widget</span> {/* Hide text on xs */}
             </Button>
 
             <Button
               onClick={toggleTheme}
-              className="rounded-full h-9 w-9 p-0 flex items-center justify-center cursor-pointer transition-colors"
+              className="rounded-full h-9 w-9 p-0 flex items-center justify-center transition-colors"
               size="sm"
               aria-label="Toggle theme"
               variant="outline"
@@ -1270,9 +1386,10 @@ function App() {
             </Button>
             
             <Changelog />
-            
+
             <div className="flex items-center">
-              <UserMenuButton className="h-9 cursor-pointer" />
+              {/* UserMenuButton is now responsive internally */}
+              <UserMenuButton className="h-9" />
             </div>
           </div>
         </div>
@@ -1348,6 +1465,8 @@ function App() {
             </div>
           </div>
         </main>
+        {/* Add the footer */}
+        <AppFooter />
       </div>
     </div>
   )

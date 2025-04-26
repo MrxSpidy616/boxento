@@ -1092,7 +1092,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             }}
             aria-label="Delete this widget"
           >
-            Delete Widget
+            Delete
           </Button>
         )}
         

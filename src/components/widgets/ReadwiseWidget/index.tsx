@@ -7,7 +7,8 @@ import {
   DialogFooter
 } from '../../ui/dialog';
 import WidgetHeader from '../common/WidgetHeader';
-import { RefreshCw, Book, Quote } from 'lucide-react';
+// Add AlertCircle import
+import { RefreshCw, Quote, AlertCircle, BookOpen, Book } from 'lucide-react';
 import { ReadwiseHighlight, ReadwiseWidgetConfig, ReadwiseWidgetProps } from './types';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
@@ -230,36 +231,49 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
    */
   const renderErrorState = () => {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="text-red-500 mb-3 text-center font-serif">Error: {error}</div>
-        <button 
+      <div className="h-full flex flex-col items-center justify-center text-center p-4">
+        {/* Use AlertCircle icon for errors */}
+        <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
+        {/* Consistent error text styling */}
+        <p className="text-sm text-red-500 dark:text-red-400 mb-3">
+          {error}
+        </p>
+        {/* Consistent button styling */}
+        <Button
+          size="sm"
           onClick={fetchRandomHighlight}
-          className="px-3 py-2 bg-blue-500 text-white rounded-md text-sm"
         >
           Try Again
-        </button>
+        </Button>
       </div>
     );
   };
   
   /**
    * No API token state
-   */
-  const renderNoApiTokenState = () => {
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="text-center mb-3 font-serif text-lg">Please set your Readwise API token in settings</div>
-        <button 
-          onClick={() => setShowSettings(true)}
-          className="px-3 py-2 bg-blue-500 text-white rounded-md text-sm"
-        >
-          Settings
-        </button>
-      </div>
-    );
-  };
-  
-  /**
+ */
+const renderNoApiTokenState = () => {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center">
+      {/* Use BookOpen icon from Lucide with consistent styling */}
+      <BookOpen size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+      {/* Consistent text styling */}
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+        Please add your Readwise API token.
+      </p>
+      {/* Consistent button styling */}
+      <Button
+        size="sm"
+        onClick={() => setShowSettings(true)}
+        variant="outline"
+      >
+        Configure Widget
+      </Button>
+    </div>
+  );
+};
+
+/**
    * Empty state
    */
   const renderEmptyState = () => {
@@ -307,7 +321,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
         
         {localConfig.showBookInfo && highlight?.book_title && (
           <div className="text-xs text-gray-500 mt-2 flex items-center">
-            <Book size={12} className="mr-1" />
+            <BookOpen size={12} className="mr-1" />
             <span className="truncate">{highlight.book_title}</span>
           </div>
         )}
@@ -331,7 +345,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
           <div className="mt-2">
             {highlight?.book_title && (
               <div className="text-xs text-gray-500 flex items-center">
-                <Book size={12} className="mr-1" />
+                <BookOpen size={12} className="mr-1" />
                 <span className="truncate">{highlight.book_title}</span>
               </div>
             )}
@@ -371,7 +385,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
             <div className="mb-2">
               {highlight?.book_title && (
                 <div className="text-sm text-gray-500 flex items-center">
-                  <Book size={12} className="mr-1" />
+                  <BookOpen size={12} className="mr-1" />
                   <span className="truncate font-medium">{highlight.book_title}</span>
                 </div>
               )}
@@ -490,7 +504,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
             <div className="mb-2">
               {highlight?.book_title && (
                 <div className="text-sm text-gray-500 flex items-center">
-                  <Book size={14} className="mr-1" />
+                  <BookOpen size={14} className="mr-1" />
                   <span className="truncate font-medium">{highlight.book_title}</span>
                 </div>
               )}
@@ -552,7 +566,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
             <div className="mb-3">
               {highlight?.book_title && (
                 <div className="text-base flex items-center">
-                  <Book size={16} className="mr-2 text-blue-500" />
+                  <BookOpen size={16} className="mr-2 text-blue-500" />
                   <span className="font-medium">{highlight.book_title}</span>
                 </div>
               )}
@@ -616,7 +630,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
             <DialogTitle>Readwise Widget Settings</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          <div className="space-y-4 py-4">
             {/* Title setting */}
             <div className="space-y-2">
               <Label htmlFor="title-input">Widget Title</Label>
@@ -664,8 +678,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
             </div>
             
             {/* Show book info toggle */}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="show-book-info-toggle">Show Book Information</Label>
+            <div className="flex items-center space-x-2">
               <Switch
                 id="show-book-info-toggle"
                 checked={localConfig.showBookInfo || false}
@@ -673,11 +686,11 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
                   setLocalConfig({...localConfig, showBookInfo: checked})
                 }
               />
+              <Label htmlFor="show-book-info-toggle">Show Book Information</Label>
             </div>
             
             {/* Show tags toggle */}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="show-tags-toggle">Show Tags</Label>
+            <div className="flex items-center space-x-2">
               <Switch
                 id="show-tags-toggle"
                 checked={localConfig.showTags || false}
@@ -685,6 +698,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
                   setLocalConfig({...localConfig, showTags: checked})
                 }
               />
+              <Label htmlFor="show-tags-toggle">Show Tags</Label>
             </div>
           </div>
           
@@ -699,7 +713,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
                     }
                   }}
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               
@@ -707,7 +721,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
                 variant="default"
                 onClick={saveSettings}
               >
-                Save Changes
+                Save
               </Button>
             </div>
           </DialogFooter>

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "bunx --bun vite",
     "sync-changelog": "cp CHANGELOG.md public/CHANGELOG.md",
-    "build": "bun run sync-changelog && bun run build:types && bunx --bun vite build",
+    "build": "bun run build:types && bunx --bun vite build",
     "build:types": "bun tsc -b",
     "lint": "bun eslint .",
     "preview": "bunx --bun vite preview",

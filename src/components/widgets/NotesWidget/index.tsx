@@ -154,7 +154,8 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width, height, config }) => {
             <DialogTitle>Notes Settings</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          {/* Change py-2 to py-4 */}
+          <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="title-input">Title</Label>
               <Input
@@ -227,7 +228,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width, height, config }) => {
                   }}
                   aria-label="Delete this widget"
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               <Button

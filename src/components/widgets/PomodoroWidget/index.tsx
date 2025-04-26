@@ -381,7 +381,8 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
             <DialogTitle>Pomodoro Widget Settings</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          {/* Change py-2 to py-4 */}
+          <div className="space-y-4 py-4">
             {/* Title setting */}
             <div className="space-y-2">
               <Label htmlFor="title-input">Widget Title</Label>
@@ -468,7 +469,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                   }}
                   aria-label="Delete this widget"
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               <Button

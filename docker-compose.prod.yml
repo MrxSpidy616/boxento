@@ -1,0 +1,37 @@
+# Production docker-compose configuration
+# Use this for deploying the production build
+
+services:
+  boxento-prod:
+    # Build the image using the Dockerfile in the current directory
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Pass build-time variables for Firebase configuration
+      args:
+        - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
+        - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN}
+        - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
+        - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET}
+        - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
+        - VITE_PUBLIC_GOOGLE_CLIENT_ID=${VITE_PUBLIC_GOOGLE_CLIENT_ID}
+        - VITE_PUBLIC_GOOGLE_CLIENT_SECRET=${VITE_PUBLIC_GOOGLE_CLIENT_SECRET}
+        # Add other VITE_ build args here if needed
+    container_name: boxento_prod
+    ports:
+      # Map host port 5173 to container port 5173 (where vite preview runs)
+      - "5173:5173"
+    environment:
+      # Ensure production mode is set
+      - NODE_ENV=production
+      # Allow setting custom allowed hosts through environment
+      - VITE_ALLOWED_HOSTS=${VITE_ALLOWED_HOSTS:-}
+      # Runtime environment variables can be added here if needed by the preview server
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s # Vite preview should start quickly
+    restart: unless-stopped

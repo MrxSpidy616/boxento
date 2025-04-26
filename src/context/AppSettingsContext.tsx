@@ -71,7 +71,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
       setIsLoading(true);
       
       try {
-        if (auth.currentUser) {
+        if (auth?.currentUser) {
           // User is logged in, try to load from Firestore
           const firestoreSettings = await userDashboardService.loadAppSettings();
           
@@ -108,6 +108,11 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     };
     
     // Listen for auth state changes
+    if (!auth) {
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = auth.onAuthStateChanged(() => {
       loadAppSettings();
     });
@@ -135,7 +140,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
     localStorage.setItem('boxento-app-settings', JSON.stringify(newSettings));
     
     // Save to Firestore if user is logged in (with debounce)
-    if (auth.currentUser) {
+    if (auth?.currentUser) {
       if (settingsUpdateTimeout) {
         clearTimeout(settingsUpdateTimeout);
       }

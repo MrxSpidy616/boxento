@@ -39,7 +39,7 @@ export const configManager = {
       const processedConfig = encryptionUtils.processObjectForStorage(config, sensitiveFields);
       
       // If user is logged in, save to Firestore
-      if (auth.currentUser) {
+      if (auth?.currentUser) {
         await userDashboardService.saveWidgetConfig(widgetId, processedConfig);
       } else {
         // Fallback to localStorage
@@ -64,7 +64,7 @@ export const configManager = {
       let config: Record<string, unknown> | null = null;
       
       // If user is logged in, try to get from Firestore
-      if (auth.currentUser) {
+      if (auth?.currentUser) {
         config = await userDashboardService.loadWidgetConfig(widgetId);
       }
       
@@ -98,7 +98,7 @@ export const configManager = {
       let configs: WidgetConfigStore = {};
       
       // If user is logged in, try to get from Firestore
-      if (auth.currentUser) {
+      if (auth?.currentUser) {
         const firestoreConfigs = await userDashboardService.loadAllWidgetConfigs();
         if (firestoreConfigs) {
           configs = firestoreConfigs;
@@ -153,7 +153,7 @@ export const configManager = {
   clearConfig: async (widgetId: string): Promise<void> => {
     try {
       // If user is logged in, delete from Firestore
-      if (auth.currentUser) {
+      if (auth?.currentUser) {
         await userDashboardService.deleteWidgetConfig(widgetId);
       }
       
@@ -175,7 +175,7 @@ export const configManager = {
       localStorage.removeItem('boxento-widget-configs');
       
       // If user is logged in, clear from Firestore
-      if (auth.currentUser) {
+      if (auth?.currentUser) {
         const configs = await userDashboardService.loadAllWidgetConfigs();
         if (configs) {
           for (const widgetId of Object.keys(configs)) {

@@ -279,7 +279,7 @@ export const getWidgetComponent = (type: string): React.ComponentType<WidgetProp
     case 'youtube':
       return YouTubeWidget;
     case 'rss':
-      return RSSWidget;
+      return RSSWidget as React.ComponentType<WidgetProps<Record<string, unknown>>>;
     case 'github-streak':
       return GitHubStreakWidget;
     case 'flight-tracker':

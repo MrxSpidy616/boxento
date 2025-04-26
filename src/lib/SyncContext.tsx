@@ -1,13 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, Component, ErrorInfo } from 'react';
-import { auth, db } from './firebase';
 import { onSnapshot, doc, collection } from 'firebase/firestore';
-import { User } from 'firebase/auth';
+import { ReactNode, createContext, useContext, useState, useEffect, Component, type ErrorInfo } from 'react';
+import { useAuth } from './useAuth';
+import { db } from './firebase';
+
+type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
 
 interface SyncContextProps {
   isSyncing: boolean;
   lastSyncTime: Date | null;
   syncError: string | null;
-  syncStatus: 'idle' | 'syncing' | 'error' | 'success';
+  syncStatus: SyncStatus;
 }
 
 const SyncContext = createContext<SyncContextProps>({
@@ -19,33 +21,34 @@ const SyncContext = createContext<SyncContextProps>({
 
 export const useSync = () => useContext(SyncContext);
 
-// Error boundary component to catch errors in SyncProvider
-class SyncErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+interface SyncErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
+class SyncErrorBoundary extends Component<{ children: ReactNode }, SyncErrorBoundaryState> {
+  state: SyncErrorBoundaryState = {
+    hasError: false,
+    error: null
+  };
+
+  static getDerivedStateFromError(error: Error): SyncErrorBoundaryState {
+    return {
+      hasError: true,
+      error
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('SyncProvider error:', error, errorInfo);
+    console.error('Sync error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
-      // Fallback UI when an error occurs
       return (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-          <h3 className="text-lg font-medium text-red-800">Sync Error</h3>
-          <p className="text-sm text-red-600 mt-1">
-            An error occurred while setting up synchronization. Your data will still be saved locally.
-          </p>
-          <p className="text-xs text-red-500 mt-2">
-            Error details: {this.state.error?.message || 'Unknown error'}
-          </p>
+        <div className="p-4 bg-red-100 text-red-900 rounded-lg">
+          <h3 className="font-semibold">Sync Error</h3>
+          <p>{this.state.error?.message}</p>
         </div>
       );
     }
@@ -55,24 +58,15 @@ class SyncErrorBoundary extends Component<{ children: ReactNode }, { hasError: b
 }
 
 export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const authContext = useAuth();
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'error' | 'success'>('idle');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
-  // Listen for auth state changes
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setCurrentUser(user);
-    });
-    
-    return () => unsubscribe();
-  }, []);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   
   // Set up listeners for Firestore data changes
   useEffect(() => {
-    if (!currentUser) return;
+    if (!authContext?.currentUser || !db) return;
     
     setSyncStatus('syncing');
     setIsSyncing(true);
@@ -84,7 +78,7 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Listen for layouts changes
       layoutsUnsubscribe = onSnapshot(
-        doc(db, 'users', currentUser.uid, 'dashboard', 'layouts'),
+        doc(db, 'users', authContext.currentUser.uid, 'dashboard', 'layouts'),
         (doc) => {
           if (doc.exists()) {
             // Update localStorage as a fallback - store direct data, not wrapped in 'layouts'
@@ -106,7 +100,7 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Listen for widgets collection changes
       widgetsUnsubscribe = onSnapshot(
-        doc(db, 'users', currentUser.uid, 'dashboard', 'widget-list'),
+        doc(db, 'users', authContext.currentUser.uid, 'dashboard', 'widget-list'),
         (doc) => {
           if (doc.exists()) {
             // Update localStorage as a fallback
@@ -129,7 +123,7 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         // Listen for widget configurations
         widgetConfigsUnsubscribe = onSnapshot(
-          collection(db, 'users', currentUser.uid, 'dashboard', 'widget-configs', 'configs'),
+          collection(db, 'users', authContext.currentUser.uid, 'dashboard', 'widget-configs', 'configs'),
           (snapshot) => {
             // Convert the collection to an object
             const configs: Record<string, unknown> = {};
@@ -177,7 +171,7 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Error cleaning up Firestore listeners:', error);
       }
     };
-  }, [currentUser]);
+  }, [authContext]);
   
   return (
     <SyncContext.Provider value={{ isSyncing, lastSyncTime, syncError, syncStatus }}>

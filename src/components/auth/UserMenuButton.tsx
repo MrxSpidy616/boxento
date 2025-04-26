@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useAuth, AuthContextType } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
+import type { AuthContextType } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { User, LogOut, Mail } from 'lucide-react';
@@ -74,7 +75,8 @@ export function UserMenuButton({ className }: UserMenuButtonProps) {
                   {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
-              <span>My Profile</span>
+              {/* Hide text on xs screens, show on sm and larger */}
+              <span className="hidden sm:inline">My Profile</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
@@ -103,7 +105,8 @@ export function UserMenuButton({ className }: UserMenuButtonProps) {
           className={`rounded-full transition-colors ${className} flex items-center gap-2`}
         >
           <User className="h-4 w-4" />
-          <span>Login</span>
+          {/* Hide text on xs screens, show on sm and larger */}
+          <span className="hidden sm:inline">Login</span>
         </Button>
       )}
 

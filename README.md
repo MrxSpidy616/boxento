@@ -12,12 +12,15 @@
 - **Hobby coders** can modify existing widgets to suit their needs
 - **Complete beginners** can use LLMs like ChatGPT, Claude, or LLM based code editors like Cursor or Windsurf to help generate widget code
 
-There are no gatekeepers here - just bring your imagination, and we'll help you make it real. Check out our [Widget Development Guide](/docs/WIDGET_DEVELOPMENT.md) and [Template Widget](/src/components/widgets/TemplateWidget) to get started. Simply load these files into your favorite AI coding assistant and describe what you want to create!
+There are no gatekeepers here - just bring your imagination, and we'll help you make it real. Check out our [Widget Development Guide](/docs/WIDGET_DEVELOPMENT.md) and [Template Widget](/src/components/widgets/TemplateWidget) to get started.
 
 ## 📋 Table of Contents
 - [Why Boxento?](#-why-boxento)
 - [What is Boxento?](#-what-is-boxento)
-- [Get Your Own Boxento](#-get-your-own-boxento)
+- [Installation](#-installation)
+  - [Quick Start](#quick-start)
+  - [Docker Installation](#docker-installation)
+  - [Development Setup](#development-setup)
 - [Making Boxento Your Own](#-making-boxento-your-own)
 - [Progressive Web App Support](#-progressive-web-app-support)
 - [For Developers and Tinkerers](#-for-developers-and-tinkerers)
@@ -46,21 +49,18 @@ Boxento transforms your new tab or home page into a personalized command center 
 
 All in a modern interface that gives you that warm, familiar feeling of the web's golden era.
 
-## 🚀 Get Your Own Boxento
+## 🚀 Installation
 
-### Option 1: Use the Online Demo
+### Quick Start
 
+#### Option 1: Use the Online Demo
 Visit our [live demo](https://boxento.app) to try Boxento instantly.
 
-### Option 2: Install Boxento
-
-For the full experience, host your own Boxento:
-
+#### Option 2: Local Installation
 **Prerequisites:**
 - Bun (v1.0+)
 - Git
 
-**Installation:**
 ```bash
 git clone https://github.com/sushaantu/boxento.git
 cd boxento
@@ -70,153 +70,171 @@ bun run dev
 
 Visit [http://localhost:5173](http://localhost:5173) to see your personal dashboard.
 
-### Option 3: Docker Installation
+### Docker Installation
 
-For those who prefer using Docker, we provide Docker support out of the box:
+We provide multiple ways to run Boxento using Docker, suitable for both development and production environments.
 
-**Prerequisites:**
+#### Prerequisites
 - Docker
-- Docker Compose (optional, but recommended)
+- Docker Compose (optional)
 
-**Installation with Docker Compose (recommended):**
+#### Quick Start with Pre-built Image
 ```bash
-# Clone the repository
+# Pull and run
+docker run -d -p 5173:5173 --name boxento ghcr.io/sushaantu/boxento:1.0.1
+```
+
+Need to use a custom domain? Add the VITE_ALLOWED_HOSTS environment variable:
+```bash
+docker run -d -p 5173:5173 -e VITE_ALLOWED_HOSTS=your-domain.com --name boxento ghcr.io/sushaantu/boxento:1.0.1
+```
+
+#### Using Docker Compose
+```yaml
+# docker-compose.yml
+services:
+  boxento:
+    image: ghcr.io/sushaantu/boxento:1.0.1
+    container_name: boxento
+    restart: unless-stopped
+    ports:
+      - "XXXX:XXXX"
+    environment:
+      - NODE_ENV=production
+      - VITE_ALLOWED_HOSTS=XXXXXX
+```
+
+```bash
+docker compose up -d
+```
+
+### Development Setup
+
+#### Local Development with Docker
+```bash
+# Clone and setup
 git clone https://github.com/sushaantu/boxento.git
 cd boxento
 
-# Start the application
+# Start development container
 docker compose up -d
 
-# To stop the application
+# Stop when done
 docker compose down
 ```
 
-**Installation with Docker:**
+#### Production Deployment
 ```bash
-# Clone the repository
-git clone https://github.com/sushaantu/boxento.git
-cd boxento
+# Setup environment
+cp .env.example .env
+# Edit .env with your configuration
 
-# Build the Docker image
-docker build -t boxento .
-
-# Run the container
-docker run -d -p 5173:5173 --name boxento boxento
+# Build and start production
+docker compose -f docker-compose.prod.yml up -d
 ```
 
-Visit [http://localhost:5173](http://localhost:5173) to see your personal dashboard.
+#### Domain Configuration
+The application automatically allows:
+- localhost and 127.0.0.1
+- *.docker.internal (Docker Desktop)
+- *.orb.local (OrbStack)
+- Custom domains via VITE_ALLOWED_HOSTS
 
-**Note:** The Docker setup includes:
-- Automatic container restart on failure
-- Health checks to ensure the application is running
-- Volume mounts for persistent data
-- Production-ready configuration
+To add custom domains:
+```bash
+VITE_ALLOWED_HOSTS=your-domain.com,another-domain.com docker compose up -d
+```
 
 ## 📖 Making Boxento Your Own
 
-### Getting Started
-
-1. **Add Widgets**: Click the "+" button to add widgets to your dashboard
-2. **Arrange Everything**: Drag and drop widgets anywhere you like
-3. **Resize as Needed**: Grab any widget corner to resize it
-4. **Make It Yours**: Customize each widget through its settings
-
-### Current Widget Collection
+### Widget Gallery
 
 Boxento comes with a diverse collection of widgets organized by category:
 
 #### Productivity
-- **Todo Widget**: Track tasks and stay organized with customizable todo lists
-- **Calendar Widget**: Display upcoming events and appointments at a glance
-- **Notes Widget**: Capture thoughts and ideas instantly with a simple notepad
-- **Pomodoro Timer**: Boost productivity with time management using the Pomodoro Technique
-- **GitHub Streak Tracker**: Monitor your GitHub contribution streak and coding activity
+- **Todo Widget**: Track tasks and stay organized
+- **Calendar Widget**: Display upcoming events
+- **Notes Widget**: Capture thoughts and ideas
+- **Pomodoro Timer**: Boost productivity with time management
+- **GitHub Streak Tracker**: Monitor your GitHub activity
 
 #### Information
-- **Weather Widget**: Check current conditions and forecasts without leaving your dashboard
+- **Weather Widget**: Check current conditions and forecasts
 - **World Clocks Widget**: Display time across different time zones
-- **RSS Feed Widget**: Stay updated with news and content from your favorite websites
-- **Readwise Widget**: Access your Readwise reading highlights directly on your dashboard
+- **RSS Feed Widget**: Stay updated with favorite content
+- **Readwise Widget**: Access your reading highlights
 
-#### Finance
-- **Currency Converter Widget**: Convert between currencies using live exchange rates
-- **UF (Chile) Widget**: Display the value of UF in Chilean Pesos
+#### Finance & Travel
+- **Currency Converter**: Live exchange rates
+- **UF (Chile) Widget**: Display UF value in CLP
+- **Flight Tracker**: Monitor real-time flight status
 
-#### Entertainment
-- **YouTube Widget**: Watch videos directly on your dashboard
-- **Geography Quiz Widget**: Test your knowledge of world geography
+#### Entertainment & Utilities
+- **YouTube Widget**: Watch videos directly
+- **Geography Quiz**: Test your knowledge
+- **Quick Links**: Organize favorite websites
 
-#### Travel
-- **Flight Tracker Widget**: Monitor real-time flight status using the Amadeus API
+### Customization
 
-#### Utilities
-- **Quick Links Widget**: Organize and quickly access your favorite websites in one place
-
-Each widget can be customized through its settings panel to match your preferences and needs.
+1. **Add Widgets**: Click "+" to add widgets
+2. **Arrange**: Drag and drop anywhere
+3. **Resize**: Grab corners to resize
+4. **Configure**: Customize through settings
 
 ### Create Your Own Widgets
 
-The true power of Boxento is its extensibility. Anyone can create widgets - no matter your experience level.
+Anyone can create widgets - no matter your experience level:
 
-Check out our resources:
-- [Widget Development Guide](/docs/widget-development.md) - Step-by-step instructions
-- [Template Widget](/src/components/widgets/TemplateWidget) - Ready-to-use starting point
-
-Follow these steps:
-1. Fork the repo
-2. Use our guides with your favorite coding tools (including AI assistants)
-3. Describe what you want to build - if you can imagine it in TypeScript, you can create it!
+1. Check our resources:
+   - [Widget Development Guide](/docs/widget-development.md)
+   - [Template Widget](/src/components/widgets/TemplateWidget)
+2. Fork the repo
+3. Use our guides with your favorite tools
 4. Share with the community or keep for personal use
-
-Don't be afraid to experiment.
 
 ## 💻 For Developers and Tinkerers
 
-### Tech Foundation
-Built with React, Vite, Tailwind CSS, and shadcn/ui - modern tools that make customization easy.
+### Tech Stack
+- React
+- Vite
+- Tailwind CSS
+- shadcn/ui
 
 ### Contributing
-We welcome contributions of all kinds! Here's how to get started:
-
 1. Fork and clone the repo
-2. Create or update widgets in `/src/components/widgets/`
+2. Create/update widgets in `/src/components/widgets/`
 3. Test locally with `bun run dev`
-4. Submit a PR to share with others
+4. Submit a PR
 
 ### Reporting Issues
-Found a bug or have a feature request? Please open an issue on our [GitHub repository](https://github.com/sushaantu/boxento/issues).
+Found a bug or have a feature request? Open an issue on our [GitHub repository](https://github.com/sushaantu/boxento/issues).
+
+## 📱 Progressive Web App Support
+
+Boxento includes PWA support for:
+- **Install on device**: Add to home screen
+- **Offline access**: Use without internet
+- **Fast loading**: Enhanced performance
+
+See our [PWA Support Guide](/docs/PWA_SUPPORT.md) for details.
 
 ## 📚 Community & Support
 
-Join us in reviving the golden era of start pages, but with modern tech and complete freedom.
-
+Join our community:
 - [Discord Community](https://discord.gg/4NXFScs5rv)
 - [GitHub Discussions](https://github.com/sushaantu/boxento/discussions)
 
 ## 🗺️ Roadmap
 
-Here's what we're working on to make Boxento even better:
-
 ### Coming Soon (Q2 2025)
-- 🔒 **End-to-End Encryption**: Keeping your dashboard data completely private
-- 🌐 **Widget Marketplace**: Discover and install community-created widgets
-- 📱 **Mobile Responsive Design**: Perfect dashboard experience on any device
+- 🔒 **End-to-End Encryption**: Complete data privacy
+- 🌐 **Widget Marketplace**: Community-created widgets
+- 📱 **Mobile Responsive Design**: Perfect on any device
 
-
-Want to influence what we build next? Join our [Discord Community](https://discord.gg/4NXFScs5rv) or open a feature request on [GitHub](https://github.com/sushaantu/boxento/issues).
+Want to influence what we build next? Join our [Discord](https://discord.gg/4NXFScs5rv) or open a [feature request](https://github.com/sushaantu/boxento/issues).
 
 ## 📄 License
 
 Boxento is open source under the MIT License - free to use, modify, and share.
 
 ![Boxento Banner](./public/screenshot-darkmode.png)
-
-## 📱 Progressive Web App Support
-
-Boxento now includes Progressive Web App (PWA) support, allowing you to:
-
-- **Install on your device**: Add Boxento to your home screen on mobile or desktop
-- **Work offline**: Access your dashboard even without an internet connection
-- **Quick loading**: Faster startup times thanks to caching
-
-For detailed information about PWA features and how to optimize your experience, see our [PWA Support Guide](/docs/PWA_SUPPORT.md).

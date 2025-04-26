@@ -10,6 +10,10 @@ import {
 import WidgetHeader from '../common/WidgetHeader';
 import { UFWidgetProps, UFWidgetConfig, UFData } from './types';
 import { Button } from '../../ui/button';
+// Add imports for Input, Label, Checkbox
+import { Input } from '../../ui/input';
+import { Label } from '../../ui/label';
+import { Checkbox } from '../../ui/checkbox';
 
 /**
  * Size categories for widget content rendering
@@ -824,45 +828,50 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
             <DialogTitle>UF Widget Settings</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          {/* Change py-2 to py-4 */}
+          <div className="space-y-4 py-4">
             {/* Title setting */}
-            <div>
-              <label htmlFor="title-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <div className="space-y-1.5">
+              {/* Replace native label with shadcn/ui Label */}
+              <Label htmlFor="title-input" className="text-sm font-medium">
                 Widget Title
-              </label>
-              <input
+              </Label>
+              {/* Replace native input with shadcn/ui Input */}
+              <Input
                 id="title-input"
                 type="text"
                 value={localConfig.title || ''}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
                   setLocalConfig({...localConfig, title: e.target.value})
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full" // Use shadcn/ui Input styling
               />
             </div>
-            
+
             {/* Show history toggle */}
-            <div className="flex items-center">
-              <input
+            <div className="flex items-center space-x-2">
+              {/* Replace native checkbox with shadcn/ui Checkbox */}
+              <Checkbox
                 id="history-toggle"
-                type="checkbox"
                 checked={localConfig.showHistory || false}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                  setLocalConfig({...localConfig, showHistory: e.target.checked})
+                onCheckedChange={(checked: boolean | 'indeterminate') => // Updated type for onCheckedChange
+                  setLocalConfig({...localConfig, showHistory: !!checked}) // Ensure boolean value
                 }
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label htmlFor="history-toggle" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+              {/* Replace native label with shadcn/ui Label */}
+              <Label htmlFor="history-toggle" className="text-sm font-medium">
                 Show Historical Data
-              </label>
+              </Label>
             </div>
-            
+
             {/* Refresh interval setting */}
-            <div>
-              <label htmlFor="refresh-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <div className="space-y-1.5">
+              {/* Replace native label with shadcn/ui Label */}
+              <Label htmlFor="refresh-input" className="text-sm font-medium">
                 Refresh Interval (minutes)
-              </label>
-              <input
+              </Label>
+              {/* Replace native input with shadcn/ui Input */}
+              <Input
                 id="refresh-input"
                 type="number"
                 min="1"
@@ -871,7 +880,7 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
                   setLocalConfig({...localConfig, refreshInterval: parseInt(e.target.value) || defaultConfig.refreshInterval})
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full" // Use shadcn/ui Input styling
               />
             </div>
           </div>
@@ -888,7 +897,7 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
                   }}
                   aria-label="Delete this widget"
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               <Button

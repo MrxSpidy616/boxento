@@ -551,12 +551,12 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
         >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Widget Settings</DialogTitle>
+              <DialogTitle>Quick Links Settings</DialogTitle>
             </DialogHeader>
             
             <div className="space-y-2 mt-2">
               <div className="space-y-2">
-                <Label htmlFor="widget-title">Widget Title</Label>
+                <Label htmlFor="widget-title">Title</Label>
                 <Input 
                   id="widget-title"
                   value={customTitle} 
@@ -597,7 +597,8 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
             </div>
             
             <DialogFooter>
-              <div className="flex justify-between w-full pt-6 border-t border-gray-100 dark:border-gray-800">
+              {/* Remove pt-6 border-t border-gray-100 dark:border-gray-800 classes */}
+              <div className="flex justify-between w-full">
                 <div>
                   {config?.onDelete && (
                     <Button
@@ -608,7 +609,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
                         }
                       }}
                     >
-                      Delete Widget
+                      Delete
                     </Button>
                   )}
                 </div>
@@ -616,7 +617,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
                   variant="default"
                   onClick={saveSettings}
                 >
-                  Save Changes
+                  Save
                 </Button>
               </div>
             </DialogFooter>

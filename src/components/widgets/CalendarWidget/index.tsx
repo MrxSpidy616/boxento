@@ -18,6 +18,8 @@ import WidgetHeader from '../../widgets/common/WidgetHeader'
 import { CalendarWidgetProps, CalendarWidgetConfig, CalendarEvent, CalendarSource } from './types'
 import { Button } from '../../ui/button'
 import { Label } from '../../ui/label'
+// Add import for Checkbox
+import { Checkbox } from '../../ui/checkbox';
 
 // Add these interfaces at the top with other types
 interface GoogleCalendarEvent {
@@ -1388,7 +1390,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
           </Select>
         </div>
         
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+        <div className="pt-4">
           <h3 className="text-sm font-medium mb-3">Google Calendar</h3>
           
           {isGoogleConnected ? (
@@ -1418,17 +1420,18 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
                   <Label className="text-xs text-gray-500 dark:text-gray-400">
                     Your Calendars
                   </Label>
-                  <div className="space-y-2 mt-2">
+                  {/* Change space-y-2 to space-y-4 for consistency */}
+                  <div className="space-y-4 mt-2">
                     {localConfig.calendars.map((calendar: CalendarSource, index: number) => (
                       <div key={index} className="flex items-center">
-                        <input
-                          type="checkbox"
+                        {/* Replace native checkbox with shadcn/ui Checkbox */}
+                        <Checkbox
                           id={`calendar-${index}`}
                           checked={calendar.selected}
-                          onChange={() => toggleCalendar(index)}
-                          className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 dark:focus:ring-blue-600"
+                          onCheckedChange={() => toggleCalendar(index)}
+                          className="rounded" // Apply shadcn styling
                         />
-                        <Label htmlFor={`calendar-${index}`} className="ml-2 text-sm flex items-center">
+                        <Label htmlFor={`calendar-${index}`} className="ml-2 text-sm flex items-center cursor-pointer">
                           <span 
                             className="w-3 h-3 rounded-full mr-2" 
                             style={{ backgroundColor: calendar.color }}
@@ -1488,7 +1491,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
             }}
             aria-label="Delete this widget"
           >
-            Delete Widget
+            Delete
           </Button>
         )}
         
@@ -1520,6 +1523,28 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
    * @returns The appropriate view for the current dimensions
    */
   const renderContent = () => {
+    // Add check for Google Calendar connection
+    if (!isGoogleConnected) {
+      return (
+        <div className="h-full flex flex-col items-center justify-center text-center">
+          {/* Use CalendarIcon from Lucide with consistent styling */}
+          <CalendarIcon size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+          {/* Consistent text styling */}
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            Connect Google Calendar to see events.
+          </p>
+          {/* Consistent button styling */}
+          <Button
+            size="sm"
+            onClick={() => setIsSettingsOpen(true)}
+            variant="outline"
+          >
+            Configure Calendar
+          </Button>
+        </div>
+      );
+    }
+
     // Choose the appropriate view based on widget dimensions
     if ((width >= 4 && height >= 3) || (width >= 3 && height >= 4)) {
       return renderExpandedCalendar()

@@ -18,6 +18,8 @@ import {
   CardTitle,
 } from '../../ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../ui/tabs';
+// Add imports for Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 // Adjust paths for UI components based on the project structure
 import WidgetHeader from '../common/WidgetHeader';
 import { 
@@ -503,59 +505,52 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
   };
 
   // Render initial setup view
-  const renderSetupView = () => {
-    return (
-      <div className="h-full flex flex-col items-center justify-center p-4 space-y-4 text-center">
-        <div className="p-3 rounded-full bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900 dark:from-opacity-30 dark:to-indigo-900 dark:to-opacity-30">
-          <Plane className="h-8 w-8 text-blue-500" />
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-1">Track Your Flight</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-            Enter your flight details to get real-time updates and information
-          </p>
-          <Button 
-            onClick={() => setShowSettings(true)}
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium"
-          >
-            Configure Flight Tracker
-          </Button>
-        </div>
-      </div>
-    );
-  };
+const renderSetupView = () => {
+  return (
+    <div className="h-full flex flex-col items-center justify-center text-center">
+      {/* Use Plane icon from Lucide with consistent styling */}
+      <Plane size={24} className="text-gray-400 mb-3" strokeWidth={1.5}/>
+      {/* Consistent text styling */}
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+        Enter flight details to start tracking.
+      </p>
+      {/* Consistent button styling */}
+      <Button
+        size="sm"
+        onClick={() => setShowSettings(true)}
+        variant="outline"
+      >
+        Configure Widget
+      </Button>
+    </div>
+  );
+};
 
-  // Render error state
+// Render error state
   const renderErrorState = () => {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-4 space-y-4 text-center">
-        <div className="p-3 rounded-full bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900 dark:from-opacity-30 dark:to-red-900 dark:to-opacity-20">
-          <AlertCircle className="h-8 w-8 text-red-500" />
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-1">Unable to Track Flight</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
-            {error || "There was an error retrieving flight information"}
-          </p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-            Please check your flight number and API key
-          </p>
-          <div className="flex space-x-3 justify-center">
-            <Button 
-              onClick={() => setShowSettings(true)}
-              variant="outline"
-              className="border-gray-300 text-gray-700 dark:border-gray-600 dark:text-gray-300"
-            >
-              Settings
-            </Button>
-            <Button 
-              onClick={handleManualRefresh}
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
-            >
-              Retry
-            </Button>
-          </div>
-        </div>
+      <div className="h-full flex flex-col items-center justify-center text-center p-4">
+        {/* Use AlertCircle icon for errors */}
+        <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
+        {/* Consistent error text styling */}
+        <p className="text-sm text-red-500 dark:text-red-400 mb-3">
+          {error || "There was an error retrieving flight information"}
+        </p>
+        {/* Consistent button styling */}
+        <Button
+          size="sm"
+          onClick={handleManualRefresh}
+          className="mr-2" // Add margin if needed
+        >
+          Retry
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowSettings(true)}
+        >
+          Settings
+        </Button>
       </div>
     );
   };
@@ -1013,7 +1008,7 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="flight" className="space-y-4 py-2">
+            <TabsContent value="flight" className="space-y-4 py-4">
               {/* Demo Flights - Making this more prominent with Flighty-inspired design */}
               <Card className="border border-gray-200 dark:border-gray-800 overflow-hidden">
                 <CardHeader className="pb-2 bg-gray-50 dark:bg-gray-800 dark:bg-opacity-40 border-b border-gray-200 dark:border-gray-800">
@@ -1154,7 +1149,7 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
               </div>
             </TabsContent>
             
-            <TabsContent value="widget" className="space-y-4 py-2">
+            <TabsContent value="widget" className="space-y-4 py-4">
               {/* Widget Title */}
               <div className="space-y-2">
                 <Label htmlFor="widgetTitle" className="flex items-center text-sm font-medium">
@@ -1179,21 +1174,25 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
                   <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
                   Auto-Refresh Interval
                 </Label>
-                <select
-                  id="refreshRate"
+                {/* Replace native select with shadcn/ui Select */}
+                <Select
                   value={localConfig.refreshInterval?.toString() || '0'}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => 
-                    setLocalConfig({...localConfig, refreshInterval: parseInt(e.target.value)})
+                  onValueChange={(value) =>
+                    setLocalConfig({...localConfig, refreshInterval: parseInt(value)})
                   }
-                  className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
                 >
-                  <option value="0">Manual refresh only</option>
-                  <option value="60000">Every minute</option>
-                  <option value="300000">Every 5 minutes</option>
-                  <option value="600000">Every 10 minutes</option>
-                  <option value="1800000">Every 30 minutes</option>
-                  <option value="3600000">Every hour</option>
-                </select>
+                  <SelectTrigger id="refreshRate" className="w-full">
+                    <SelectValue placeholder="Select refresh interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Manual refresh only</SelectItem>
+                    <SelectItem value="60000">Every minute</SelectItem>
+                    <SelectItem value="300000">Every 5 minutes</SelectItem>
+                    <SelectItem value="600000">Every 10 minutes</SelectItem>
+                    <SelectItem value="1800000">Every 30 minutes</SelectItem>
+                    <SelectItem value="3600000">Every hour</SelectItem>
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-gray-500">
                   How often to automatically refresh flight data
                 </p>
@@ -1216,7 +1215,7 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
                   }}
                   aria-label="Delete this widget"
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               

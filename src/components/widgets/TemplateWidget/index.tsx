@@ -468,7 +468,8 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
             <DialogTitle>Template Widget Settings</DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 py-2">
+          {/* Change py-2 to py-4 */}
+          <div className="space-y-4 py-4">
             {/* Title setting */}
             <div className="space-y-2">
               <Label htmlFor="title-input">Widget Title</Label>
@@ -481,10 +482,11 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
                 }
               />
             </div>
-            
+
             {/* Debug mode toggle */}
-            <div className="flex items-center justify-between">
-              <Label htmlFor="debug-toggle">Show Debug Info (Size)</Label>
+            {/* Change layout from justify-between to flex items-center space-x-2 */}
+            {/* Place Switch before Label */}
+            <div className="flex items-center space-x-2">
               <Switch
                 id="debug-toggle"
                 checked={Boolean(localConfig.showDebug)}
@@ -492,8 +494,9 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
                   setLocalConfig({...localConfig, showDebug: checked})
                 }
               />
+              <Label htmlFor="debug-toggle">Show Debug Info (Size)</Label>
             </div>
-            
+
             {/* Add more settings fields here */}
           </div>
           
@@ -509,7 +512,7 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
                   }}
                   aria-label="Delete this widget"
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               <Button

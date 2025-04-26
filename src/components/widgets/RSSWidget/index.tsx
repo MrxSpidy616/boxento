@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,13 +7,17 @@ import {
   DialogFooter
 } from '../../ui/dialog';
 import WidgetHeader from '../common/WidgetHeader';
-import { RSSWidgetProps, RSSWidgetConfig, RSSFeedItem, RSSDisplayMode } from './types';
+import { RSSWidgetConfig, RSSFeedItem, RSSDisplayMode, RSSFeed } from './types';
+import type { RSSWidgetProps } from './types';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { Button } from '../../ui/button';
 import { Switch } from '../../ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../ui/tabs';
 import sanitizeHtml from 'sanitize-html';
+// Add Rss icon import
+// Add AlertCircle import
+import { Rss, AlertCircle, Upload } from 'lucide-react';
 
 /**
  * Size categories for widget content rendering
@@ -34,13 +38,13 @@ enum WidgetSizeCategory {
  * This widget allows users to view RSS feeds directly on their dashboard.
  * 
  * @param {RSSWidgetProps} props - Component props
- * @returns {JSX.Element} Widget component
+ * @returns {React.ReactElement} Widget component
  */
-const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
+export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height, onConfigChange }) => {
   // Default configuration
-  const defaultConfig: RSSWidgetConfig = {
+  const defaultConfig = useMemo<RSSWidgetConfig>(() => ({
     title: 'RSS Feed',
-    feedUrl: '',
+    feeds: [],
     maxItems: 5,
     showImages: true,
     showDate: true,
@@ -48,7 +52,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
     showDescription: true,
     displayMode: RSSDisplayMode.LIST,
     openInNewTab: true
-  };
+  }), []); // Empty dependency array since these values never change
 
   // Component state
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -59,127 +63,123 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
   const [feedItems, setFeedItems] = useState<RSSFeedItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [feedTitle, setFeedTitle] = useState<string>('');
-  
-  // Refs for the widget container
-  const widgetRef = useRef<HTMLDivElement | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  
   const [isValidUrl, setIsValidUrl] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<string>('content');
+
+  // Refs for the widget container
+  const widgetRef = useRef<HTMLDivElement | null>(null);
   
-  /**
-   * Fetch and parse RSS feed
-   */
-  const fetchRSSFeed = React.useCallback(async () => {
-    const { feedUrl, maxItems } = localConfig;
+  // Debug logging
+  useEffect(() => {
+    console.log('Config updated:', config);
+    console.log('Local config:', localConfig);
+  }, [config, localConfig]);
+
+  // Move fetchSingleFeed before fetchAllFeeds
+  const fetchSingleFeed = React.useCallback(async (feed: RSSFeed): Promise<RSSFeedItem[]> => {
+    const corsProxy = 'https://api.allorigins.win/raw?url=';
+    const response = await fetch(`${corsProxy}${encodeURIComponent(feed.url)}`);
     
-    if (!feedUrl) return;
-    
-    // Create abort controller for fetch
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    if (!response.ok) {
+      throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
     }
-    abortControllerRef.current = new AbortController();
+    
+    const data = await response.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(data, 'text/xml');
+    
+    return Array.from(xmlDoc.querySelectorAll('item')).map(item => ({
+      title: item.querySelector('title')?.textContent || 'No Title',
+      link: item.querySelector('link')?.textContent || '#',
+      description: item.querySelector('description')?.textContent || '',
+      content: item.querySelector('content\\:encoded, encoded')?.textContent || '',
+      pubDate: item.querySelector('pubDate')?.textContent || '',
+      author: item.querySelector('author, dc\\:creator')?.textContent || '',
+      image: extractImageFromItem(item)
+    }));
+  }, []);
+
+  /**
+   * Fetch all enabled feeds
+   */
+  const fetchAllFeeds = React.useCallback(async (configToUse?: RSSWidgetConfig) => {
+    const currentConfig = configToUse || localConfig;
+    const enabledFeeds = (currentConfig.feeds || []).filter(feed => feed.enabled);
+    
+    if (!enabledFeeds || enabledFeeds.length === 0) {
+      setFeedItems([]);
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
     
     try {
-      // We need to use a CORS proxy for most RSS feeds
-      const corsProxy = 'https://api.allorigins.win/raw?url=';
-      const response = await fetch(`${corsProxy}${encodeURIComponent(feedUrl)}`, {
-        signal: abortControllerRef.current.signal
-      });
+      const allItems: RSSFeedItem[] = [];
       
-      if (!response.ok) {
-        throw new Error(`Failed to fetch RSS feed: ${response.statusText}`);
-      }
-      
-      const data = await response.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data, 'text/xml');
-      
-      // Extract feed title
-      const channelTitle = xmlDoc.querySelector('channel > title')?.textContent || '';
-      setFeedTitle(channelTitle);
-      
-      // Parse items
-      const items = Array.from(xmlDoc.querySelectorAll('item')).map(item => {
-        // Extract image from media:content, enclosure, or content tags
-        let imageUrl = '';
-        const mediaContent = item.querySelector('media\\:content, content');
-        const enclosure = item.querySelector('enclosure[type^="image"]');
-        const content = item.querySelector('content\\:encoded, encoded')?.textContent || '';
-        
-        if (mediaContent && mediaContent.getAttribute('url')) {
-          imageUrl = mediaContent.getAttribute('url') || '';
-        } else if (enclosure && enclosure.getAttribute('url')) {
-          imageUrl = enclosure.getAttribute('url') || '';
-        } else {
-          // Try to extract first image from content
-          const imgMatch = content.match(/<img[^>]+src="([^">]+)"/i);
-          if (imgMatch && imgMatch[1]) {
-            imageUrl = imgMatch[1];
-          }
+      // Fetch all feeds in parallel
+      await Promise.all(enabledFeeds.map(async feed => {
+        try {
+          const items = await fetchSingleFeed(feed);
+          allItems.push(...items.map(item => ({
+            ...item,
+            feedTitle: feed.title // Add feed title to each item
+          })));
+        } catch (error) {
+          console.error(`Error fetching feed ${feed.url}:`, error);
         }
-        
-        return {
-          title: item.querySelector('title')?.textContent || 'No Title',
-          link: item.querySelector('link')?.textContent || '#',
-          description: item.querySelector('description')?.textContent || '',
-          content: content,
-          pubDate: item.querySelector('pubDate')?.textContent || '',
-          author: item.querySelector('author, dc\\:creator')?.textContent || '',
-          image: imageUrl
-        };
+      }));
+      
+      // Sort all items by date
+      const sortedItems = allItems.sort((a, b) => {
+        const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+        const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+        return dateB - dateA;
       });
       
-      setFeedItems(items.slice(0, maxItems || 5));
+      setFeedItems(sortedItems);
       setIsLoading(false);
-    } catch (error: unknown) {
-      // Type guard to check if error is an Error object or AbortError
-      if (error instanceof Error) {
-        if (error.name !== 'AbortError') {
-          console.error('Error fetching RSS feed:', error);
-          setError(`Failed to fetch RSS feed: ${error.message}`);
-          setIsLoading(false);
-        }
-      } else {
-        // If it's not an Error object, fallback to a generic message
-        console.error('Unknown error fetching RSS feed');
-        setError('Failed to fetch RSS feed: Unknown error');
-        setIsLoading(false);
-      }
+    } catch (error) {
+      console.error('Error fetching feeds:', error);
+      setError('Failed to fetch RSS feeds');
+      setIsLoading(false);
     }
-  }, [localConfig]);
-  
-  // Update local config when props config changes
-  useEffect(() => {
-    setLocalConfig((prevConfig: RSSWidgetConfig) => ({
-      ...prevConfig,
-      ...config
-    }));
-  }, [config]);
-  
-  // Fetch RSS feed when feedUrl changes
-  useEffect(() => {
-    if (!localConfig.feedUrl) {
-      setFeedItems([]);
-      setFeedTitle('');
-      return;
+  }, [localConfig, fetchSingleFeed]);
+
+  /**
+   * Extract image from RSS item
+   */
+  const extractImageFromItem = (item: Element): string => {
+    const mediaContent = item.querySelector('media\\:content, content');
+    const enclosure = item.querySelector('enclosure[type^="image"]');
+    const content = item.querySelector('content\\:encoded, encoded')?.textContent || '';
+    
+    if (mediaContent && mediaContent.getAttribute('url')) {
+      return mediaContent.getAttribute('url') || '';
+    }
+    if (enclosure && enclosure.getAttribute('url')) {
+      return enclosure.getAttribute('url') || '';
     }
     
-    fetchRSSFeed();
-    
-    // Cleanup function to abort fetch if component unmounts
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+    const imgMatch = content.match(/<img[^>]+src="([^">]+)"/i);
+    return imgMatch ? imgMatch[1] : '';
+  };
+
+  // Update feeds when config changes
+  useEffect(() => {
+    const initialConfig = {
+      ...defaultConfig,
+      ...config,
+      feeds: config?.feeds || defaultConfig.feeds
     };
-  }, [localConfig.feedUrl, fetchRSSFeed]);
-  
+    setLocalConfig(initialConfig);
+  }, [config, defaultConfig]);
+
+  // Fetch feeds when enabled feeds change
+  useEffect(() => {
+    fetchAllFeeds();
+  }, [localConfig.feeds, fetchAllFeeds]);
+
   /**
    * Format publication date
    */
@@ -237,183 +237,155 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
   };
   
   /**
-   * Render feed item as a card
+   * Render feed item
    */
-  const renderCard = (item: RSSFeedItem, index: number) => {
+  const renderFeedItem = (item: RSSFeedItem, index: number, mode: RSSDisplayMode): React.ReactElement => {
     const { showImages, showDate, showAuthor, showDescription, openInNewTab } = localConfig;
     
-    return (
-      <div key={`${item.link}-${index}`} className="widget-container h-full flex flex-col">
-        {showImages && item.image && (
-          <div className="h-32 overflow-hidden">
-            <img 
-              src={item.image} 
-              alt={item.title} 
-              className="w-full h-full object-cover"
-              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+    const commonContent = (
+      <>
+        <a 
+          href={item.link} 
+          target={openInNewTab ? "_blank" : "_self"} 
+          rel="noopener noreferrer"
+          className="text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm"
+        >
+          {item.title}
+        </a>
+        
+        {item.feedTitle && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {item.feedTitle}
           </div>
         )}
-        <div className="p-4 flex-grow flex flex-col">
-          <a 
-            href={item.link} 
-            target={openInNewTab ? "_blank" : "_self"} 
-            rel="noopener noreferrer"
-            className="text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm"
-          >
-            {truncateText(item.title, 60)}
-          </a>
-          
-          {(showDate || showAuthor) && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {showDate && item.pubDate && <span>{formatDate(item.pubDate)}</span>}
-              {showDate && showAuthor && item.pubDate && item.author && <span> · </span>}
-              {showAuthor && item.author && <span>{item.author}</span>}
-            </div>
-          )}
-          
-          {showDescription && item.description && (
-            <p className="text-xs text-gray-700 dark:text-gray-300 mt-2 line-clamp-3">
-              {truncateText(item.description, 100)}
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  };
-  
-  /**
-   * Render feed item as a list item
-   */
-  const renderListItem = (item: RSSFeedItem, index: number) => {
-    const { showImages, showDate, showAuthor, showDescription, openInNewTab } = localConfig;
-    
-    return (
-      <div key={`${item.link}-${index}`} className="py-3 flex border-b border-gray-200 dark:border-gray-700 last:border-0">
-        {showImages && item.image && (
-          <div className="w-16 h-16 mr-3 flex-shrink-0 overflow-hidden rounded">
-            <img 
-              src={item.image} 
-              alt={item.title} 
-              className="w-full h-full object-cover"
-              onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                e.currentTarget.style.display = 'none';
-              }}
-            />
+        
+        {(showDate || showAuthor) && (
+          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {showDate && item.pubDate && <span>{formatDate(item.pubDate)}</span>}
+            {showDate && showAuthor && item.pubDate && item.author && <span> · </span>}
+            {showAuthor && item.author && <span>{item.author}</span>}
           </div>
         )}
-        <div className="flex-grow min-w-0">
-          <a 
-            href={item.link} 
-            target={openInNewTab ? "_blank" : "_self"} 
-            rel="noopener noreferrer"
-            className="text-blue-600 dark:text-blue-400 hover:underline font-medium text-sm"
-          >
-            {truncateText(item.title, 80)}
-          </a>
-          
-          {(showDate || showAuthor) && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {showDate && item.pubDate && <span>{formatDate(item.pubDate)}</span>}
-              {showDate && showAuthor && item.pubDate && item.author && <span> · </span>}
-              {showAuthor && item.author && <span>{item.author}</span>}
-            </div>
-          )}
-          
-          {showDescription && item.description && (
-            <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 line-clamp-2">
-              {truncateText(item.description, 120)}
-            </p>
-          )}
-        </div>
-      </div>
+        
+        {showDescription && item.description && (
+          <p className="text-xs text-gray-700 dark:text-gray-300 mt-2 line-clamp-3">
+            {truncateText(item.description, mode === RSSDisplayMode.COMPACT ? 100 : 200)}
+          </p>
+        )}
+      </>
     );
-  };
-  
-  /**
-   * Render feed item in compact mode
-   */
-  const renderCompactItem = (item: RSSFeedItem, index: number) => {
-    const { showDate, openInNewTab } = localConfig;
-    
-    return (
-      <div key={`${item.link}-${index}`} className="py-2 flex">
-        <div className="mr-2 text-gray-400 dark:text-gray-500">•</div>
-        <div className="flex-grow min-w-0">
-          <a 
-            href={item.link} 
-            target={openInNewTab ? "_blank" : "_self"} 
-            rel="noopener noreferrer"
-            className="text-blue-600 dark:text-blue-400 hover:underline text-xs font-medium truncate block"
-          >
-            {item.title}
-          </a>
-          {showDate && item.pubDate && (
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              {formatDate(item.pubDate)}
+
+    switch (mode) {
+      case RSSDisplayMode.CARDS:
+        return (
+          <div key={`${item.link}-${index}`} className="h-full flex flex-col">
+            {showImages && item.image && (
+              <div className="h-32 overflow-hidden">
+                <img 
+                  src={item.image} 
+                  alt={item.title} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <div className="p-4 flex-grow flex flex-col">
+              {commonContent}
             </div>
-          )}
-        </div>
-      </div>
-    );
+          </div>
+        );
+        
+      case RSSDisplayMode.COMPACT:
+        return (
+          <div key={`${item.link}-${index}`} className="py-2 flex">
+            <div className="mr-2 text-gray-400 dark:text-gray-500">•</div>
+            <div className="flex-grow min-w-0">
+              {commonContent}
+            </div>
+          </div>
+        );
+        
+      case RSSDisplayMode.LIST:
+      default:
+        return (
+          <div key={`${item.link}-${index}`} className="py-3 flex border-b border-gray-200 dark:border-gray-700 last:border-0">
+            {showImages && item.image && (
+              <div className="w-16 h-16 mr-3 flex-shrink-0 overflow-hidden rounded">
+                <img 
+                  src={item.image} 
+                  alt={item.title} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <div className="flex-grow min-w-0">
+              {commonContent}
+            </div>
+          </div>
+        );
+    }
   };
   
   /**
    * Render empty state when no feed URL is provided
    */
-  const renderEmptyState = () => {
+  const renderEmptyState = (): React.ReactElement => {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 mb-4">
-          <path d="M4 11a9 9 0 0 1 9 9"></path>
-          <path d="M4 4a16 16 0 0 1 16 16"></path>
-          <circle cx="5" cy="19" r="1"></circle>
-        </svg>
-        <h3 className="text-lg font-medium">No RSS Feed Configured</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Click the settings icon to add an RSS feed URL
+      <div className="h-full flex flex-col items-center justify-center text-center">
+        {/* Use Rss icon from Lucide with consistent styling */}
+        <Rss size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+        {/* Consistent text styling */}
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          No RSS feed configured.
         </p>
-        <button 
+        {/* Consistent button styling */}
+        <Button
+          size="sm"
           onClick={() => setShowSettings(true)} 
-          className="mt-4 px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          variant="outline"
         >
           Configure Widget
-        </button>
+        </Button>
       </div>
     );
   };
-  
+
+  /**
+   * Handle retry button click
+   */
+  const handleRetryClick = (): void => {
+    fetchAllFeeds();
+  };
+
   /**
    * Render error state
    */
-  const renderErrorState = () => {
+  const renderErrorState = (): React.ReactElement => {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-4">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 mb-4">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="12" y1="8" x2="12" y2="12"></line>
-          <line x1="12" y1="16" x2="12.01" y2="16"></line>
-        </svg>
-        <h3 className="text-lg font-medium">Error Loading Feed</h3>
-        <p className="text-sm text-red-500 dark:text-red-400 mt-1">
+        <AlertCircle size={24} className="text-red-500 mb-3" strokeWidth={1.5} />
+        <p className="text-sm text-red-500 dark:text-red-400 mb-3">
           {error}
         </p>
-        <div className="flex flex-col space-y-2 mt-4">
-          <button 
-            onClick={fetchRSSFeed} 
-            className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-          >
-            Try Again
-          </button>
-          <button 
-            onClick={() => setShowSettings(true)} 
-            className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            Change Feed URL
-          </button>
-        </div>
+        <Button
+          size="sm"
+          onClick={handleRetryClick}
+          className="mr-2"
+        >
+          Try Again
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowSettings(true)}
+        >
+          Settings
+        </Button>
       </div>
     );
   };
@@ -421,7 +393,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
   /**
    * Render loading state
    */
-  const renderLoadingState = () => {
+  const renderLoadingState = (): React.ReactElement => {
     return (
       <div className="h-full flex flex-col items-center justify-center text-center p-4">
         <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -446,7 +418,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
       return renderErrorState();
     }
     
-    if (!localConfig.feedUrl || feedItems.length === 0) {
+    if (!localConfig.feeds || !localConfig.feeds.length || feedItems.length === 0) {
       return renderEmptyState();
     }
     
@@ -465,7 +437,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
         return (
           <div className="h-full overflow-auto">
             <div className="grid grid-cols-1 gap-4 p-4">
-              {feedItems.map((item, index) => renderCard(item, index))}
+              {renderFeedItems(effectiveDisplayMode)}
             </div>
           </div>
         );
@@ -474,7 +446,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
         return (
           <div className="h-full overflow-auto">
             <div className="px-4 py-2">
-              {feedItems.map((item, index) => renderCompactItem(item, index))}
+              {renderFeedItems(effectiveDisplayMode)}
             </div>
           </div>
         );
@@ -484,7 +456,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
         return (
           <div className="h-full overflow-auto">
             <div className="px-4">
-              {feedItems.map((item, index) => renderListItem(item, index))}
+              {renderFeedItems(effectiveDisplayMode)}
             </div>
           </div>
         );
@@ -502,14 +474,19 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
    * Save settings
    */
   const saveSettings = () => {
-    if (config?.onUpdate) {
-      config.onUpdate(localConfig);
+    console.log('Saving settings with config:', localConfig);
+    
+    // Call onUpdate to persist changes
+    if (onConfigChange && typeof onConfigChange === 'function') {
+      onConfigChange(localConfig);
     }
+    
     setShowSettings(false);
     
     // If the feed URL changed, fetch the feed
-    if (localConfig.feedUrl !== config?.feedUrl) {
-      fetchRSSFeed();
+    if (localConfig.feeds.length > 0) {
+      console.log('Feed URL changed, fetching new feed');
+      fetchAllFeeds(localConfig);
     }
   };
   
@@ -526,7 +503,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
       return false;
     }
   };
-  
+
   /**
    * Settings dialog
    */
@@ -538,14 +515,14 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
             <DialogTitle>RSS Feed Settings</DialogTitle>
           </DialogHeader>
           
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="content">Content</TabsTrigger>
               <TabsTrigger value="display">Display</TabsTrigger>
               <TabsTrigger value="examples">Examples</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="content" className="space-y-4 py-2">
+            <TabsContent value="content" className="space-y-4 py-4">
               {/* Widget Title */}
               <div className="space-y-2">
                 <Label htmlFor="title-input">Widget Title</Label>
@@ -563,44 +540,124 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
               
               {/* Feed URL */}
               <div className="space-y-2">
-                <Label htmlFor="feed-url-input">RSS Feed URL</Label>
-                <Input
-                  id="feed-url-input"
-                  type="url"
-                  value={localConfig.feedUrl || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const url = e.target.value;
-                    setLocalConfig({...localConfig, feedUrl: url});
-                    setIsValidUrl(validateFeedUrl(url));
-                  }}
-                  className={!isValidUrl ? 'border-red-500' : ''}
-                  placeholder="https://example.com/rss"
-                />
+                <Label>RSS Feeds</Label>
+                <div className="space-y-3">
+                  <div className="max-h-[300px] overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-950 shadow-inner">
+                    {localConfig.feeds?.length === 0 ? (
+                      <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                        <Rss className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p>No feeds added yet</p>
+                        <p className="text-xs mt-1 text-gray-400 dark:text-gray-500">Add feeds manually or import from OPML</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {localConfig.feeds?.map((feed, index) => (
+                          <div key={index} className="p-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 min-w-0">
+                                <Input
+                                  type="url"
+                                  value={feed.url}
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                    const newFeeds = [...(localConfig.feeds || [])];
+                                    newFeeds[index] = {
+                                      ...feed,
+                                      url: e.target.value,
+                                      title: e.target.value
+                                    };
+                                    setLocalConfig({
+                                      ...localConfig,
+                                      feeds: newFeeds
+                                    });
+                                    setIsValidUrl(newFeeds.every(f => validateFeedUrl(f.url)));
+                                  }}
+                                  className={`${
+                                    !validateFeedUrl(feed.url) 
+                                      ? 'border-red-500 dark:border-red-500' 
+                                      : 'border-transparent focus:border-gray-300 dark:focus:border-gray-600'
+                                  } text-sm bg-transparent shadow-none`}
+                                  placeholder="https://example.com/rss"
+                                />
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const newFeeds = [...(localConfig.feeds || [])];
+                                  newFeeds.splice(index, 1);
+                                  setLocalConfig({
+                                    ...localConfig,
+                                    feeds: newFeeds
+                                  });
+                                }}
+                                className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 h-8 w-8 p-0 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M18 6L6 18M6 6l12 12"/>
+                                </svg>
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setLocalConfig({
+                          ...localConfig,
+                          feeds: [{ url: '', title: '', enabled: true }, ...(localConfig.feeds || [])]
+                        });
+                      }}
+                      className="flex-1 font-normal"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                        <path d="M12 5v14M5 12h14"/>
+                      </svg>
+                      Add Feed
+                    </Button>
+                    <div className="relative">
+                      <input
+                        type="file"
+                        accept=".opml,text/xml"
+                        onChange={handleOPMLImport}
+                        className="hidden"
+                        id="opml-file-input"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('opml-file-input')?.click()}
+                        title="Import from OPML"
+                        className="font-normal"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Import OPML
+                      </Button>
+                    </div>
+                  </div>
+                </div>
                 {!isValidUrl && (
-                  <p className="text-xs text-red-500 dark:text-red-400">
-                    Please enter a valid URL
+                  <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12" y2="16"/>
+                    </svg>
+                    Please enter valid URLs
                   </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Enter the URL of the RSS feed you want to display
+                  Add RSS feed URLs manually or import from an OPML file
                 </p>
-              </div>
-              
-              {/* Max Items */}
-              <div className="space-y-2">
-                <Label htmlFor="max-items-input">Maximum Items</Label>
-                <Input
-                  id="max-items-input"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={localConfig.maxItems || 5}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig({...localConfig, maxItems: parseInt(e.target.value) || 5})}
-                />
               </div>
             </TabsContent>
             
-            <TabsContent value="display" className="space-y-4 py-2">
+            <TabsContent value="display" className="space-y-4 py-4">
               {/* Display Mode */}
               <div className="space-y-2">
                 <Label>Display Mode</Label>
@@ -632,7 +689,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
                 </div>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <Label>Display Options</Label>
                 
                 {/* Show Images */}
@@ -687,53 +744,61 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
               </div>
             </TabsContent>
             
-            <TabsContent value="examples" className="space-y-4 py-2">
-              <p className="text-sm">Click on any example to use it:</p>
+            <TabsContent value="examples" className="space-y-4 py-4">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Select from popular RSS feeds to get started:
+              </div>
               <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                  onClick={() => {
-                    setLocalConfig({...localConfig, feedUrl: 'https://news.ycombinator.com/rss'});
-                    setIsValidUrl(true);
-                    setActiveTab('content');
-                  }}
+                {/* Example Feed Item: Hacker News */}
+                <div
+                  className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => setExampleFeed('https://news.ycombinator.com/rss', 'Hacker News')}
                 >
-                  <div>
-                    <div className="font-medium">Hacker News</div>
-                    <div className="text-xs text-muted-foreground truncate">https://news.ycombinator.com/rss</div>
+                  <div className="flex-shrink-0 rounded-md bg-orange-100 dark:bg-orange-900/20 p-2 text-orange-600 dark:text-orange-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L2 19.7778H22L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
                   </div>
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                  onClick={() => {
-                    setLocalConfig({...localConfig, feedUrl: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml'});
-                    setIsValidUrl(true);
-                    setActiveTab('content');
-                  }}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">Hacker News</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">Tech news and discussions</div>
+                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+
+                {/* Example Feed Item: New York Times */}
+                <div
+                  className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => setExampleFeed('https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', 'New York Times')}
                 >
-                  <div>
-                    <div className="font-medium">New York Times</div>
-                    <div className="text-xs text-muted-foreground truncate">https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml</div>
+                  <div className="flex-shrink-0 rounded-md bg-gray-100 dark:bg-gray-900/40 p-2 text-gray-600 dark:text-gray-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
                   </div>
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal"
-                  onClick={() => {
-                    setLocalConfig({...localConfig, feedUrl: 'https://www.wired.com/feed/rss'});
-                    setIsValidUrl(true);
-                    setActiveTab('content');
-                  }}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">New York Times</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">Breaking news and opinion</div>
+                  </div>
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
+
+                {/* Example Feed Item: Wired */}
+                 <div
+                  className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => setExampleFeed('https://www.wired.com/feed/rss', 'Wired')}
                 >
-                  <div>
-                    <div className="font-medium">Wired</div>
-                    <div className="text-xs text-muted-foreground truncate">https://www.wired.com/feed/rss</div>
+                  <div className="flex-shrink-0 rounded-md bg-purple-100 dark:bg-purple-900/20 p-2 text-purple-600 dark:text-purple-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 3V21M21 12H3M18 12C18 8.68629 15.3137 6 12 6C8.68629 6 6 8.68629 6 12C6 15.3137 8.68629 18 12 18C15.3137 18 18 15.3137 18 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
                   </div>
-                </Button>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm">Wired</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 truncate">Latest technology news and features</div>
+                  </div>
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -749,7 +814,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
                     }
                   }}
                 >
-                  Delete Widget
+                  Delete
                 </Button>
               )}
               
@@ -761,7 +826,7 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
                 }}
                 disabled={!isValidUrl}
               >
-                Save Changes
+                Save
               </Button>
             </div>
           </DialogFooter>
@@ -770,11 +835,66 @@ const RSSWidget: React.FC<RSSWidgetProps> = ({ width, height, config }) => {
     );
   };
 
+  // Update example feed buttons
+  const setExampleFeed = (url: string, title: string) => {
+    setLocalConfig({
+      ...localConfig,
+      feeds: [{ url, title, enabled: true }, ...(localConfig.feeds || [])]
+    });
+    setIsValidUrl(true);
+    setActiveTab('content');
+  };
+
+  // Ensure display mode is always defined by using a default value
+  const renderFeedItems = (displayMode: RSSDisplayMode = RSSDisplayMode.LIST) => {
+    return feedItems.map((item, index) => renderFeedItem(item, index, displayMode));
+  };
+
+  const handleOPMLImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(content, 'text/xml');
+      
+      // Get all outline elements that have an xmlUrl attribute (these are the feed entries)
+      const outlines = xmlDoc.querySelectorAll('outline[xmlUrl]');
+      const feeds: RSSFeed[] = Array.from(outlines).map(outline => ({
+        url: outline.getAttribute('xmlUrl') || '',
+        title: outline.getAttribute('title') || outline.getAttribute('text') || '',
+        enabled: true
+      }));
+      
+      if (feeds.length > 0) {
+        setLocalConfig(prevConfig => ({
+          ...prevConfig,
+          feeds: [...feeds, ...(prevConfig.feeds || [])] // Add new feeds at the beginning
+        }));
+        setIsValidUrl(true);
+        setActiveTab('content');
+      } else {
+        setError('No valid RSS feeds found in the OPML file');
+      }
+    };
+    
+    reader.onerror = () => {
+      setError('Failed to read OPML file');
+    };
+    
+    reader.readAsText(file);
+    
+    // Reset the file input
+    event.target.value = '';
+  };
+
   // Main render
   return (
     <div ref={widgetRef} className="widget-container h-full flex flex-col relative">
       <WidgetHeader 
-        title={localConfig.title || feedTitle || defaultConfig.title} 
+        title={localConfig.title || 'RSS Feed'} 
         onSettingsClick={() => setShowSettings(true)}
       />
       

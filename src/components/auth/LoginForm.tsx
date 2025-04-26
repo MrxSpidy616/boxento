@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,14 +39,18 @@ export function LoginForm({ onToggleForm, onForgotPassword, onSuccess, onPhoneAu
 
   return (
     <div className="w-full">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-semibold tracking-tight">Welcome back</CardTitle>
-        <CardDescription className="text-muted-foreground">
+      {/* Further reduced padding on xs, reduced bottom padding */}
+      <CardHeader className="space-y-1 px-3 sm:px-6 pt-6 pb-3">
+        {/* Reduced title size on xs */}
+        <CardTitle className="text-xl sm:text-2xl font-semibold tracking-tight">Welcome back</CardTitle>
+        <CardDescription className="text-muted-foreground text-sm"> {/* Added text-sm */}
           Sign in to your account to continue
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Further reduced padding and vertical spacing on xs */}
+      <CardContent className="space-y-3 sm:space-y-6 px-3 sm:px-6 pb-6">
+        {/* Further reduced vertical spacing on xs */}
+        <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-foreground">Email</Label>
             <Input
@@ -77,15 +81,17 @@ export function LoginForm({ onToggleForm, onForgotPassword, onSuccess, onPhoneAu
         </form>
 
         <div className="flex flex-col space-y-2 text-center text-sm">
-          <Button variant="link" onClick={onForgotPassword} type="button" className="text-primary">
+          {/* Reduced font size on xs */}
+          <Button variant="link" onClick={onForgotPassword} type="button" className="text-primary text-xs sm:text-sm">
             Forgot password?
           </Button>
           {onPhoneAuth && (
-            <Button variant="link" onClick={onPhoneAuth} type="button" className="text-primary">
+            <Button variant="link" onClick={onPhoneAuth} type="button" className="text-primary text-xs sm:text-sm">
               Sign in with phone
             </Button>
           )}
-          <Button variant="link" onClick={onToggleForm} type="button" className="text-primary">
+          {/* Reduced font size on xs */}
+          <Button variant="link" onClick={onToggleForm} type="button" className="text-primary text-xs sm:text-sm">
             Don't have an account? Sign up
           </Button>
         </div>

@@ -718,38 +718,41 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    * @returns {JSX.Element} Settings content
    */
   const renderSettingsContent = () => {
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="location-input">Location</Label>
-          <Input
-            id="location-input"
-            type="text"
-            placeholder="Enter city name"
-            value={localConfig.location || ''}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({...prev, location: e.target.value}))}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label>Temperature Units</Label>
-          <RadioGroup
-            value={localConfig.units || 'metric'}
-            onValueChange={handleUnitsChange}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="metric" id="metric" />
-              <Label htmlFor="metric">Celsius (°C)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="imperial" id="imperial" />
-              <Label htmlFor="imperial">Fahrenheit (°F)</Label>
-            </div>
-          </RadioGroup>
-        </div>
+  return (
+    // Remove the outer fragment <>...</>
+    // The wrapping div with space-y-4 is now applied where this function is called
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="location-input">Location</Label>
+        <Input
+          id="location-input"
+          type="text"
+          placeholder="Enter city name"
+          value={localConfig.location || ''}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({...prev, location: e.target.value}))}
+        />
       </div>
-    );
-  };
+
+      <div className="space-y-2">
+        <Label>Temperature Units</Label>
+        <RadioGroup
+          value={localConfig.units || 'metric'}
+          onValueChange={handleUnitsChange}
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="metric" id="metric" />
+            <Label htmlFor="metric">Celsius (°C)</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="imperial" id="imperial" />
+            <Label htmlFor="imperial">Fahrenheit (°F)</Label>
+          </div>
+        </RadioGroup>
+      </div>
+    </>
+    // Remove the closing fragment </>
+  );
+};
 
   /**
    * Renders the settings footer
@@ -769,7 +772,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             }}
             aria-label="Delete this widget"
           >
-            Delete Widget
+            Delete
           </Button>
         )}
         
@@ -836,7 +839,12 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             <DialogHeader>
               <DialogTitle>Weather Settings</DialogTitle>
             </DialogHeader>
-            {renderSettingsContent()}
+            {/* Add a div with space-y-4 inside the py-4 container */}
+            <div className="py-4">
+              <div className="space-y-4">
+                {renderSettingsContent()}
+              </div>
+            </div>
             <DialogFooter>
               {renderSettingsFooter()}
             </DialogFooter>

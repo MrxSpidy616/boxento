@@ -11,6 +11,7 @@ import { WidgetProps } from '@/types';
  * @property {string} [pubDate] - Publication date
  * @property {string} [author] - Author of the article
  * @property {string} [image] - Featured image URL
+ * @property {string} [feedTitle] - Title of the feed the item came from
  */
 export interface RSSFeedItem {
   title: string;
@@ -20,6 +21,7 @@ export interface RSSFeedItem {
   pubDate?: string;
   author?: string;
   image?: string;
+  feedTitle?: string;
 }
 
 /**
@@ -32,12 +34,22 @@ export enum RSSDisplayMode {
 }
 
 /**
+ * RSS Feed configuration
+ */
+export interface RSSFeed {
+  url: string;
+  title: string;
+  enabled: boolean;
+  category?: string;
+}
+
+/**
  * Configuration options for the RSS widget
  * 
  * @interface RSSWidgetConfig
  * @property {string} [id] - Unique identifier for the widget instance
  * @property {string} [title] - Title to display in the widget header
- * @property {string} [feedUrl] - URL of the RSS feed to display
+ * @property {RSSFeed[]} feeds - Array of RSS feeds to display
  * @property {number} [maxItems] - Maximum number of items to display
  * @property {boolean} [showImages] - Whether to show images in the feed
  * @property {boolean} [showDate] - Whether to show publication dates
@@ -49,7 +61,7 @@ export enum RSSDisplayMode {
 export interface RSSWidgetConfig {
   id?: string;
   title?: string;
-  feedUrl?: string;
+  feeds: RSSFeed[];
   maxItems?: number;
   showImages?: boolean;
   showDate?: boolean;

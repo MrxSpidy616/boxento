@@ -16,6 +16,9 @@ import { Switch } from "../../ui/switch";
 import { Checkbox } from "../../ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import type { CurrencyConverterWidgetProps, CurrencyConverterWidgetConfig } from './types';
+// Add DollarSign icon import
+// Add AlertCircle import
+import { AlertCircle, BadgeCent } from 'lucide-react';
 
 // Comprehensive currency database
 // This includes all currencies supported by Open Exchange Rates
@@ -232,7 +235,7 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
             <TabsTrigger value="advanced">Advanced</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="general" className="space-y-4 pt-4">
+          <TabsContent value="general" className="space-y-4 py-4">
             <div className="space-y-4">
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="title-input">Widget Title</Label>
@@ -264,7 +267,7 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
             </div>
           </TabsContent>
           
-          <TabsContent value="currencies" className="space-y-4 pt-4">
+          <TabsContent value="currencies" className="space-y-4 py-4">
             <div className="space-y-4">
               <div className="grid w-full items-center gap-1.5">
                 <div className="flex justify-between items-center">
@@ -310,7 +313,7 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
             </div>
           </TabsContent>
           
-          <TabsContent value="advanced" className="space-y-4 pt-4">
+          <TabsContent value="advanced" className="space-y-4 py-4">
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <Switch
@@ -385,14 +388,14 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
                 onClick={handleDelete}
                 aria-label="Delete this widget"
               >
-                Delete Widget
+                Delete
               </Button>
             )}
             <Button
               variant="default"
               onClick={saveSettings}
             >
-              Save Changes
+              Save
             </Button>
           </div>
         </DialogFooter>
@@ -668,11 +671,40 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
       />
       
       <div className="flex-grow overflow-hidden">
-        {error ? (
-          <div className="flex items-center justify-center h-full p-4">
-            <div className="text-destructive text-center">
+        {error && (error.includes('API key is required') || error.includes('Invalid API key')) ? (
+          // Specific view for API key error
+          <div className="h-full flex flex-col items-center justify-center text-center">
+            {/* Use DollarSign icon from Lucide with consistent styling (gray color) */}
+            <BadgeCent size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+            {/* Consistent text styling */}
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+              {error.includes('Invalid') ? 'Invalid API key.' : 'API key required for exchange rates.'}
+            </p>
+            {/* Consistent button styling */}
+            <Button
+              size="sm"
+              onClick={() => setShowSettings(true)}
+              variant="outline"
+            >
+              Configure API Key
+            </Button>
+          </div>
+        ) : error ? (
+          // General error view
+          <div className="h-full flex flex-col items-center justify-center text-center p-4">
+            {/* Use AlertCircle icon for errors */}
+            <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
+            {/* Consistent error text styling */}
+            <p className="text-sm text-red-500 dark:text-red-400 mb-3">
               {error}
-            </div>
+            </p>
+            {/* Consistent button styling */}
+            <Button
+              size="sm"
+              onClick={refetch} // Use refetch from the hook
+            >
+              Retry
+            </Button>
           </div>
         ) : loading ? (
           <div className="flex items-center justify-center h-full">
