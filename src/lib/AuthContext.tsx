@@ -167,7 +167,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           .then(() => {
             // Clear storage again after signout just to be absolutely sure
             clearAllStorage();
-            console.log('Logout successful, reloading page...');
             
             // Add a small delay before reload to ensure all operations complete
             setTimeout(() => {

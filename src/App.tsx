@@ -322,8 +322,8 @@ function App() {
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/service-worker.js')
-          .then(registration => {
-            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          .then(() => {
+            // ServiceWorker registration successful
           })
           .catch(error => {
             console.error('ServiceWorker registration failed: ', error);
@@ -530,7 +530,7 @@ function App() {
     if (auth?.currentUser) {
       try {
         await userDashboardService.saveWidgets(updatedWidgets);
-        console.log('Saved widget metadata to Firestore');
+        // Widget metadata saved to Firestore
       } catch (error) {
         console.error('Error saving widgets to Firestore:', error);
       }
@@ -555,7 +555,7 @@ function App() {
         layoutUpdateTimeout.current = window.setTimeout(async () => {
           try {
             await userDashboardService.saveLayouts(updatedLayouts);
-            console.log('Saved layouts to Firestore');
+            // Layouts saved to Firestore
           } catch (error) {
             console.error('Error saving layouts to Firestore:', error);
           }
@@ -563,7 +563,7 @@ function App() {
       } else {
         try {
           await userDashboardService.saveLayouts(updatedLayouts);
-          console.log('Saved layouts to Firestore immediately');
+          // Layouts saved to Firestore immediately
         } catch (error) {
           console.error('Error saving layouts to Firestore:', error);
         }
@@ -624,7 +624,7 @@ function App() {
       
       if (newBreakpoint !== currentBreakpoint) {
         setCurrentBreakpoint(newBreakpoint);
-        console.log('Breakpoint changed to:', newBreakpoint);
+        // Breakpoint changed
       }
     };
     
@@ -874,7 +874,7 @@ function App() {
     setDraggedWidgetId(newItem.i);
     lastMousePos.current = { x: event.clientX, y: event.clientY };
     setDragDirection(null);
-    console.log('Drag started');
+    // Drag started
   };
   
   const handleDrag = (_layout: LayoutItem[], _oldItem: LayoutItem, _newItem: LayoutItem, _placeholder: LayoutItem, event: MouseEvent): void => {
@@ -923,7 +923,7 @@ function App() {
     
     // Save the layout
     saveLayouts(layouts, false);
-    console.log('Drag completed, layout saved');
+    // Drag completed, layout saved
   };
   
   // Apply drag direction classes to the dragged widget
@@ -1040,7 +1040,7 @@ function App() {
         const firestoreWidgets = await userDashboardService.loadWidgets();
         
         if (firestoreWidgets !== null && firestoreWidgets !== undefined) {
-          console.log('Loaded widget metadata from Firestore:', firestoreWidgets);
+          // Widget metadata loaded from Firestore
           
           // 2. Load all widget configurations
           const allConfigs = await configManager.getConfigs(true);
@@ -1060,14 +1060,14 @@ function App() {
           userHasFirestoreData = true;
           
           // 5. Validate and fix layouts based on the widgets
-          console.log('Validating layouts to ensure they match widgets...');
+          // Validating layouts to ensure they match widgets
           const validatedLayouts = await userDashboardService.validateAndFixLayouts(
             typedWidgets.map(w => ({ id: w.id, type: w.type }))
           );
           
           // 6. Set the validated layouts in state
           setLayouts(validatedLayouts);
-          console.log('Set validated layouts:', validatedLayouts);
+          // Validated layouts set
           
           // Also update localStorage to match Firestore state
           localStorage.setItem('boxento-widgets', JSON.stringify(typedWidgets));
@@ -1132,7 +1132,7 @@ function App() {
         for (const widget of widgets) {
           if (!layouts[currentBreakpoint]?.some(item => item.i === widget.id)) {
             allWidgetsHaveLayouts = false;
-            console.log(`Widget ${widget.id} is missing a layout item for breakpoint ${currentBreakpoint}`);
+            // Widget missing layout item for current breakpoint
             break;
           }
         }
@@ -1143,7 +1143,7 @@ function App() {
       
       const timer = setTimeout(() => {
         setIsLayoutReady(true);
-        console.log('Layout is now ready for rendering');
+        // Layout is now ready for rendering
       }, delay);
       
       return () => clearTimeout(timer);
@@ -1177,7 +1177,7 @@ function App() {
       
       // If we found orphaned items, update the layouts
       if (hasOrphanedItems) {
-        console.log('Cleaning up orphaned layout items');
+        // Cleaning up orphaned layout items
         setLayouts(cleanedLayouts);
         localStorage.setItem('boxento-layouts', JSON.stringify(cleanedLayouts));
       }
@@ -1192,14 +1192,14 @@ function App() {
          Object.keys(layouts).length === 0 || 
          Object.values(layouts).some(layout => layout.length === 0))) {
       
-      console.log('Creating default layouts for widgets');
+      // Creating default layouts for widgets
       
       // Create default layouts for all widgets
       const newLayouts = createDefaultLayoutsForWidgets(widgets);
       
       // Update layouts state
       setLayouts(newLayouts);
-      console.log('Default layouts created');
+      // Default layouts created
     }
   }, [widgets, layouts]);
   
@@ -1274,7 +1274,7 @@ function App() {
       //   break;
       
       default:
-        console.log('Unsupported URL type:', result.type);
+        // Unsupported URL type
     }
   };
   
@@ -1424,9 +1424,9 @@ function App() {
                     cols={cols}
                     rowHeight={rowHeight}
                     onLayoutChange={handleLayoutChange}
-                    onBreakpointChange={(newBreakpoint: string, newCols: number) => {
+                    onBreakpointChange={(newBreakpoint: string) => {
                       if (newBreakpoint !== currentBreakpoint) {
-                        console.log('Breakpoint changed:', newBreakpoint, newCols);
+                        // Breakpoint changed
                         setCurrentBreakpoint(newBreakpoint);
                       }
                     }}

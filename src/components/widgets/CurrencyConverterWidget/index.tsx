@@ -16,14 +16,140 @@ import { Switch } from "../../ui/switch";
 import { Checkbox } from "../../ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import type { CurrencyConverterWidgetProps, CurrencyConverterWidgetConfig } from './types';
-// Add DollarSign icon import
-// Add AlertCircle import
 import { AlertCircle, BadgeCent } from 'lucide-react';
 
 // Comprehensive currency database
 // This includes all currencies supported by Open Exchange Rates
 const CURRENCIES: Record<string, { name: string; symbol: string }> = {
-  // ... existing currencies ...
+  USD: { name: 'US Dollar', symbol: '$' },
+  EUR: { name: 'Euro', symbol: '€' },
+  GBP: { name: 'British Pound', symbol: '£' },
+  JPY: { name: 'Japanese Yen', symbol: '¥' },
+  AUD: { name: 'Australian Dollar', symbol: 'A$' },
+  CAD: { name: 'Canadian Dollar', symbol: 'C$' },
+  CHF: { name: 'Swiss Franc', symbol: 'CHF' },
+  CNY: { name: 'Chinese Yuan', symbol: '¥' },
+  HKD: { name: 'Hong Kong Dollar', symbol: 'HK$' },
+  NZD: { name: 'New Zealand Dollar', symbol: 'NZ$' },
+  SEK: { name: 'Swedish Krona', symbol: 'kr' },
+  KRW: { name: 'South Korean Won', symbol: '₩' },
+  SGD: { name: 'Singapore Dollar', symbol: 'S$' },
+  NOK: { name: 'Norwegian Krone', symbol: 'kr' },
+  MXN: { name: 'Mexican Peso', symbol: '$' },
+  INR: { name: 'Indian Rupee', symbol: '₹' },
+  RUB: { name: 'Russian Ruble', symbol: '₽' },
+  ZAR: { name: 'South African Rand', symbol: 'R' },
+  TRY: { name: 'Turkish Lira', symbol: '₺' },
+  BRL: { name: 'Brazilian Real', symbol: 'R$' },
+  TWD: { name: 'Taiwan Dollar', symbol: 'NT$' },
+  PLN: { name: 'Polish Zloty', symbol: 'zł' },
+  THB: { name: 'Thai Baht', symbol: '฿' },
+  IDR: { name: 'Indonesian Rupiah', symbol: 'Rp' },
+  CZK: { name: 'Czech Koruna', symbol: 'Kč' },
+  ILS: { name: 'Israeli Shekel', symbol: '₪' },
+  CLP: { name: 'Chilean Peso', symbol: '$' },
+  PHP: { name: 'Philippine Peso', symbol: '₱' },
+  AED: { name: 'UAE Dirham', symbol: 'د.إ' },
+  COP: { name: 'Colombian Peso', symbol: '$' },
+  SAR: { name: 'Saudi Riyal', symbol: '﷼' },
+  MYR: { name: 'Malaysian Ringgit', symbol: 'RM' },
+  RON: { name: 'Romanian Leu', symbol: 'lei' },
+  PEN: { name: 'Peruvian Sol', symbol: 'S/' },
+  BGN: { name: 'Bulgarian Lev', symbol: 'лв' },
+  HUF: { name: 'Hungarian Forint', symbol: 'Ft' },
+  UAH: { name: 'Ukrainian Hryvnia', symbol: '₴' },
+  HRK: { name: 'Croatian Kuna', symbol: 'kn' },
+  DKK: { name: 'Danish Krone', symbol: 'kr' },
+  ISK: { name: 'Icelandic Krona', symbol: 'kr' },
+  EGP: { name: 'Egyptian Pound', symbol: '£' },
+  QAR: { name: 'Qatari Riyal', symbol: '﷼' },
+  VND: { name: 'Vietnamese Dong', symbol: '₫' },
+  BDT: { name: 'Bangladeshi Taka', symbol: '৳' },
+  PKR: { name: 'Pakistani Rupee', symbol: '₨' },
+  LKR: { name: 'Sri Lankan Rupee', symbol: '₨' },
+  NPR: { name: 'Nepalese Rupee', symbol: '₨' },
+  AFN: { name: 'Afghan Afghani', symbol: '؋' },
+  AMD: { name: 'Armenian Dram', symbol: '֏' },
+  AZN: { name: 'Azerbaijani Manat', symbol: '₼' },
+  BHD: { name: 'Bahraini Dinar', symbol: '.د.ب' },
+  BYN: { name: 'Belarusian Ruble', symbol: 'Br' },
+  BOB: { name: 'Bolivian Boliviano', symbol: '$b' },
+  BAM: { name: 'Bosnia-Herzegovina Convertible Mark', symbol: 'KM' },
+  BWP: { name: 'Botswanan Pula', symbol: 'P' },
+  BND: { name: 'Brunei Dollar', symbol: '$' },
+  KHR: { name: 'Cambodian Riel', symbol: '៛' },
+  XAF: { name: 'CFA Franc BEAC', symbol: 'FCFA' },
+  XOF: { name: 'CFA Franc BCEAO', symbol: 'CFA' },
+  XPF: { name: 'CFP Franc', symbol: '₣' },
+  CRC: { name: 'Costa Rican Colón', symbol: '₡' },
+  CUP: { name: 'Cuban Peso', symbol: '₱' },
+  DJF: { name: 'Djiboutian Franc', symbol: 'Fdj' },
+  DOP: { name: 'Dominican Peso', symbol: 'RD$' },
+  XCD: { name: 'East Caribbean Dollar', symbol: '$' },
+  ERN: { name: 'Eritrean Nakfa', symbol: 'Nfk' },
+  SZL: { name: 'Swazi Lilangeni', symbol: 'E' },
+  ETB: { name: 'Ethiopian Birr', symbol: 'Br' },
+  FJD: { name: 'Fijian Dollar', symbol: '$' },
+  GMD: { name: 'Gambian Dalasi', symbol: 'D' },
+  GEL: { name: 'Georgian Lari', symbol: '₾' },
+  GHS: { name: 'Ghanaian Cedi', symbol: 'GH₵' },
+  GTQ: { name: 'Guatemalan Quetzal', symbol: 'Q' },
+  GNF: { name: 'Guinean Franc', symbol: 'FG' },
+  GYD: { name: 'Guyanaese Dollar', symbol: '$' },
+  HTG: { name: 'Haitian Gourde', symbol: 'G' },
+  HNL: { name: 'Honduran Lempira', symbol: 'L' },
+  JMD: { name: 'Jamaican Dollar', symbol: 'J$' },
+  JOD: { name: 'Jordanian Dinar', symbol: 'JD' },
+  KZT: { name: 'Kazakhstani Tenge', symbol: '₸' },
+  KES: { name: 'Kenyan Shilling', symbol: 'KSh' },
+  KWD: { name: 'Kuwaiti Dinar', symbol: 'KD' },
+  KGS: { name: 'Kyrgystani Som', symbol: 'лв' },
+  LAK: { name: 'Laotian Kip', symbol: '₭' },
+  LBP: { name: 'Lebanese Pound', symbol: '£' },
+  LSL: { name: 'Lesotho Loti', symbol: 'M' },
+  LRD: { name: 'Liberian Dollar', symbol: '$' },
+  LYD: { name: 'Libyan Dinar', symbol: 'LD' },
+  MOP: { name: 'Macanese Pataca', symbol: 'MOP$' },
+  MKD: { name: 'Macedonian Denar', symbol: 'ден' },
+  MGA: { name: 'Malagasy Ariary', symbol: 'Ar' },
+  MWK: { name: 'Malawian Kwacha', symbol: 'MK' },
+  MVR: { name: 'Maldivian Rufiyaa', symbol: 'Rf' },
+  MRU: { name: 'Mauritanian Ouguiya', symbol: 'UM' },
+  MUR: { name: 'Mauritian Rupee', symbol: '₨' },
+  MDL: { name: 'Moldovan Leu', symbol: 'lei' },
+  MNT: { name: 'Mongolian Tugrik', symbol: '₮' },
+  MAD: { name: 'Moroccan Dirham', symbol: 'MAD' },
+  MZN: { name: 'Mozambican Metical', symbol: 'MT' },
+  MMK: { name: 'Myanmar Kyat', symbol: 'K' },
+  NAD: { name: 'Namibian Dollar', symbol: '$' },
+  NIO: { name: 'Nicaraguan Córdoba', symbol: 'C$' },
+  NGN: { name: 'Nigerian Naira', symbol: '₦' },
+  OMR: { name: 'Omani Rial', symbol: '﷼' },
+  PAB: { name: 'Panamanian Balboa', symbol: 'B/.' },
+  PGK: { name: 'Papua New Guinean Kina', symbol: 'K' },
+  PYG: { name: 'Paraguayan Guarani', symbol: 'Gs' },
+  RSD: { name: 'Serbian Dinar', symbol: 'Дин.' },
+  SCR: { name: 'Seychellois Rupee', symbol: '₨' },
+  SLL: { name: 'Sierra Leonean Leone', symbol: 'Le' },
+  SOS: { name: 'Somali Shilling', symbol: 'S' },
+  STN: { name: 'São Tomé and Príncipe Dobra', symbol: 'Db' },
+  SRD: { name: 'Surinamese Dollar', symbol: '$' },
+  SYP: { name: 'Syrian Pound', symbol: '£' },
+  TJS: { name: 'Tajikistani Somoni', symbol: 'SM' },
+  TZS: { name: 'Tanzanian Shilling', symbol: 'TSh' },
+  TOP: { name: 'Tongan Paʻanga', symbol: 'T$' },
+  TTD: { name: 'Trinidad and Tobago Dollar', symbol: 'TT$' },
+  TND: { name: 'Tunisian Dinar', symbol: 'TND' },
+  TMT: { name: 'Turkmenistani Manat', symbol: 'T' },
+  UGX: { name: 'Ugandan Shilling', symbol: 'USh' },
+  UYU: { name: 'Uruguayan Peso', symbol: '$U' },
+  UZS: { name: 'Uzbekistan Som', symbol: 'лв' },
+  VUV: { name: 'Vanuatu Vatu', symbol: 'VT' },
+  VES: { name: 'Venezuelan Bolívar', symbol: 'Bs' },
+  WST: { name: 'Samoan Tala', symbol: 'WS$' },
+  YER: { name: 'Yemeni Rial', symbol: '﷼' },
+  ZMW: { name: 'Zambian Kwacha', symbol: 'ZK' },
+  ZWL: { name: 'Zimbabwean Dollar', symbol: 'Z$' }
 };
 
 // Common currencies to show at the top of selection lists
@@ -45,11 +171,7 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
     setError(null);
     setLoading(true);
     
-    // Debug: Log fetch attempt with API key (masked for security)
-    console.log(`[CurrencyConverter] Fetching rates with API key: ${apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}` : 'none'}`);
-    
     if (!apiKey) {
-      console.error('[CurrencyConverter] No API key provided');
       setError('API key is required');
       setLoading(false);
       return;
@@ -59,17 +181,10 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
       // Use the app ID and base currency to construct the URL
       const url = `https://openexchangerates.org/api/latest.json?app_id=${apiKey || ''}`;
       
-      // Log the URL without exposing the API key
-      console.log('[CurrencyConverter] Fetching from: https://openexchangerates.org/api/latest.json?app_id=API_KEY_HIDDEN');
-      
       const response = await fetch(url);
       
       // Check if the response is OK
       if (!response.ok) {
-        // Try to get more specific error information from response
-        const errorData = await response.json().catch(() => null);
-        console.error(`[CurrencyConverter] API returned ${response.status}: `, errorData);
-        
         if (response.status === 401 || response.status === 403) {
           setError('Invalid API key. Please check your API key and try again.');
         } else if (response.status === 429) {
@@ -85,18 +200,14 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
       
       // Check if we have rates in the response
       if (!data.rates) {
-        console.error('[CurrencyConverter] No rates found in response:', data);
         setError('Invalid response from API. Please try again.');
         setLoading(false);
         return;
       }
-      
-      console.log('[CurrencyConverter] Rates fetched successfully:', Object.keys(data.rates).length, 'currencies');
       setRates(data.rates);
       setLastUpdated(new Date());
       setError(null);
     } catch (err) {
-      console.error('[CurrencyConverter] Error fetching rates:', err);
       setError('Failed to fetch rates. Check your connection and try again.');
     } finally {
       setLoading(false);
@@ -105,16 +216,9 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
   
   // Initial fetch and when api key or base currency changes
   React.useEffect(() => {
-    console.log('[CurrencyConverter] API key or base currency changed:', { 
-      hasApiKey: !!apiKey,
-      baseCurrency 
-    });
-    
     if (apiKey) {
-      console.log('[CurrencyConverter] Fetching rates with API key');
       fetchRates();
     } else {
-      console.log('[CurrencyConverter] No API key available, skipping fetch');
       setError('API key is required');
     }
   }, [apiKey, baseCurrency, fetchRates]);
@@ -124,7 +228,6 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
     if (!autoRefresh || !apiKey) return;
     
     const intervalId = setInterval(() => {
-      console.log('[CurrencyConverter] Auto-refreshing rates');
       fetchRates();
     }, refreshInterval * 60 * 1000);
     

@@ -98,11 +98,9 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
         airlineCode = icaoMatch[1].toUpperCase();
         flightNumberOnly = icaoMatch[2];
         isIcao = true;
-        console.log(`Parsed ICAO flight number: code=${airlineCode}, number=${flightNumberOnly}`);
       } else if (iataMatch) {
         airlineCode = iataMatch[1].toUpperCase();
         flightNumberOnly = iataMatch[2];
-        console.log(`Parsed IATA flight number: code=${airlineCode}, number=${flightNumberOnly}`);
       } else {
         // If the pattern doesn't match exactly, try a best-effort approach
         // Find where the letters end and the numbers begin
@@ -115,7 +113,6 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
           airlineCode = cleanedInput.substring(0, i).toUpperCase();
           flightNumberOnly = cleanedInput.substring(i);
           isIcao = airlineCode.length === 3; // Assume 3-letter code is ICAO
-          console.log(`Used fallback parsing for flight number: code=${airlineCode}, number=${flightNumberOnly}, isIcao=${isIcao}`);
         } else {
           console.error(`Failed to parse flight number: ${cleanedInput}`);
         }
@@ -217,7 +214,6 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
           }
         }
 
-        console.log('Fetching flight data with params:', params.toString());
 
         // Use a fallback URL for testing if you're having connection issues
         // Remove the "||" part in production for actual API use
@@ -230,7 +226,6 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
         // Check if the current flight number is a demo flight
         if (useFallback && localConfig.flightNumber && demoFlights.includes(localConfig.flightNumber)) {
           // Create mock data for demo flights
-          console.log(`Using fallback data for ${localConfig.flightNumber}`);
           
           // Wait a bit to simulate API call
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -406,7 +401,6 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
         }
         
         const data: AviationStackResponse = await response.json();
-        console.log('Received flight data:', data);
         
         // Check for API error messages in the response
         if (data.error) {
@@ -418,7 +412,6 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({ width, height
           setError(null);
         } else {
           // No data found - log this and provide a more helpful error message
-          console.log('No flight data found in response:', data);
           setError("No flight data found. Try a different flight number or date.");
           setFlightData(null);
         }

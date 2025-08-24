@@ -15,8 +15,6 @@ import { Button } from '../../ui/button';
 import { Switch } from '../../ui/switch';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../ui/tabs';
 import sanitizeHtml from 'sanitize-html';
-// Add Rss icon import
-// Add AlertCircle import
 import { Rss, AlertCircle, Upload } from 'lucide-react';
 
 /**
@@ -40,7 +38,7 @@ enum WidgetSizeCategory {
  * @param {RSSWidgetProps} props - Component props
  * @returns {React.ReactElement} Widget component
  */
-export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height, onConfigChange }) => {
+export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) => {
   // Default configuration
   const defaultConfig = useMemo<RSSWidgetConfig>(() => ({
     title: 'RSS Feed',
@@ -69,11 +67,6 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height, onC
   // Refs for the widget container
   const widgetRef = useRef<HTMLDivElement | null>(null);
   
-  // Debug logging
-  useEffect(() => {
-    console.log('Config updated:', config);
-    console.log('Local config:', localConfig);
-  }, [config, localConfig]);
 
   // Move fetchSingleFeed before fetchAllFeeds
   const fetchSingleFeed = React.useCallback(async (feed: RSSFeed): Promise<RSSFeedItem[]> => {
@@ -474,18 +467,16 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height, onC
    * Save settings
    */
   const saveSettings = () => {
-    console.log('Saving settings with config:', localConfig);
     
     // Call onUpdate to persist changes
-    if (onConfigChange && typeof onConfigChange === 'function') {
-      onConfigChange(localConfig);
+    if (config?.onUpdate && typeof config.onUpdate === 'function') {
+      config.onUpdate(localConfig);
     }
     
     setShowSettings(false);
     
     // If the feed URL changed, fetch the feed
     if (localConfig.feeds.length > 0) {
-      console.log('Feed URL changed, fetching new feed');
       fetchAllFeeds(localConfig);
     }
   };

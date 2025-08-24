@@ -132,7 +132,6 @@ export const useSharedCredential = (credentialType: CredentialType) => {
   // Update local state when the credential changes in storage
   useEffect(() => {
     const syncCredential = () => {
-      console.log(`[SharedCredentials] Syncing credential for ${credentialType}`);
       const storedCredential = sharedCredentialsManager.getCredential(credentialType);
       setCredential(storedCredential);
     };
@@ -143,7 +142,6 @@ export const useSharedCredential = (credentialType: CredentialType) => {
     // Listen for storage events to update state when another instance changes the credential
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === SHARED_CREDENTIALS_KEY || e.key === 'boxento-credential-sync-trigger') {
-        console.log(`[SharedCredentials] Storage event detected for ${credentialType}`);
         syncCredential();
       }
     };
@@ -152,7 +150,6 @@ export const useSharedCredential = (credentialType: CredentialType) => {
     const handleCustomEvent = (e: Event) => {
       const customEvent = e as CustomEvent;
       if (customEvent.detail && customEvent.detail.type === credentialType) {
-        console.log(`[SharedCredentials] Custom event detected for ${credentialType}`);
         syncCredential();
       }
     };
@@ -173,7 +170,6 @@ export const useSharedCredential = (credentialType: CredentialType) => {
   
   // Function to update the credential
   const updateCredential = (newCredential: string) => {
-    console.log(`[SharedCredentials] Updating credential for ${credentialType}:`, newCredential);
     
     // Only save if there's an actual value
     if (newCredential && newCredential.trim() !== '') {
@@ -191,10 +187,6 @@ export const useSharedCredential = (credentialType: CredentialType) => {
       const dummyKey = 'boxento-credential-sync-trigger';
       localStorage.setItem(dummyKey, Date.now().toString());
       localStorage.removeItem(dummyKey);
-      
-      console.log(`[SharedCredentials] Credential for ${credentialType} updated successfully`);
-    } else {
-      console.log(`[SharedCredentials] Not saving empty credential for ${credentialType}`);
     }
   };
   

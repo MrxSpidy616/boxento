@@ -86,6 +86,9 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
     
     if (!videoId) return '';
     
+    // Sanitize videoId to prevent XSS
+    const sanitizedVideoId = encodeURIComponent(videoId);
+    
     const params = new URLSearchParams();
     
     if (autoplay) params.append('autoplay', '1');
@@ -99,7 +102,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
     params.append('enablejsapi', '1'); // Enable JavaScript API
     params.append('widget_referrer', window.location.href); // Add referrer
     
-    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+    return `https://www.youtube.com/embed/${sanitizedVideoId}?${params.toString()}`;
   };
   
   // Toggle expanded state
@@ -126,7 +129,9 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
   const getDirectYouTubeUrl = (): string => {
     const { videoId } = localConfig;
     if (!videoId) return '';
-    return `https://www.youtube.com/watch?v=${videoId}`;
+    // Sanitize videoId to prevent XSS
+    const sanitizedVideoId = encodeURIComponent(videoId);
+    return `https://www.youtube.com/watch?v=${sanitizedVideoId}`;
   };
   
   // Toggle embedding mode
@@ -248,7 +253,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
         <div className="relative w-full aspect-video max-h-full overflow-hidden rounded-lg cursor-pointer" 
              onClick={handleThumbnailClick}>
           <img 
-            src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} 
+            src={`https://img.youtube.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg`} 
             alt="Video thumbnail" 
             className="w-full h-full object-cover"
           />
@@ -285,7 +290,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
         <div className="relative w-full aspect-video max-h-full overflow-hidden rounded-lg cursor-pointer" 
              onClick={handleThumbnailClick}>
           <img 
-            src={`https://img.youtube.com/vi/${videoId}/mqdefault.jpg`} 
+            src={`https://img.youtube.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg`} 
             alt="Video thumbnail" 
             className="w-full h-full object-cover"
           />

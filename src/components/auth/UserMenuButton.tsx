@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { isFirebaseInitialized } from '@/lib/firebase';
 
 interface UserMenuButtonProps {
   className?: string;
@@ -22,6 +23,15 @@ interface UserMenuButtonProps {
 export function UserMenuButton({ className }: UserMenuButtonProps) {
   const [open, setOpen] = useState(false);
   const { currentUser, logout } = useAuth() as AuthContextType;
+
+  // Show local-only mode indicator if Firebase is not configured
+  if (!isFirebaseInitialized) {
+    return (
+      <div className={`text-xs text-gray-500 dark:text-gray-400 px-2 py-1 rounded ${className}`}>
+        Local Mode
+      </div>
+    );
+  }
 
   const handleLogout = async () => {
     try {

@@ -266,11 +266,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
    */
   const fetchEvents = React.useCallback(async (silentMode = false) => {
     if (!isGoogleConnected) {
-      if (!silentMode) console.log('Google Calendar not connected, skipping fetchEvents');
       return;
     }
     
-    if (!silentMode) console.log('Fetching Google Calendar events...');
     
     try {
       setIsLoading(true);
@@ -285,10 +283,8 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
       // Get selected calendars
       const selectedCalendars = localConfig.calendars?.filter(cal => cal.selected) || [];
       
-      if (!silentMode) console.log('Selected calendars:', selectedCalendars);
       
       if (selectedCalendars.length === 0) {
-        if (!silentMode) console.log('No calendars selected, clearing events');
         setEvents([]);
         setIsLoading(false);
         return;
@@ -330,7 +326,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
         }
         
         const data = await response.json();
-        console.log(`Calendar ${calendar.name} events:`, data.items);
         
         // Convert Google Calendar events to our format
         const calendarEvents = data.items.map((event: GoogleCalendarEvent) => {
@@ -384,7 +379,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
         return 0;
       });
       
-      if (!silentMode) console.log('Fetched events:', allEvents);
       setEvents(allEvents);
       setIsLoading(false);
     } catch (err) {
@@ -512,7 +506,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
         calendars[0].selected = true;
       }
       
-      console.log('Setting calendars with selection state:', calendars);
       
       const updatedConfig = {
         ...localConfig,
@@ -545,7 +538,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
     const state = url.searchParams.get('state');
     
     if (code && state) {
-      console.log('OAuth callback detected, processing...');
       
       // Remove the query parameters from the URL for cleaner UX
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -569,7 +561,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
     const checkTokens = async () => {
       // Only log during initial run or debugging
       if (isInitialRun.current) {
-        console.log('Checking Google Calendar tokens...');
       }
       
       try {
@@ -579,7 +570,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
         
         // Only log during initial run or debugging
         if (isInitialRun.current) {
-          console.log('Tokens exist:', !!accessToken && !!refreshToken);
         }
         
         // Check stored config for Google Calendar connection status
@@ -588,15 +578,9 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
         if (accessToken && refreshToken) {
           try {
             // Validate the token (silently after first run)
-            if (isInitialRun.current) {
-              console.log('Validating access token...');
-            }
             
             await getValidAccessToken();
             
-            if (isInitialRun.current) {
-              console.log('Token validated, setting Google as connected');
-            }
             
             setIsGoogleConnected(true);
             
@@ -1109,7 +1093,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
                 onClick={() => {
                   const clickedDate = new Date(year, month, day);
                   setSelectedDate(clickedDate);
-                  console.log('Selected date:', clickedDate.toDateString());
                 }}
               >
                 <div 
@@ -1253,7 +1236,6 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
                     onClick={() => {
                       const clickedDate = new Date(year, month, day);
                       setSelectedDate(clickedDate);
-                      console.log('Selected date:', clickedDate.toDateString());
                     }}
                   >
                     <div className="text-sm font-medium">{day}</div>

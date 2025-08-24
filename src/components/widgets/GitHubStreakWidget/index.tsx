@@ -151,6 +151,8 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
   
   // Fetch GitHub contribution data when username changes
   useEffect(() => {
+    const abortController = new AbortController();
+    
     const fetchGitHubData = async () => {
       // Skip if no username is provided
       if (!localConfig.username) {
@@ -165,11 +167,13 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
         
         // GitHub GraphQL API requires authentication - check if token is provided
         if (!localConfig.personalAccessToken) {
-          setGithubData(prev => ({
-            ...prev,
-            loading: false,
-            error: 'GitHub API requires a Personal Access Token. Please add one in widget settings.'
-          }));
+          if (!abortController.signal.aborted) {
+            setGithubData(prev => ({
+              ...prev,
+              loading: false,
+              error: 'GitHub API requires a Personal Access Token. Please add one in widget settings.'
+            }));
+          }
           return;
         }
         
@@ -202,7 +206,8 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
         const response = await fetch('https://api.github.com/graphql', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ query })
+          body: JSON.stringify({ query }),
+          signal: abortController.signal
         });
         
         if (!response.ok) {
@@ -335,28 +340,38 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
           }
         }
         
-        // Set the contribution data
-        setGithubData({
-          username,
-          currentStreak,
-          longestStreak,
-          totalContributions: contributionData.totalContributions,
-          contributionsByDay: contributionDays,
-          loading: false,
-          error: null
-        });
+        // Set the contribution data only if not aborted
+        if (!abortController.signal.aborted) {
+          setGithubData({
+            username,
+            currentStreak,
+            longestStreak,
+            totalContributions: contributionData.totalContributions,
+            contributionsByDay: contributionDays,
+            loading: false,
+            error: null
+          });
+        }
         
       } catch (error) {
-        console.error('Failed to fetch GitHub data:', error);
-        setGithubData(prev => ({
-          ...prev,
-          loading: false,
-          error: error instanceof Error ? error.message : 'Failed to fetch GitHub data. Please check the username and try again.'
-        }));
+        // Only update state if not aborted
+        if (!abortController.signal.aborted) {
+          console.error('Failed to fetch GitHub data:', error);
+          setGithubData(prev => ({
+            ...prev,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Failed to fetch GitHub data. Please check the username and try again.'
+          }));
+        }
       }
     };
     
     fetchGitHubData();
+    
+    // Cleanup function to abort fetch on unmount
+    return () => {
+      abortController.abort();
+    };
   }, [localConfig.username, localConfig.personalAccessToken]);
   
   /**
