@@ -92,6 +92,8 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
   };
 
   // Format time ago
+  // Note: Expects date in 'YYYY-MM-DD HH:MM:SS' format from the health API
+  // The space is replaced with 'T' to create ISO 8601 format for reliable parsing
   const formatTimeAgo = (dateStr?: string) => {
     if (!dateStr) return '';
     const date = new Date(dateStr.replace(' ', 'T'));
@@ -181,9 +183,18 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
 
     const isCompact = width <= 2 || height <= 2;
 
-    // Summary counts
-    const running = healthData.jobs.filter(j => j.status === 'running' || j.status === 'success').length;
-    const failed = healthData.jobs.filter(j => j.status === 'failed').length;
+    // Summary counts - use reduce for single-pass calculation
+    const { running, failed } = healthData.jobs.reduce(
+      (acc, j) => {
+        if (j.status === 'running' || j.status === 'success') {
+          acc.running++;
+        } else if (j.status === 'failed') {
+          acc.failed++;
+        }
+        return acc;
+      },
+      { running: 0, failed: 0 }
+    );
     const total = healthData.jobs.length;
 
     return (
@@ -260,7 +271,7 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
               min={10}
               value={localConfig.refreshInterval || 60}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setLocalConfig({ ...localConfig, refreshInterval: parseInt(e.target.value) || 60 })
+                setLocalConfig({ ...localConfig, refreshInterval: parseInt(e.target.value, 10) || 60 })
               }
             />
           </div>
