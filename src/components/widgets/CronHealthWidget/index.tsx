@@ -13,7 +13,6 @@ import WidgetHeader from '../common/WidgetHeader';
 import { WidgetProps } from '@/types';
 import { CronHealthWidgetConfig, Job, HealthResponse } from './types';
 import {
-  Clock,
   Server,
   CheckCircle,
   XCircle,

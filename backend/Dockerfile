@@ -13,9 +13,9 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies - use npm ci for cleaner install
+# Install dependencies using npm ci for reproducible builds
 # and rebuild native modules for this platform
-RUN npm install --build-from-source
+RUN npm ci --build-from-source
 
 # Copy source
 COPY . .

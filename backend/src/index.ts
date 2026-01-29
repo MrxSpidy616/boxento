@@ -3,6 +3,50 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { getDatabase, closeDatabase } from './db/connection.js';
 
+// Database row types for type safety
+interface DashboardRow {
+  id: string;
+  name: string;
+  visibility: 'private' | 'public' | 'team';
+  shared_with: string | null;
+  is_default: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface LayoutRow {
+  dashboard_id: string;
+  breakpoint: string;
+  layout_data: string;
+  updated_at: string;
+}
+
+interface WidgetRow {
+  id: string;
+  dashboard_id: string;
+  type: string;
+  sort_order: number;
+  created_at: string;
+}
+
+interface WidgetConfigRow {
+  widget_id: string;
+  config_data: string;
+  updated_at: string;
+}
+
+interface AppSettingsRow {
+  id: string;
+  settings_data: string;
+  updated_at: string;
+}
+
+// Input types for API requests
+interface WidgetInput {
+  id: string;
+  type: string;
+}
+
 const app = new Hono();
 
 // Middleware
@@ -31,7 +75,7 @@ app.get('/api/dashboards', (c) => {
     ORDER BY is_default DESC, created_at ASC
   `).all();
 
-  return c.json(dashboards.map((d: any) => ({
+  return c.json((dashboards as DashboardRow[]).map((d) => ({
     ...d,
     sharedWith: d.shared_with ? JSON.parse(d.shared_with) : [],
     isDefault: Boolean(d.is_default),
@@ -44,7 +88,7 @@ app.get('/api/dashboards/:id', (c) => {
   const dashboard = db.prepare(`
     SELECT id, name, visibility, shared_with, is_default, created_at, updated_at
     FROM dashboards WHERE id = ?
-  `).get(id) as any;
+  `).get(id) as DashboardRow | undefined;
 
   if (!dashboard) {
     return c.json({ error: 'Dashboard not found' }, 404);
@@ -73,8 +117,8 @@ app.post('/api/dashboards', async (c) => {
     `).run(id, name, visibility, JSON.stringify(sharedWith));
 
     return c.json({ id, name, visibility, sharedWith });
-  } catch (err: any) {
-    if (err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+  } catch (err) {
+    if (err instanceof Error && (err as Error & { code?: string }).code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
       return c.json({ error: 'Dashboard already exists' }, 409);
     }
     throw err;
@@ -88,7 +132,7 @@ app.put('/api/dashboards/:id', async (c) => {
   const { name, visibility, sharedWith } = body;
 
   const updates: string[] = [];
-  const params: any[] = [];
+  const params: (string | null)[] = [];
 
   if (name !== undefined) {
     updates.push('name = ?');
@@ -126,7 +170,7 @@ app.delete('/api/dashboards/:id', (c) => {
   const { id } = c.req.param();
 
   // Don't allow deleting the default dashboard
-  const dashboard = db.prepare('SELECT is_default FROM dashboards WHERE id = ?').get(id) as any;
+  const dashboard = db.prepare('SELECT is_default FROM dashboards WHERE id = ?').get(id) as Pick<DashboardRow, 'is_default'> | undefined;
   if (dashboard?.is_default) {
     return c.json({ error: 'Cannot delete default dashboard' }, 400);
   }
@@ -148,9 +192,9 @@ app.get('/api/dashboards/:id/layouts', (c) => {
 
   const layouts = db.prepare(`
     SELECT breakpoint, layout_data FROM layouts WHERE dashboard_id = ?
-  `).all(id) as any[];
+  `).all(id) as Pick<LayoutRow, 'breakpoint' | 'layout_data'>[];
 
-  const result: Record<string, any[]> = {};
+  const result: Record<string, unknown[]> = {};
   for (const layout of layouts) {
     result[layout.breakpoint] = JSON.parse(layout.layout_data);
   }
@@ -202,7 +246,7 @@ app.get('/api/dashboards/:id/widgets', (c) => {
     SELECT id, type, sort_order FROM widgets
     WHERE dashboard_id = ?
     ORDER BY sort_order ASC
-  `).all(id) as any[];
+  `).all(id) as Pick<WidgetRow, 'id' | 'type' | 'sort_order'>[];
 
   return c.json(widgets.map(w => ({ id: w.id, type: w.type })));
 });
@@ -231,7 +275,7 @@ app.put('/api/dashboards/:id/widgets', async (c) => {
       VALUES (?, ?, ?, ?)
     `);
 
-    widgets.forEach((widget: any, index: number) => {
+    widgets.forEach((widget: WidgetInput, index: number) => {
       insert.run(widget.id, id, widget.type, index);
     });
   });
@@ -247,9 +291,9 @@ app.put('/api/dashboards/:id/widgets', async (c) => {
 app.get('/api/configs', (c) => {
   const configs = db.prepare(`
     SELECT widget_id, config_data FROM widget_configs
-  `).all() as any[];
+  `).all() as Pick<WidgetConfigRow, 'widget_id' | 'config_data'>[];
 
-  const result: Record<string, any> = {};
+  const result: Record<string, unknown> = {};
   for (const config of configs) {
     result[config.widget_id] = JSON.parse(config.config_data);
   }
@@ -263,7 +307,7 @@ app.get('/api/configs/:widgetId', (c) => {
 
   const config = db.prepare(`
     SELECT config_data FROM widget_configs WHERE widget_id = ?
-  `).get(widgetId) as any;
+  `).get(widgetId) as Pick<WidgetConfigRow, 'config_data'> | undefined;
 
   if (!config) {
     return c.json({ error: 'Config not found' }, 404);
@@ -308,7 +352,7 @@ app.delete('/api/configs/:widgetId', (c) => {
 app.get('/api/settings', (c) => {
   const settings = db.prepare(`
     SELECT settings_data FROM app_settings WHERE id = 'default'
-  `).get() as any;
+  `).get() as Pick<AppSettingsRow, 'settings_data'> | undefined;
 
   if (!settings) {
     return c.json({});
