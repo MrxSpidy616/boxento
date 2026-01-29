@@ -124,17 +124,24 @@ const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }
     }
   };
 
-  // Get item image URL (with encoded parameters for safety)
-  const getImageUrl = (item: JellyfinItem) => {
-    if (item.ImageTags?.Primary) {
-      const params = new URLSearchParams({
-        maxWidth: '200',
-        tag: item.ImageTags.Primary,
-        api_key: localConfig.apiKey || ''
-      });
-      return `${localConfig.baseUrl}/Items/${encodeURIComponent(item.Id)}/Images/Primary?${params.toString()}`;
+  // Get item image URL (with URL validation for safety)
+  const getImageUrl = (item: JellyfinItem): string | null => {
+    if (!item.ImageTags?.Primary || !localConfig.baseUrl) {
+      return null;
     }
-    return null;
+    try {
+      const baseUrl = new URL(localConfig.baseUrl);
+      const imagePath = `/Items/${encodeURIComponent(item.Id)}/Images/Primary`;
+      const imageUrl = new URL(imagePath, baseUrl);
+      imageUrl.searchParams.set('maxWidth', '200');
+      imageUrl.searchParams.set('tag', item.ImageTags.Primary);
+      if (localConfig.apiKey) {
+        imageUrl.searchParams.set('api_key', localConfig.apiKey);
+      }
+      return imageUrl.href;
+    } catch {
+      return null;
+    }
   };
 
   // Format runtime
