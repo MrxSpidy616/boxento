@@ -46,6 +46,9 @@ const ICONS: Record<string, LucideIcon> = {
 const SERVICES_BASE_URL = import.meta.env.VITE_SERVICES_BASE_URL || 'http://localhost';
 const IS_REMOTE = SERVICES_BASE_URL.includes('https://');
 
+// Service ports - can be overridden with environment variables
+const FAVA_PORT = import.meta.env.VITE_FAVA_PORT || '7503';
+
 // Default services - users can customize URLs in widget settings
 const DEFAULT_SERVICES: Service[] = [
   {
@@ -68,7 +71,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'fava',
     name: 'Fava',
-    url: `${SERVICES_BASE_URL}:5000`,
+    url: `${SERVICES_BASE_URL}:${FAVA_PORT}`,
     icon: 'BookOpen',
     description: 'Beancount',
     category: 'Finance'
