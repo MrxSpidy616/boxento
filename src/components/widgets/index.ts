@@ -30,6 +30,7 @@ const PaisaWidget = React.lazy(() => import('./PaisaWidget/index'));
 const JellyfinWidget = React.lazy(() => import('./JellyfinWidget/index'));
 const FavaWidget = React.lazy(() => import('./FavaWidget/index'));
 const RivenWidget = React.lazy(() => import('./RivenWidget/index'));
+const CronHealthWidget = React.lazy(() => import('./CronHealthWidget/index'));
 
 // Export widget types
 export * from './CalendarWidget/types';
@@ -60,6 +61,7 @@ export * from './PaisaWidget/types';
 export * from './JellyfinWidget/types';
 export * from './FavaWidget/types';
 export * from './RivenWidget/types';
+export * from './CronHealthWidget/types';
 
 // Enhanced Widget Config
 export interface EnhancedWidgetConfig extends WidgetConfig {
@@ -377,6 +379,17 @@ export const WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
     defaultHeight: 3,
     category: 'Local Services',
     description: 'Quick access to Riven media automation'
+  },
+  {
+    type: 'cron-health',
+    name: 'System Health',
+    icon: 'Activity',
+    minWidth: 2,
+    minHeight: 2,
+    defaultWidth: 2,
+    defaultHeight: 3,
+    category: 'Local Services',
+    description: 'Monitor cron jobs and launchd services health'
   }
 ];
 
@@ -428,6 +441,7 @@ const WIDGET_COMPONENTS: Record<string, LazyWidgetComponent> = {
   'jellyfin': JellyfinWidget as unknown as LazyWidgetComponent,
   'fava': FavaWidget as unknown as LazyWidgetComponent,
   'riven': RivenWidget as unknown as LazyWidgetComponent,
+  'cron-health': CronHealthWidget as unknown as LazyWidgetComponent,
 };
 
 /**

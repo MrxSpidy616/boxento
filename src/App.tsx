@@ -39,6 +39,8 @@ import { DashboardSwitcher, Dashboard, DashboardVisibility } from '@/components/
 import { breakpoints, cols, createDefaultLayoutItem } from '@/lib/layoutUtils'
 import { useNetworkStatus } from '@/lib/useNetworkStatus'
 import { AppFooter } from '@/components/AppFooter'
+import { useStorage } from '@/lib/storage/StorageContext'
+import { getStorageProvider } from '@/lib/storage'
 
 interface WidgetCategory {
   [category: string]: WidgetConfig[];
@@ -98,6 +100,9 @@ const loadFromLocalStorage = <T,>(key: string, defaultValue: T): T => {
 };
 
 function App() {
+  // Get storage context for provider info
+  const { providerType: _providerType, refresh: refreshStorage, isInitialized: storageInitialized } = useStorage();
+
   // Register service worker for PWA functionality
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -596,19 +601,16 @@ function App() {
   const [lastCreatedWidgetId, setLastCreatedWidgetId] = useState<string | null>(null);
   
   /**
-   * Save widgets to storage (localStorage and Firestore if logged in)
+   * Save widgets to storage using the current storage provider
    *
    * @param updatedWidgets - Array of widgets to save
-   * @param debounce - If true, Firestore save is scheduled for 500ms later and function returns immediately.
-   *                   If false, waits for Firestore save to complete before returning.
-   *                   Use debounce=false when sequential operation order matters (e.g., during migration).
+   * @param debounce - If true, save is scheduled for 500ms later and function returns immediately.
+   *                   If false, waits for save to complete before returning.
    */
   const saveWidgets = async (updatedWidgets: Widget[], debounce = true): Promise<void> => {
     setWidgets(updatedWidgets);
 
-    // Save to per-dashboard localStorage
-    const keys = getDashboardStorageKeys(currentDashboardId);
-    localStorage.setItem(keys.widgets, JSON.stringify(updatedWidgets));
+    const provider = getStorageProvider();
 
     // Save each widget's configuration separately using configManager
     updatedWidgets.forEach(widget => {
@@ -618,90 +620,73 @@ function App() {
       }
     });
 
-    // Save widgets to Firestore when user is logged in
-    if (auth?.currentUser) {
-      // IMPORTANT: Only save to user's global Firestore storage for the personal dashboard
-      // Non-personal dashboards use localStorage + public-dashboards collection only
-      // This prevents overwriting personal dashboard data when editing other dashboards
-      if (currentDashboardId === 'personal') {
-        // Extract Firestore save logic to avoid duplication
-        const saveToFirestore = async () => {
-          try {
-            await userDashboardService.saveWidgets(updatedWidgets);
-            // Widget metadata saved to Firestore
-          } catch (error) {
-            console.error('Error saving widgets to Firestore:', error);
-          }
-        };
-
-        // Always cancel pending debounced save to prevent race conditions
-        if (widgetUpdateTimeout.current !== null) {
-          clearTimeout(widgetUpdateTimeout.current);
-          widgetUpdateTimeout.current = null;
-        }
-
-        if (debounce) {
-          // Schedule save for later (returns immediately)
-          widgetUpdateTimeout.current = window.setTimeout(saveToFirestore, TIMING.SAVE_DEBOUNCE_MS);
-        } else {
-          // Save immediately and wait for completion
-          await saveToFirestore();
-        }
+    // Save widgets to storage provider
+    const saveToProvider = async () => {
+      try {
+        await provider.saveWidgets(currentDashboardId, updatedWidgets);
+      } catch (error) {
+        console.error('Error saving widgets:', error);
       }
+    };
 
-      // Sync to public dashboard if visibility is public/team
+    // Always cancel pending debounced save to prevent race conditions
+    if (widgetUpdateTimeout.current !== null) {
+      clearTimeout(widgetUpdateTimeout.current);
+      widgetUpdateTimeout.current = null;
+    }
+
+    if (debounce) {
+      // Schedule save for later (returns immediately)
+      widgetUpdateTimeout.current = window.setTimeout(saveToProvider, TIMING.SAVE_DEBOUNCE_MS);
+    } else {
+      // Save immediately and wait for completion
+      await saveToProvider();
+    }
+
+    // Sync to public dashboard if visibility is public/team (Firebase-specific)
+    if (auth?.currentUser && currentDashboard.visibility !== 'private') {
       syncPublicDashboard(currentDashboard, updatedWidgets, layouts);
     }
   };
   
   /**
-   * Save layouts to storage (localStorage and Firestore if logged in)
+   * Save layouts to storage using the current storage provider
    *
    * @param updatedLayouts - Layout configuration for all breakpoints
-   * @param debounce - If true, Firestore save is scheduled for 500ms later and function returns immediately.
-   *                   If false, waits for Firestore save to complete before returning.
-   *                   Use debounce=false when sequential operation order matters (e.g., during migration).
+   * @param debounce - If true, save is scheduled for 500ms later and function returns immediately.
+   *                   If false, waits for save to complete before returning.
    */
   const saveLayouts = async (updatedLayouts: { [key: string]: LayoutItem[] }, debounce = true): Promise<void> => {
     // Update state
     setLayouts(updatedLayouts);
 
-    // Save to per-dashboard localStorage
-    const keys = getDashboardStorageKeys(currentDashboardId);
-    localStorage.setItem(keys.layouts, JSON.stringify(updatedLayouts));
+    const provider = getStorageProvider();
 
-    // Save to Firestore if logged in
-    if (auth?.currentUser) {
-      // IMPORTANT: Only save to user's global Firestore storage for the personal dashboard
-      // Non-personal dashboards use localStorage + public-dashboards collection only
-      // This prevents overwriting personal dashboard data when editing other dashboards
-      if (currentDashboardId === 'personal') {
-        // Extract Firestore save logic to avoid duplication
-        const saveToFirestore = async () => {
-          try {
-            await userDashboardService.saveLayouts(updatedLayouts);
-            // Layouts saved to Firestore
-          } catch (error) {
-            console.error('Error saving layouts to Firestore:', error);
-          }
-        };
-
-        // Always cancel pending debounced save to prevent race conditions
-        if (layoutUpdateTimeout.current !== null) {
-          clearTimeout(layoutUpdateTimeout.current);
-          layoutUpdateTimeout.current = null;
-        }
-
-        if (debounce) {
-          // Schedule save for later (returns immediately)
-          layoutUpdateTimeout.current = window.setTimeout(saveToFirestore, TIMING.SAVE_DEBOUNCE_MS);
-        } else {
-          // Save immediately and wait for completion
-          await saveToFirestore();
-        }
+    // Save layouts to storage provider
+    const saveToProvider = async () => {
+      try {
+        await provider.saveLayouts(currentDashboardId, updatedLayouts);
+      } catch (error) {
+        console.error('Error saving layouts:', error);
       }
+    };
 
-      // Sync to public dashboard if visibility is public/team
+    // Always cancel pending debounced save to prevent race conditions
+    if (layoutUpdateTimeout.current !== null) {
+      clearTimeout(layoutUpdateTimeout.current);
+      layoutUpdateTimeout.current = null;
+    }
+
+    if (debounce) {
+      // Schedule save for later (returns immediately)
+      layoutUpdateTimeout.current = window.setTimeout(saveToProvider, TIMING.SAVE_DEBOUNCE_MS);
+    } else {
+      // Save immediately and wait for completion
+      await saveToProvider();
+    }
+
+    // Sync to public dashboard if visibility is public/team (Firebase-specific)
+    if (auth?.currentUser && currentDashboard.visibility !== 'private') {
       syncPublicDashboard(currentDashboard, widgets, updatedLayouts);
     }
   };
@@ -1309,64 +1294,95 @@ function App() {
     );
   };
   
-  // Load local data (async to properly load encrypted configs)
+  // Load data from the current storage provider (SQLite, Firebase, or localStorage)
   const loadLocalData = async () => {
-    const personalKeys = getDashboardStorageKeys('personal');
+    const provider = getStorageProvider();
+    console.log('[Storage] loadLocalData using provider:', provider.name);
 
-    // Check if we need to migrate legacy data to personal dashboard
-    const hasLegacyData = localStorage.getItem(STORAGE_KEYS.WIDGETS);
-    const hasPersonalDashboardData = localStorage.getItem(personalKeys.widgets);
+    // Load widgets and layouts from the storage provider
+    let loadedWidgets = await provider.getWidgets(currentDashboardId);
+    let loadedLayouts = await provider.getLayouts(currentDashboardId);
+    console.log('[Storage] Loaded from provider - widgets:', loadedWidgets?.length || 0, 'layouts:', loadedLayouts ? Object.keys(loadedLayouts).length : 0);
 
-    // If we have legacy data but no personal dashboard data, migrate
-    if (hasLegacyData && !hasPersonalDashboardData) {
-      localStorage.setItem(personalKeys.widgets, hasLegacyData);
-      const legacyLayouts = localStorage.getItem(STORAGE_KEYS.LAYOUTS);
-      if (legacyLayouts) {
-        localStorage.setItem(personalKeys.layouts, legacyLayouts);
+    // If no data in storage provider, check localStorage for migration
+    if (!loadedWidgets || loadedWidgets.length === 0) {
+      console.log('[Storage] No widgets in provider, checking localStorage for migration...');
+      // Try to migrate from localStorage
+      const keys = getDashboardStorageKeys(currentDashboardId);
+      const localWidgetsStr = localStorage.getItem(keys.widgets);
+      const localLayoutsStr = localStorage.getItem(keys.layouts);
+      console.log('[Storage] localStorage check - widgets key:', keys.widgets, 'found:', !!localWidgetsStr, 'layouts found:', !!localLayoutsStr);
+
+      if (localWidgetsStr && localLayoutsStr) {
+        // Migrate localStorage data to storage provider
+        loadedWidgets = JSON.parse(localWidgetsStr);
+        loadedLayouts = JSON.parse(localLayoutsStr);
+
+        // Save to storage provider for future use
+        if (loadedWidgets && loadedWidgets.length > 0) {
+          await provider.saveWidgets(currentDashboardId, loadedWidgets);
+          console.log('[Storage] Migrated widgets from localStorage to storage provider');
+        }
+        if (loadedLayouts && Object.keys(loadedLayouts).length > 0) {
+          await provider.saveLayouts(currentDashboardId, loadedLayouts);
+          console.log('[Storage] Migrated layouts from localStorage to storage provider');
+        }
+      } else if (currentDashboardId === 'personal') {
+        // Check legacy storage keys
+        const legacyWidgets = loadFromLocalStorage(STORAGE_KEYS.WIDGETS, []);
+        const legacyLayouts = loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, {});
+
+        if (legacyWidgets.length > 0) {
+          loadedWidgets = legacyWidgets;
+          loadedLayouts = legacyLayouts;
+
+          // Migrate to storage provider
+          await provider.saveWidgets(currentDashboardId, loadedWidgets);
+          await provider.saveLayouts(currentDashboardId, loadedLayouts);
+          console.log('[Storage] Migrated legacy localStorage data to storage provider');
+        }
       }
     }
 
-    // Load from dashboard-specific storage
-    const keys = getDashboardStorageKeys(currentDashboardId);
-    const dashboardWidgets = localStorage.getItem(keys.widgets);
-    const dashboardLayouts = localStorage.getItem(keys.layouts);
+    // If still no data, use defaults
+    if (!loadedWidgets || loadedWidgets.length === 0) {
+      loadedWidgets = getDefaultWidgets();
+      loadedLayouts = getDefaultLayouts();
 
-    // Load widgets and layouts together to ensure they match
-    let localWidgets: Widget[];
-    let localLayouts: { [key: string]: LayoutItem[] };
-
-    if (dashboardWidgets && dashboardLayouts) {
-      // Dashboard has saved data - use it
-      localWidgets = JSON.parse(dashboardWidgets);
-      localLayouts = JSON.parse(dashboardLayouts);
-    } else if (currentDashboardId === 'personal') {
-      // Personal dashboard can fall back to legacy storage
-      localWidgets = loadFromLocalStorage(STORAGE_KEYS.WIDGETS, getDefaultWidgets());
-      localLayouts = loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts());
-    } else {
-      // Non-personal dashboards without storage get fresh widgets with unique IDs
-      // AND matching layouts to ensure they work together
-      localWidgets = generateFreshDefaultWidgets();
-      localLayouts = generateLayoutsForWidgets(localWidgets);
-      // Save immediately so they persist
-      const keys = getDashboardStorageKeys(currentDashboardId);
-      localStorage.setItem(keys.widgets, JSON.stringify(localWidgets));
-      localStorage.setItem(keys.layouts, JSON.stringify(localLayouts));
+      // Save defaults to storage provider
+      await provider.saveWidgets(currentDashboardId, loadedWidgets);
+      await provider.saveLayouts(currentDashboardId, loadedLayouts);
+      console.log('[Storage] Initialized with default widgets');
     }
 
-    setLayouts(localLayouts);
+    setLayouts(loadedLayouts || getDefaultLayouts());
 
-    // Load and decrypt widget configs from localStorage
-    const localConfigs = await configManager.getConfigs(true);
+    // Load and decrypt widget configs from storage provider
+    let configs = await configManager.getConfigs(true);
+
+    // Migrate widget configs from localStorage if provider has none
+    if (Object.keys(configs).length === 0) {
+      const localConfigs = configManager.getConfigsFromLocalStorage();
+      if (Object.keys(localConfigs).length > 0) {
+        console.log('[Storage] Migrating widget configs from localStorage...');
+        // Save each config to the storage provider
+        for (const [widgetId, config] of Object.entries(localConfigs)) {
+          await provider.saveWidgetConfig(widgetId, config as Record<string, unknown>);
+        }
+        console.log('[Storage] Migrated', Object.keys(localConfigs).length, 'widget configs to storage provider');
+        // Reload configs from provider
+        configs = await configManager.getConfigs(true);
+      }
+    }
 
     // Merge configs into widgets
-    const widgetsWithConfigs = localWidgets.map((widget: Widget) => {
-      if (widget.id && localConfigs[widget.id]) {
+    const widgetsWithConfigs = loadedWidgets.map((widget: Widget) => {
+      if (widget.id && configs[widget.id]) {
         return {
           ...widget,
           config: {
             ...widget.config,
-            ...localConfigs[widget.id]
+            ...configs[widget.id]
           }
         };
       }
@@ -1522,8 +1538,14 @@ function App() {
     }
   };
   
-  // Initialize auth listener
+  // Initialize auth listener - wait for storage to be initialized first
   useEffect(() => {
+    // Don't run until storage provider is initialized
+    // This ensures SQLite backend is properly detected before loading data
+    if (!storageInitialized) {
+      return;
+    }
+
     let unsubscribe: (() => void) | undefined;
 
     // Use async IIFE to properly await migrations before loading data
@@ -1559,8 +1581,8 @@ function App() {
         console.error('Failed to migrate encryption:', err);
       }
 
-      // ALWAYS load from localStorage first - this prevents blocking on Firebase auth
-      // and ensures the dashboard shows quickly
+      // Load from storage provider (SQLite, Firebase, or localStorage)
+      // Storage provider is already initialized at this point
       try {
         await loadLocalData();
       } catch (error) {
@@ -1574,6 +1596,10 @@ function App() {
       // This runs in the background AFTER the dashboard is already visible
       if (auth) {
         unsubscribe = auth.onAuthStateChanged(async (user) => {
+          // Refresh storage provider on auth state change
+          // This allows switching between localStorage and Firebase based on auth
+          await refreshStorage();
+
           if (user) {
             // User is signed in, load their data from Firestore
             // This will merge/override local data with Firestore data
@@ -1592,7 +1618,7 @@ function App() {
         unsubscribe();
       }
     };
-  }, []);
+  }, [storageInitialized, refreshStorage]);
   
   // Effect to handle initial layout loading
   useEffect(() => {

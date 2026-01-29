@@ -1,13 +1,12 @@
 /**
  * Configuration Manager for Boxento widgets
  *
- * Handles storing and retrieving widget configurations from Firestore when logged in
- * and localStorage when not, providing a central point for managing persistent widget data
+ * Handles storing and retrieving widget configurations using the storage provider abstraction.
+ * Supports localStorage, Firebase, and SQLite backends transparently.
  */
 
 import { encryptionUtils } from './encryption';
-import { userDashboardService } from './firestoreService';
-import { auth } from './firebase';
+import { getStorageProvider } from './storage';
 
 /**
  * Interface for the widget configuration store
@@ -27,7 +26,7 @@ const DEFAULT_SENSITIVE_FIELDS = ['apiKey', 'token', 'secret', 'password', 'key'
  */
 export const configManager = {
   /**
-   * Save a widget's configuration to Firestore when logged in, otherwise localStorage
+   * Save a widget's configuration using the current storage provider
    *
    * @param widgetId - Unique identifier for the widget
    * @param config - Configuration object to save
@@ -35,25 +34,19 @@ export const configManager = {
    */
   saveWidgetConfig: async (widgetId: string, config: Record<string, unknown>, sensitiveFields = DEFAULT_SENSITIVE_FIELDS): Promise<void> => {
     try {
-      // Process sensitive fields (like API keys) for encryption - now async
+      // Process sensitive fields (like API keys) for encryption
       const processedConfig = await encryptionUtils.processObjectForStorage(config, sensitiveFields);
 
-      // If user is logged in, save to Firestore
-      if (auth?.currentUser) {
-        await userDashboardService.saveWidgetConfig(widgetId, processedConfig);
-      } else {
-        // Fallback to localStorage
-        const configs = configManager.getConfigsFromLocalStorage();
-        configs[widgetId] = processedConfig;
-        localStorage.setItem('boxento-widget-configs', JSON.stringify(configs));
-      }
+      // Use the current storage provider
+      const provider = getStorageProvider();
+      await provider.saveWidgetConfig(widgetId, processedConfig);
     } catch (e) {
       console.error('Error saving widget configuration', e);
     }
   },
 
   /**
-   * Retrieve a widget's configuration from Firestore when logged in, otherwise localStorage
+   * Retrieve a widget's configuration from the current storage provider
    *
    * @param widgetId - Unique identifier for the widget
    * @param sensitiveFields - Optional array of field names that should be decrypted
@@ -61,22 +54,13 @@ export const configManager = {
    */
   getWidgetConfig: async (widgetId: string, sensitiveFields = DEFAULT_SENSITIVE_FIELDS): Promise<Record<string, unknown> | null> => {
     try {
-      let config: Record<string, unknown> | null = null;
-
-      // If user is logged in, try to get from Firestore
-      if (auth?.currentUser) {
-        config = await userDashboardService.loadWidgetConfig(widgetId);
-      }
-
-      // If no config from Firestore or user not logged in, try localStorage
-      if (!config) {
-        const configs = configManager.getConfigsFromLocalStorage();
-        config = configs[widgetId] || null;
-      }
+      // Use the current storage provider
+      const provider = getStorageProvider();
+      const config = await provider.getWidgetConfig(widgetId);
 
       if (!config) return null;
 
-      // Process and decrypt any sensitive fields - now async
+      // Process and decrypt any sensitive fields
       const decryptedConfig = await encryptionUtils.processObjectFromStorage(config, sensitiveFields);
 
       // Restore Date objects for TodoWidget and other widgets
@@ -95,24 +79,13 @@ export const configManager = {
    */
   getConfigs: async (decryptSensitiveFields = false): Promise<WidgetConfigStore> => {
     try {
-      let configs: WidgetConfigStore = {};
-
-      // If user is logged in, try to get from Firestore
-      if (auth?.currentUser) {
-        const firestoreConfigs = await userDashboardService.loadAllWidgetConfigs();
-        if (firestoreConfigs) {
-          configs = firestoreConfigs;
-        }
-      }
-
-      // If no configs from Firestore or user not logged in, try localStorage
-      if (Object.keys(configs).length === 0) {
-        configs = configManager.getConfigsFromLocalStorage();
-      }
+      // Use the current storage provider
+      const provider = getStorageProvider();
+      const configs = await provider.getAllWidgetConfigs();
 
       if (!decryptSensitiveFields) return configs;
 
-      // Decrypt sensitive fields if requested - now async
+      // Decrypt sensitive fields if requested
       const decryptedConfigs: WidgetConfigStore = {};
 
       for (const widgetId of Object.keys(configs)) {
@@ -133,7 +106,7 @@ export const configManager = {
   },
 
   /**
-   * Get configs from localStorage (helper method)
+   * Get configs from localStorage (helper method for backward compatibility)
    */
   getConfigsFromLocalStorage: (): WidgetConfigStore => {
     try {
@@ -152,15 +125,9 @@ export const configManager = {
    */
   clearConfig: async (widgetId: string): Promise<void> => {
     try {
-      // If user is logged in, delete from Firestore
-      if (auth?.currentUser) {
-        await userDashboardService.deleteWidgetConfig(widgetId);
-      }
-
-      // Also clear from localStorage
-      const configs = configManager.getConfigsFromLocalStorage();
-      delete configs[widgetId];
-      localStorage.setItem('boxento-widget-configs', JSON.stringify(configs));
+      // Use the current storage provider
+      const provider = getStorageProvider();
+      await provider.deleteWidgetConfig(widgetId);
     } catch (e) {
       console.error('Error clearing widget configuration', e);
     }
@@ -171,17 +138,13 @@ export const configManager = {
    */
   clearAllConfigs: async (): Promise<void> => {
     try {
-      // Clear from localStorage
-      localStorage.removeItem('boxento-widget-configs');
+      // Use the current storage provider
+      const provider = getStorageProvider();
+      const configs = await provider.getAllWidgetConfigs();
 
-      // If user is logged in, clear from Firestore
-      if (auth?.currentUser) {
-        const configs = await userDashboardService.loadAllWidgetConfigs();
-        if (configs) {
-          for (const widgetId of Object.keys(configs)) {
-            await userDashboardService.deleteWidgetConfig(widgetId);
-          }
-        }
+      // Delete each config
+      for (const widgetId of Object.keys(configs)) {
+        await provider.deleteWidgetConfig(widgetId);
       }
     } catch (e) {
       console.error('Error clearing all widget configurations', e);
@@ -191,27 +154,12 @@ export const configManager = {
   /**
    * Migrate all stored configs to use proper encryption
    * Call this on app startup to upgrade legacy Base64 encoded data
-   *
-   * For logged-in users: loads from both Firestore AND localStorage,
-   * merges them (Firestore takes precedence for conflicts), migrates all,
-   * then saves back to both storages.
    */
   migrateToSecureEncryption: async (): Promise<void> => {
     try {
-      // Start with localStorage data
-      const localConfigs = configManager.getConfigsFromLocalStorage();
-
-      // If user is logged in, also load from Firestore and merge
-      let configs: WidgetConfigStore = { ...localConfigs };
-
-      if (auth?.currentUser) {
-        const firestoreConfigs = await userDashboardService.loadAllWidgetConfigs();
-        if (firestoreConfigs) {
-          // Merge: Firestore data takes precedence (it's the source of truth for logged-in users)
-          // but localStorage might have data not yet synced
-          configs = { ...localConfigs, ...firestoreConfigs };
-        }
-      }
+      // Use the current storage provider
+      const provider = getStorageProvider();
+      const configs = await provider.getAllWidgetConfigs();
 
       if (Object.keys(configs).length === 0) return;
 
@@ -236,13 +184,7 @@ export const configManager = {
       }
 
       if (needsSave) {
-        // Save to localStorage
-        localStorage.setItem('boxento-widget-configs', JSON.stringify(configs));
-
-        // Also update Firestore if logged in
-        if (auth?.currentUser) {
-          await userDashboardService.saveAllWidgetConfigs(configs);
-        }
+        await provider.saveAllWidgetConfigs(configs);
       }
     } catch (e) {
       console.error('Error migrating to secure encryption', e);

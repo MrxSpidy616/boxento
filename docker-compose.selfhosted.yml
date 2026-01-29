@@ -1,0 +1,73 @@
+# Docker Compose for Self-Hosted Boxento with SQLite Backend
+#
+# This configuration runs Boxento with a SQLite backend for data persistence,
+# eliminating the need for Firebase authentication while enabling data sharing
+# across all devices on the same network.
+#
+# Usage:
+#   docker compose -f docker-compose.selfhosted.yml up -d
+#
+# Access:
+#   - Frontend: http://localhost:5173
+#   - Backend health: http://localhost:3001/api/health
+#
+# Data persistence:
+#   - SQLite database stored in the boxento-data volume at /data/boxento.db
+
+services:
+  # Frontend - Boxento React application
+  boxento:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # SQLite API URL - use Tailscale HTTPS URL for cross-device access
+        VITE_SQLITE_API_URL: https://mini.tailf2415.ts.net:3001/api
+        # Services base URL - use Tailscale HTTPS URL for cross-device service access
+        VITE_SERVICES_BASE_URL: https://mini.tailf2415.ts.net
+        # Disable Firebase in self-hosted mode (use placeholder values)
+        VITE_FIREBASE_API_KEY: "disabled"
+        VITE_FIREBASE_AUTH_DOMAIN: "disabled"
+        VITE_FIREBASE_PROJECT_ID: "disabled"
+        VITE_FIREBASE_STORAGE_BUCKET: "disabled"
+        VITE_FIREBASE_MESSAGING_SENDER_ID: "disabled"
+        VITE_FIREBASE_APP_ID: "disabled"
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      boxento-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # Backend - SQLite API server
+  boxento-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - boxento-data:/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_PATH=/data/boxento.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  boxento-data:
+    driver: local
