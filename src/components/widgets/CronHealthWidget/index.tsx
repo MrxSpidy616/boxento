@@ -23,9 +23,12 @@ import {
 
 type CronHealthWidgetProps = WidgetProps<CronHealthWidgetConfig>;
 
+// Base URL for services - override with VITE_SERVICES_BASE_URL env var
+const SERVICES_BASE_URL = import.meta.env.VITE_SERVICES_BASE_URL || 'http://localhost';
+
 const DEFAULT_CONFIG: CronHealthWidgetConfig = {
   title: 'System Health',
-  apiUrl: 'http://localhost:7505',
+  apiUrl: `${SERVICES_BASE_URL}:7505`,
   refreshInterval: 60
 };
 
