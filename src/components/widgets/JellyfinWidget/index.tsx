@@ -124,10 +124,15 @@ const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }
     }
   };
 
-  // Get item image URL
+  // Get item image URL (with encoded parameters for safety)
   const getImageUrl = (item: JellyfinItem) => {
     if (item.ImageTags?.Primary) {
-      return `${localConfig.baseUrl}/Items/${item.Id}/Images/Primary?maxWidth=200&tag=${item.ImageTags.Primary}&api_key=${localConfig.apiKey}`;
+      const params = new URLSearchParams({
+        maxWidth: '200',
+        tag: item.ImageTags.Primary,
+        api_key: localConfig.apiKey || ''
+      });
+      return `${localConfig.baseUrl}/Items/${encodeURIComponent(item.Id)}/Images/Primary?${params.toString()}`;
     }
     return null;
   };
