@@ -24,6 +24,7 @@ export interface RivenWidgetConfig {
   baseUrl?: string; // Riven frontend URL
   apiUrl?: string; // Riven backend API URL
   apiKey?: string; // Riven API key
+  tmdbToken?: string; // Optional custom TMDB token (defaults to Riven's public token)
   onUpdate?: (config: RivenWidgetConfig) => void;
   onDelete?: () => void;
   [key: string]: unknown;

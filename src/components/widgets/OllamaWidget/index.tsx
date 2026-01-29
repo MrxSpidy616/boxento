@@ -392,8 +392,9 @@ const OllamaWidget: React.FC<OllamaWidgetProps> = ({ width, height, config }) =>
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setLocalConfig({ ...localConfig, baseUrl: e.target.value })
               }
-              placeholder="http://localhost:11434"
+              placeholder="http://localhost:11434/api"
             />
+            <p className="text-xs text-gray-500">Include /api suffix (e.g., http://localhost:11434/api)</p>
           </div>
 
           <div className="space-y-2">

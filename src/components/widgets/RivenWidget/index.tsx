@@ -13,15 +13,16 @@ import WidgetHeader from '../common/WidgetHeader';
 import { RivenWidgetConfig, RivenWidgetProps, TMDBResult } from './types';
 import { Film, Search, ExternalLink, Plus, Loader2, Check, Star, Tv } from 'lucide-react';
 
-// TMDB Read Access Token (same as Riven frontend uses)
-const TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlNTkxMmVmOWFhM2IxNzg2Zjk3ZTE1NWY1YmQ3ZjY1MSIsInN1YiI6IjY1M2NjNWUyZTg5NGE2MDBmZjE2N2FmYyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.xrIXsMFJpI1o1j5g2QpQcFP1X3AfRjFA5FlBFO5Naw8';
+// Default TMDB Read Access Token (same as Riven frontend uses - publicly available)
+const DEFAULT_TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlNTkxMmVmOWFhM2IxNzg2Zjk3ZTE1NWY1YmQ3ZjY1MSIsInN1YiI6IjY1M2NjNWUyZTg5NGE2MDBmZjE2N2FmYyIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.xrIXsMFJpI1o1j5g2QpQcFP1X3AfRjFA5FlBFO5Naw8';
 
 const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: RivenWidgetConfig = {
     title: 'Riven',
     baseUrl: 'https://mini.tailf2415.ts.net:3000',
     apiUrl: 'https://mini.tailf2415.ts.net:7504',
-    apiKey: ''
+    apiKey: '',
+    tmdbToken: DEFAULT_TMDB_TOKEN
   };
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
@@ -59,9 +60,10 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
         ? `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(searchQuery.trim())}&include_adult=false`
         : `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(searchQuery.trim())}&include_adult=false`;
 
+      const token = localConfig.tmdbToken || DEFAULT_TMDB_TOKEN;
       const response = await fetch(endpoint, {
         headers: {
-          'Authorization': `Bearer ${TMDB_TOKEN}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -115,12 +117,6 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
       const data = await response.json().catch(() => ({}));
       throw new Error(data.message || data.detail || `Status ${response.status}`);
     } catch (err) {
-      // If we got a network error but the item was likely added, show success
-      // (CORS issues can cause this - request succeeds but response is blocked)
-      if (err instanceof TypeError && err.message.includes('fetch')) {
-        setAddedIds(prev => new Set([...prev, item.id]));
-        return;
-      }
       setError('Failed to add to Riven');
       console.error('Riven add error:', err);
     } finally {
