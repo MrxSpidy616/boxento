@@ -24,6 +24,15 @@ export class FirebaseStorageProvider implements StorageProvider {
     }
   }
 
+  /**
+   * Check if the dashboard ID is 'personal'.
+   * Firebase only supports a single personal dashboard per user.
+   * Non-personal dashboards should use localStorage only.
+   */
+  private isPersonalDashboard(dashboardId: string): boolean {
+    return dashboardId === 'personal';
+  }
+
   // Dashboard operations
   // Note: Firebase currently only supports a single "personal" dashboard per user
   // Multi-dashboard support would require schema changes
@@ -60,24 +69,44 @@ export class FirebaseStorageProvider implements StorageProvider {
   }
 
   // Layout operations
-  async getLayouts(_dashboardId: string): Promise<{ [breakpoint: string]: LayoutItem[] } | null> {
+  async getLayouts(dashboardId: string): Promise<{ [breakpoint: string]: LayoutItem[] } | null> {
+    // Firebase only supports the personal dashboard
+    if (!this.isPersonalDashboard(dashboardId)) {
+      return null;
+    }
     this.checkAuth();
     return userDashboardService.loadLayouts();
   }
 
-  async saveLayouts(_dashboardId: string, layouts: { [breakpoint: string]: LayoutItem[] }): Promise<void> {
+  async saveLayouts(dashboardId: string, layouts: { [breakpoint: string]: LayoutItem[] }): Promise<void> {
+    // Firebase only supports the personal dashboard - silently ignore non-personal saves
+    // to prevent overwriting personal data when editing other dashboards
+    if (!this.isPersonalDashboard(dashboardId)) {
+      console.log('[Firebase] Ignoring saveLayouts for non-personal dashboard:', dashboardId);
+      return;
+    }
     this.checkAuth();
     return userDashboardService.saveLayouts(layouts);
   }
 
   // Widget operations
-  async getWidgets(_dashboardId: string): Promise<Widget[] | null> {
+  async getWidgets(dashboardId: string): Promise<Widget[] | null> {
+    // Firebase only supports the personal dashboard
+    if (!this.isPersonalDashboard(dashboardId)) {
+      return null;
+    }
     this.checkAuth();
     const widgets = await userDashboardService.loadWidgets();
     return widgets as Widget[] | null;
   }
 
-  async saveWidgets(_dashboardId: string, widgets: Widget[]): Promise<void> {
+  async saveWidgets(dashboardId: string, widgets: Widget[]): Promise<void> {
+    // Firebase only supports the personal dashboard - silently ignore non-personal saves
+    // to prevent overwriting personal data when editing other dashboards
+    if (!this.isPersonalDashboard(dashboardId)) {
+      console.log('[Firebase] Ignoring saveWidgets for non-personal dashboard:', dashboardId);
+      return;
+    }
     this.checkAuth();
     return userDashboardService.saveWidgets(widgets);
   }
