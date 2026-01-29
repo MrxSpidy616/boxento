@@ -23,10 +23,14 @@ import {
   ExternalLink
 } from 'lucide-react';
 
+// Base URL for services - override with VITE_SERVICES_BASE_URL env var
+const SERVICES_BASE_URL = import.meta.env.VITE_SERVICES_BASE_URL || 'http://localhost';
+const FAVA_PORT = import.meta.env.VITE_FAVA_PORT || '7503';
+
 const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: FavaWidgetConfig = {
     title: 'Fava',
-    baseUrl: 'http://localhost:5000', // Fava default port
+    baseUrl: `${SERVICES_BASE_URL}:${FAVA_PORT}`,
     beancountPath: 'eleva-spa',
     refreshInterval: 300,
     currency: '$'
