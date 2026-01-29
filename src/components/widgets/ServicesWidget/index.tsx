@@ -41,12 +41,18 @@ const ICONS: Record<string, LucideIcon> = {
   Bot,
 };
 
-// Default services for Mac Mini
+// Base URL for services - override with VITE_SERVICES_BASE_URL env var
+// Examples: "http://localhost" or "https://mini.tailf2415.ts.net"
+const SERVICES_BASE_URL = import.meta.env.VITE_SERVICES_BASE_URL || 'http://localhost';
+const IS_REMOTE = SERVICES_BASE_URL.includes('https://');
+
+// Default services - users can customize URLs in widget settings
 const DEFAULT_SERVICES: Service[] = [
   {
     id: 'boxento',
     name: 'Boxento',
-    url: 'http://localhost:5173',
+    // Boxento uses default port (443) when served via Tailscale HTTPS, else 5173
+    url: IS_REMOTE ? SERVICES_BASE_URL : `${SERVICES_BASE_URL}:5173`,
     icon: 'LayoutGrid',
     description: 'Dashboard',
     category: 'Utilities'
@@ -54,7 +60,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'paisa',
     name: 'Paisa',
-    url: 'http://localhost:7500',
+    url: `${SERVICES_BASE_URL}:7500`,
     icon: 'PiggyBank',
     description: 'Personal Finance',
     category: 'Finance'
@@ -62,7 +68,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'fava',
     name: 'Fava',
-    url: 'http://localhost:5000',
+    url: `${SERVICES_BASE_URL}:5000`,
     icon: 'BookOpen',
     description: 'Beancount',
     category: 'Finance'
@@ -70,7 +76,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'jellyfin',
     name: 'Jellyfin',
-    url: 'http://localhost:8096',
+    url: `${SERVICES_BASE_URL}:8096`,
     icon: 'Play',
     description: 'Media Server',
     category: 'Media'
@@ -78,7 +84,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'riven',
     name: 'Riven',
-    url: 'http://localhost:3000',
+    url: `${SERVICES_BASE_URL}:3000`,
     icon: 'Film',
     description: 'Media Requests',
     category: 'Media'
@@ -86,7 +92,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'ollama',
     name: 'Open WebUI',
-    url: 'http://localhost:3080',
+    url: `${SERVICES_BASE_URL}:3080`,
     icon: 'Bot',
     description: 'Local AI Chat',
     category: 'AI'
