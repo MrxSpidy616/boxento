@@ -25,7 +25,7 @@ type CronHealthWidgetProps = WidgetProps<CronHealthWidgetConfig>;
 
 const DEFAULT_CONFIG: CronHealthWidgetConfig = {
   title: 'System Health',
-  apiUrl: 'http://mini.tailf2415.ts.net:7505',
+  apiUrl: 'https://mini.tailf2415.ts.net:7505',
   refreshInterval: 60
 };
 

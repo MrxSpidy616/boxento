@@ -41,12 +41,12 @@ const ICONS: Record<string, LucideIcon> = {
   Bot,
 };
 
-// Default services for Mac Mini (using Tailscale DNS for remote access)
+// Default services for Mac Mini (using Tailscale Serve HTTPS)
 const DEFAULT_SERVICES: Service[] = [
   {
     id: 'boxento',
     name: 'Boxento',
-    url: 'http://mini.tailf2415.ts.net:5173',
+    url: 'https://mini.tailf2415.ts.net',
     icon: 'LayoutGrid',
     description: 'Dashboard',
     category: 'Utilities'
@@ -54,7 +54,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'paisa',
     name: 'Paisa',
-    url: 'http://mini.tailf2415.ts.net:7500',
+    url: 'https://mini.tailf2415.ts.net:7500',
     icon: 'PiggyBank',
     description: 'Personal Finance',
     category: 'Finance'
@@ -62,7 +62,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'fava',
     name: 'Fava',
-    url: 'http://mini.tailf2415.ts.net:5000',
+    url: 'https://mini.tailf2415.ts.net:5000',
     icon: 'BookOpen',
     description: 'Beancount',
     category: 'Finance'
@@ -70,7 +70,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'jellyfin',
     name: 'Jellyfin',
-    url: 'http://mini.tailf2415.ts.net:8096',
+    url: 'https://mini.tailf2415.ts.net:8096',
     icon: 'Play',
     description: 'Media Server',
     category: 'Media'
@@ -78,7 +78,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'riven',
     name: 'Riven',
-    url: 'http://mini.tailf2415.ts.net:3000',
+    url: 'https://mini.tailf2415.ts.net:3000',
     icon: 'Film',
     description: 'Media Requests',
     category: 'Media'
@@ -86,7 +86,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'ollama',
     name: 'Open WebUI',
-    url: 'http://mini.tailf2415.ts.net:3080',
+    url: 'https://mini.tailf2415.ts.net:3080',
     icon: 'Bot',
     description: 'Local AI Chat',
     category: 'AI'
