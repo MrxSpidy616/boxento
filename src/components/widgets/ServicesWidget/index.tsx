@@ -68,7 +68,7 @@ const DEFAULT_SERVICES: Service[] = [
   {
     id: 'fava',
     name: 'Fava',
-    url: `${SERVICES_BASE_URL}:5000`,
+    url: `${SERVICES_BASE_URL}:7503`,
     icon: 'BookOpen',
     description: 'Beancount',
     category: 'Finance'
