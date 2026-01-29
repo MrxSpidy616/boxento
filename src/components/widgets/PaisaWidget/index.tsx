@@ -26,7 +26,7 @@ import {
 const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: PaisaWidgetConfig = {
     title: 'Paisa',
-    baseUrl: 'https://mini.tailf2415.ts.net:7501', // Port 7501 is CORS-enabled proxy
+    baseUrl: 'http://localhost:7500', // Paisa API endpoint
     refreshInterval: 300, // 5 minutes
     showChart: true,
     currency: '$'

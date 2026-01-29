@@ -26,7 +26,7 @@ import {
 const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: FavaWidgetConfig = {
     title: 'Fava',
-    baseUrl: 'https://mini.tailf2415.ts.net:7503', // Port 7503 is CORS-enabled proxy
+    baseUrl: 'http://localhost:5000', // Fava default port
     beancountPath: 'eleva-spa',
     refreshInterval: 300,
     currency: '$'
@@ -60,7 +60,7 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
     setError(null);
 
     try {
-      const apiUrl = `${localConfig.baseUrl}/${localConfig.beancountPath}/api/balance_sheet`;
+      const apiUrl = new URL(`${localConfig.beancountPath}/api/balance_sheet`, localConfig.baseUrl).href;
       const response = await fetch(apiUrl);
 
       if (!response.ok) throw new Error('Failed to fetch data');

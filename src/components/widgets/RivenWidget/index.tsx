@@ -19,8 +19,8 @@ const DEFAULT_TMDB_TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJlNTkxMmVmOWFhM2IxNzg
 const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: RivenWidgetConfig = {
     title: 'Riven',
-    baseUrl: 'https://mini.tailf2415.ts.net:3000',
-    apiUrl: 'https://mini.tailf2415.ts.net:7504',
+    baseUrl: 'http://localhost:3000',
+    apiUrl: 'http://localhost:8080',
     apiKey: '',
     tmdbToken: DEFAULT_TMDB_TOKEN
   };
@@ -296,7 +296,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
               type="url"
               value={localConfig.baseUrl || ''}
               onChange={(e) => setLocalConfig({ ...localConfig, baseUrl: e.target.value })}
-              placeholder="https://mini.tailf2415.ts.net:3000"
+              placeholder="http://localhost:3000"
             />
           </div>
 
@@ -307,9 +307,9 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
               type="url"
               value={localConfig.apiUrl || ''}
               onChange={(e) => setLocalConfig({ ...localConfig, apiUrl: e.target.value })}
-              placeholder="https://mini.tailf2415.ts.net:7504"
+              placeholder="http://localhost:8080"
             />
-            <p className="text-xs text-gray-500">Backend API (port 7504)</p>
+            <p className="text-xs text-gray-500">Backend API URL</p>
           </div>
 
           <div className="space-y-2">

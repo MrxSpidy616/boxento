@@ -26,7 +26,7 @@ import {
 const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: JellyfinWidgetConfig = {
     title: 'Jellyfin',
-    baseUrl: 'https://mini.tailf2415.ts.net:8096',
+    baseUrl: 'http://localhost:8096',
     apiKey: '',
     userId: '',
     refreshInterval: 30

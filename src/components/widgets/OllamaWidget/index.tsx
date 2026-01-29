@@ -23,7 +23,7 @@ import { Bot, Send, Loader2, AlertCircle, Trash2 } from 'lucide-react';
 const OllamaWidget: React.FC<OllamaWidgetProps> = ({ width, height, config }) => {
   const defaultConfig: OllamaWidgetConfig = {
     title: 'Ollama',
-    baseUrl: 'https://mini.tailf2415.ts.net:11434/api', // Tailscale Serve endpoint
+    baseUrl: 'http://localhost:11434/api', // Ollama API endpoint
     model: '',
     systemPrompt: '',
     messages: []
