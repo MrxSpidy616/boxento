@@ -44,13 +44,15 @@ const ICONS: Record<string, LucideIcon> = {
 // Base URL for services - override with VITE_SERVICES_BASE_URL env var
 // Examples: "http://localhost" or "https://mini.tailf2415.ts.net"
 const SERVICES_BASE_URL = import.meta.env.VITE_SERVICES_BASE_URL || 'http://localhost';
+const IS_REMOTE = SERVICES_BASE_URL.includes('https://');
 
 // Default services - users can customize URLs in widget settings
 const DEFAULT_SERVICES: Service[] = [
   {
     id: 'boxento',
     name: 'Boxento',
-    url: `${SERVICES_BASE_URL}:5173`,
+    // Boxento uses default port (443) when served via Tailscale HTTPS, else 5173
+    url: IS_REMOTE ? SERVICES_BASE_URL : `${SERVICES_BASE_URL}:5173`,
     icon: 'LayoutGrid',
     description: 'Dashboard',
     category: 'Utilities'
