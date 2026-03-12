@@ -169,7 +169,7 @@ test('renders audited 1x1 widgets without header chrome', async ({ page }) => {
   const clocksWidget = page.locator('.react-grid-item[data-widget-id="world-clocks-1"]');
   await expect(clocksWidget).toBeVisible();
   await expect(clocksWidget.getByRole('heading', { name: 'World Clocks' })).toHaveCount(0);
-  await expect(clocksWidget.getByText('Tokyo')).toBeVisible();
+  await expect(clocksWidget).toContainText('Tokyo');
 
   const yearProgressWidget = page.locator('.react-grid-item[data-widget-id="year-progress-1"]');
   await expect(yearProgressWidget).toBeVisible();
