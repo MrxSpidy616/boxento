@@ -42,13 +42,37 @@ describe('dashboardLayouts', () => {
     expect(quickLinks.minW).toBe(1);
     expect(quickLinks.minH).toBe(1);
 
+    const worldClocks = applyWidgetLayoutConstraints(
+      createLayoutItem({ i: 'world-clocks-1', x: 0, y: 0, w: 1, h: 1 }),
+      createWidget('world-clocks', 'world-clocks-1'),
+      'xl'
+    );
+    expect(worldClocks.minW).toBe(1);
+    expect(worldClocks.minH).toBe(1);
+
+    const yearProgress = applyWidgetLayoutConstraints(
+      createLayoutItem({ i: 'year-progress-1', x: 0, y: 0, w: 1, h: 1 }),
+      createWidget('year-progress', 'year-progress-1'),
+      'xl'
+    );
+    expect(yearProgress.minW).toBe(1);
+    expect(yearProgress.minH).toBe(1);
+
     const weather = applyWidgetLayoutConstraints(
       createLayoutItem({ i: 'weather-1', x: 0, y: 0, w: 1, h: 1 }),
       createWidget('weather', 'weather-1'),
       'xl'
     );
-    expect(weather.minW).toBe(2);
-    expect(weather.minH).toBe(2);
+    expect(weather.minW).toBe(1);
+    expect(weather.minH).toBe(1);
+
+    const calendar = applyWidgetLayoutConstraints(
+      createLayoutItem({ i: 'calendar-1', x: 0, y: 0, w: 1, h: 1 }),
+      createWidget('calendar', 'calendar-1'),
+      'xl'
+    );
+    expect(calendar.minW).toBe(2);
+    expect(calendar.minH).toBe(2);
 
     const mobileQuickLinks = applyWidgetLayoutConstraints(
       createLayoutItem({ i: 'quick-links-1', x: 1, y: 0, w: 5, h: 1 }),

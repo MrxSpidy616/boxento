@@ -19,7 +19,8 @@ import { YearProgressProps, YearProgressConfig } from './types';
  * @param width - Widget width in grid units
  * @param config - Widget configuration
  */
-const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, config }) => {
+const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
   const defaultConfig: YearProgressConfig = {
     showPercentage: true,
     showDaysLeft: true,
@@ -325,6 +326,35 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, con
     setShowSettings(true);
   }, []);
 
+  const tinySummary = useMemo(() => {
+    const daysLeft = progress.total - progress.passed;
+    const percentage = Math.round(progress.percentage);
+    const showDaysLeft = localConfig.showDaysLeft;
+    const showPercentage = localConfig.showPercentage;
+
+    if (!showDaysLeft && !showPercentage) {
+      return null;
+    }
+
+    const primaryValue = showPercentage ? `${percentage}%` : `${daysLeft}D`;
+    const secondaryValue = showPercentage && showDaysLeft
+      ? `${daysLeft}d left`
+      : showPercentage
+        ? 'complete'
+        : 'days left';
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
+        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
+          {primaryValue}
+        </div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+          {secondaryValue}
+        </div>
+      </div>
+    );
+  }, [localConfig.showDaysLeft, localConfig.showPercentage, progress.passed, progress.percentage, progress.total]);
+
   // Settings dialog - memoized to prevent recreation
   const settingsDialog = useMemo(() => (
     <Dialog open={showSettings} onOpenChange={setShowSettings}>
@@ -391,47 +421,54 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, con
   ), [showSettings, localConfig, config, saveSettings]);
 
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title="Year Progress" 
-        onSettingsClick={handleSettingsOpen}
-        aria-labelledby="year-progress-title"
-      />
+    <div ref={widgetRef} className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && (
+        <WidgetHeader 
+          title="Year Progress" 
+          onSettingsClick={handleSettingsOpen}
+          aria-labelledby="year-progress-title"
+          compact={width === 1 || height === 1}
+        />
+      )}
       
-      <div className="flex-grow p-1 overflow-hidden">
-        <div className="h-full flex flex-col justify-between">
-          <div ref={svgContainerRef} className="flex-grow flex items-center justify-center relative">
-            <svg
-              ref={svgRef}
-              viewBox={gridLayout.viewBox}
-              className="w-full h-full"
-              preserveAspectRatio="xMidYMid meet"
-              aria-label={`Year progress visualization showing ${progress.passed} days passed out of ${progress.total} days in ${progress.year}`}
-              role="img"
-              onMouseMove={handleSvgMouseMove}
-              onMouseLeave={handleSvgMouseLeave}
-            >
-              {dots}
-            </svg>
-            
-            {tooltip.show && createPortal(
-              <div
-                className="fixed px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg pointer-events-none"
-                style={{
-                  left: `${tooltip.x}px`,
-                  top: `${tooltip.y - 8}px`,
-                  transform: 'translate(-50%, -100%)',
-                  zIndex: 9999
-                }}
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-2' : 'p-1'}`}>
+        {isTiny ? (
+          tinySummary
+        ) : (
+          <div className="h-full flex flex-col justify-between">
+            <div ref={svgContainerRef} className="flex-grow flex items-center justify-center relative">
+              <svg
+                ref={svgRef}
+                viewBox={gridLayout.viewBox}
+                className="w-full h-full"
+                preserveAspectRatio="xMidYMid meet"
+                aria-label={`Year progress visualization showing ${progress.passed} days passed out of ${progress.total} days in ${progress.year}`}
+                role="img"
+                onMouseMove={handleSvgMouseMove}
+                onMouseLeave={handleSvgMouseLeave}
               >
-                <div className="font-medium">{tooltip.date}</div>
-                <div className="text-xs opacity-80">{tooltip.content}</div>
-              </div>,
-              document.body
-            )}
+                {dots}
+              </svg>
+              
+              {tooltip.show && createPortal(
+                <div
+                  className="fixed px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded shadow-lg pointer-events-none"
+                  style={{
+                    left: `${tooltip.x}px`,
+                    top: `${tooltip.y - 8}px`,
+                    transform: 'translate(-50%, -100%)',
+                    zIndex: 9999
+                  }}
+                >
+                  <div className="font-medium">{tooltip.date}</div>
+                  <div className="text-xs opacity-80">{tooltip.content}</div>
+                </div>,
+                document.body
+              )}
+            </div>
+            {stats}
           </div>
-          {stats}
-        </div>
+        )}
       </div>
       
       {settingsDialog}
