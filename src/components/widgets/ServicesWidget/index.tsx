@@ -667,7 +667,10 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   );
 
   return (
-    <div ref={containerRef} className="widget-container h-full flex flex-col relative">
+    <div
+      ref={containerRef}
+      className={`widget-container h-full flex flex-col relative ${isTiny ? 'widget-drag-handle' : ''}`}
+    >
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || defaultConfig.title}

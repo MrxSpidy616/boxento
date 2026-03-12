@@ -340,7 +340,7 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
   );
 
   return (
-    <div className="widget-container h-full flex flex-col relative">
+    <div className={`widget-container h-full flex flex-col relative ${isTiny ? 'widget-drag-handle' : ''}`}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || DEFAULT_CONFIG.title}

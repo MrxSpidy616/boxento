@@ -70,6 +70,12 @@ export interface EnhancedWidgetConfig extends WidgetConfig {
   [key: string]: unknown;
 }
 
+const TINY_READY_WIDGET_TYPES = new Set([
+  'quick-links',
+  'services',
+  'cron-health',
+]);
+
 // Widget registry with enhanced metadata
 const BASE_WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
   {
@@ -393,13 +399,12 @@ const BASE_WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
   }
 ];
 
-const MIN_WIDGET_SIZE = 1;
-
-// Keep default widget sizes intact, but allow all widgets to collapse to 1x1.
+// Keep default widget sizes intact. Only widgets with dedicated tiny-state designs
+// should collapse to 1x1; the rest remain at their authored minimums.
 export const WIDGET_REGISTRY: EnhancedWidgetConfig[] = BASE_WIDGET_REGISTRY.map((widget) => ({
   ...widget,
-  minWidth: MIN_WIDGET_SIZE,
-  minHeight: MIN_WIDGET_SIZE,
+  minWidth: TINY_READY_WIDGET_TYPES.has(widget.type) ? 1 : widget.minWidth,
+  minHeight: TINY_READY_WIDGET_TYPES.has(widget.type) ? 1 : widget.minHeight,
 }));
 
 // Widget categories

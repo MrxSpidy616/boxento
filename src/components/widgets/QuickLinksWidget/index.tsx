@@ -604,7 +604,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
   };
 
   return (
-    <div className="widget-container h-full flex flex-col">
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
       {!isTiny && (
         <WidgetHeader 
           title={customTitle}
