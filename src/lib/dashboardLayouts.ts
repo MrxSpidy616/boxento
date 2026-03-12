@@ -76,7 +76,7 @@ export const getBreakpointForWidth = (width: number): BreakpointName => {
     }
   }
 
-  return 'lg';
+  return BREAKPOINT_ORDER[BREAKPOINT_ORDER.length - 1];
 };
 
 const validateLayoutItem = (item: LayoutItem): LayoutItem => ({

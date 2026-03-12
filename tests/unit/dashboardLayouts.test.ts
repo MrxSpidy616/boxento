@@ -30,6 +30,7 @@ describe('dashboardLayouts', () => {
     expect(getBreakpointForWidth(1536)).toBe('xl');
     expect(getBreakpointForWidth(1512)).toBe('lg');
     expect(getBreakpointForWidth(480)).toBe('xs');
+    expect(getBreakpointForWidth(-1)).toBe('xxs');
   });
 
   it('applies widget-specific desktop and mobile size constraints', () => {
