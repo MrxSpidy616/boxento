@@ -1102,7 +1102,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         />
       )}
       
-      <div className={`flex-1 overflow-hidden ${isTiny ? 'p-1' : ''}`}>
+      <div className={`flex-1 overflow-hidden ${isTiny ? 'p-2' : ''}`}>
         {renderContent()}
       </div>
       

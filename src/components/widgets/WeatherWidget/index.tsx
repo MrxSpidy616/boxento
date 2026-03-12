@@ -575,7 +575,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     const shortLocation = weather.location.split(',')[0];
     
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1.5 px-2 py-2 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
         <div className="text-gray-700 dark:text-gray-300">
           {getWeatherIcon(weather.condition, weather.icon)}
         </div>
@@ -1062,7 +1062,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         />
       )}
       
-      <div className={`flex-1 overflow-hidden rounded-md ${isTiny ? 'm-0 p-1' : 'm-1'}`}>
+      <div className={`flex-1 overflow-hidden rounded-md ${isTiny ? 'm-0 p-2' : 'm-1'}`}>
         {renderContent()}
       </div>
       

@@ -329,18 +329,31 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
   const tinySummary = useMemo(() => {
     const daysLeft = progress.total - progress.passed;
     const percentage = Math.round(progress.percentage);
+    const showDaysLeft = localConfig.showDaysLeft;
+    const showPercentage = localConfig.showPercentage;
+
+    if (!showDaysLeft && !showPercentage) {
+      return null;
+    }
+
+    const primaryValue = showPercentage ? `${percentage}%` : `${daysLeft}D`;
+    const secondaryValue = showPercentage && showDaysLeft
+      ? `${daysLeft}d left`
+      : showPercentage
+        ? 'complete'
+        : 'days left';
 
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
         <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
-          {percentage}%
+          {primaryValue}
         </div>
         <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
-          {daysLeft}d left
+          {secondaryValue}
         </div>
       </div>
     );
-  }, [progress.passed, progress.percentage, progress.total]);
+  }, [localConfig.showDaysLeft, localConfig.showPercentage, progress.passed, progress.percentage, progress.total]);
 
   // Settings dialog - memoized to prevent recreation
   const settingsDialog = useMemo(() => (
