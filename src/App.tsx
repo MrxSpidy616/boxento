@@ -181,6 +181,67 @@ const scaleLayoutToCols = (
   });
 };
 
+const getLargestHorizontalGap = (layout: LayoutItem[]): number => {
+  const orderedItems = [...layout].sort((a, b) => a.x - b.x);
+  let largestGap = 0;
+
+  for (let index = 1; index < orderedItems.length; index += 1) {
+    const previousItem = orderedItems[index - 1];
+    const currentItem = orderedItems[index];
+    largestGap = Math.max(largestGap, currentItem.x - (previousItem.x + previousItem.w));
+  }
+
+  return largestGap;
+};
+
+const rebalanceWideSparseLayout = (layout: LayoutItem[], colCount: number): LayoutItem[] | null => {
+  if (layout.length < 2 || layout.length > 4) {
+    return null;
+  }
+
+  const orderedItems = [...layout].sort((a, b) => a.y - b.y || a.x - b.x || a.i.localeCompare(b.i));
+  const isSingleRow = orderedItems.every((item) => item.y === orderedItems[0].y);
+
+  if (!isSingleRow) {
+    return null;
+  }
+
+  const totalWidth = orderedItems.reduce((sum, item) => sum + item.w, 0);
+  const fillRatio = totalWidth / colCount;
+  const largestGap = getLargestHorizontalGap(orderedItems);
+  const shouldRebalance = fillRatio < 0.72 || largestGap >= Math.max(3, Math.floor(colCount / 6));
+
+  if (!shouldRebalance) {
+    return null;
+  }
+
+  let currentX = 0;
+  let remainingCols = colCount;
+
+  return orderedItems.map((item, index) => {
+    const itemsRemaining = orderedItems.length - index;
+    const minW = Math.min(item.minW || GRID.MIN_WIDGET_WIDTH, colCount);
+    const maxW = item.maxW ? Math.min(item.maxW, colCount) : undefined;
+    const balancedW = Math.max(minW, Math.floor(remainingCols / itemsRemaining));
+    const nextW = maxW ? Math.min(balancedW, maxW) : balancedW;
+
+    const rebalancedItem = clampLayoutItemToCols(
+      {
+        ...item,
+        x: currentX,
+        y: orderedItems[0].y,
+        w: nextW,
+      },
+      colCount
+    );
+
+    currentX = rebalancedItem.x + rebalancedItem.w;
+    remainingCols = Math.max(0, colCount - currentX);
+
+    return rebalancedItem;
+  });
+};
+
 const createLayoutsFromTemplates = (widgetIds: string[]): LayoutsByBreakpoint => {
   const layoutsByBreakpoint: LayoutsByBreakpoint = {};
 
@@ -234,6 +295,13 @@ const validateLayouts = (layouts: LayoutsByBreakpoint): LayoutsByBreakpoint => {
 
     if (targetCols > cols.lg && layoutSignature(currentLayout) === layoutSignature(fallbackLayout)) {
       validatedLayouts[breakpoint] = scaleLayoutToCols(fallbackLayout, fallbackCols, targetCols);
+    }
+
+    if (targetCols > cols.lg) {
+      const rebalancedLayout = rebalanceWideSparseLayout(validatedLayouts[breakpoint], targetCols);
+      if (rebalancedLayout) {
+        validatedLayouts[breakpoint] = rebalancedLayout;
+      }
     }
   });
 
@@ -1045,14 +1113,16 @@ function App() {
     Object.keys(updatedLayouts).forEach(breakpoint => {
       updatedLayouts[breakpoint] = updatedLayouts[breakpoint].filter(item => item.i !== widgetId);
     });
+
+    const normalizedLayouts = validateLayouts(updatedLayouts);
     
     // Update state and save
     setWidgets(updatedWidgets);
-    setLayouts(updatedLayouts);
+    setLayouts(normalizedLayouts);
     
     // Save changes
     saveWidgets(updatedWidgets);
-    saveLayouts(updatedLayouts, false);
+    saveLayouts(normalizedLayouts, false);
   };
   
   // Update layout function - refactored to reduce duplication
