@@ -331,11 +331,11 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
     const percentage = Math.round(progress.percentage);
 
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-        <div className="text-2xl font-semibold leading-none text-gray-900 dark:text-gray-100">
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
+        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
           {percentage}%
         </div>
-        <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
           {daysLeft}d left
         </div>
       </div>
