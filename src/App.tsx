@@ -147,6 +147,23 @@ const validateLayout = (layout: LayoutItem[]): LayoutItem[] => {
   return layout.map(validateLayoutItem);
 };
 
+const applyWidgetLayoutConstraints = (
+  item: LayoutItem,
+  widget: Widget,
+  breakpoint: BreakpointName
+): LayoutItem => {
+  const widgetMeta = getWidgetConfigByType(widget.type);
+  const isMobile = breakpoint === 'xs' || breakpoint === 'xxs';
+
+  return clampLayoutItemToCols({
+    ...item,
+    minW: isMobile ? 2 : Math.max(item.minW ?? GRID.MIN_WIDGET_WIDTH, widgetMeta?.minWidth ?? GRID.MIN_WIDGET_WIDTH),
+    minH: isMobile ? 2 : Math.max(item.minH ?? GRID.MIN_WIDGET_HEIGHT, widgetMeta?.minHeight ?? GRID.MIN_WIDGET_HEIGHT),
+    maxW: isMobile ? 2 : (widgetMeta?.maxSize?.w ?? item.maxW),
+    maxH: isMobile ? 2 : (widgetMeta?.maxSize?.h ?? item.maxH),
+  }, cols[breakpoint]);
+};
+
 const layoutSignature = (layout: LayoutItem[]): string => (
   [...layout]
     .sort((a, b) => a.i.localeCompare(b.i))
@@ -599,6 +616,77 @@ function App() {
     widgets.map((widget) => widget.id)
   );
 
+  const reconcileLayoutsWithWidgets = (
+    layoutsToReconcile: LayoutsByBreakpoint,
+    widgetsToReconcile: Widget[],
+    options: ValidateLayoutsOptions = {}
+  ): { layouts: LayoutsByBreakpoint; changed: boolean } => {
+    const widgetIds = new Set(widgetsToReconcile.map((widget) => widget.id));
+    const widgetsById = new Map(widgetsToReconcile.map((widget) => [widget.id, widget]));
+    const reconciledLayouts: LayoutsByBreakpoint = {};
+    let changed = false;
+
+    BREAKPOINT_ORDER.forEach((breakpoint) => {
+      const currentLayout = layoutsToReconcile[breakpoint] || [];
+      const filteredLayout = currentLayout.filter((item) => widgetIds.has(item.i));
+
+      if (filteredLayout.length !== currentLayout.length) {
+        changed = true;
+      }
+
+      const existingIds = new Set(filteredLayout.map((item) => item.i));
+      const nextLayout = [...filteredLayout];
+
+      widgetsToReconcile.forEach((widget, index) => {
+        if (existingIds.has(widget.id)) {
+          return;
+        }
+
+        nextLayout.push(
+          applyWidgetLayoutConstraints(
+            createDefaultLayoutItem(
+              widget.id,
+              index,
+              cols[breakpoint],
+              breakpoint,
+              nextLayout
+            ),
+            widget,
+            breakpoint
+          )
+        );
+        existingIds.add(widget.id);
+        changed = true;
+      });
+
+      reconciledLayouts[breakpoint] = nextLayout.map((item) => {
+        const widget = widgetsById.get(item.i);
+        if (!widget) {
+          return item;
+        }
+
+        const constrainedItem = applyWidgetLayoutConstraints(item, widget, breakpoint);
+        if (
+          constrainedItem.minW !== item.minW
+          || constrainedItem.minH !== item.minH
+          || constrainedItem.maxW !== item.maxW
+          || constrainedItem.maxH !== item.maxH
+          || constrainedItem.x !== item.x
+          || constrainedItem.w !== item.w
+        ) {
+          changed = true;
+        }
+
+        return constrainedItem;
+      });
+    });
+
+    return {
+      layouts: validateLayouts(reconciledLayouts, options),
+      changed,
+    };
+  };
+
   // Load widgets and layouts for a specific dashboard
   const loadDashboardData = async (dashboardId: string) => {
     const keys = getDashboardStorageKeys(dashboardId);
@@ -613,11 +701,19 @@ function App() {
     if (savedWidgets && savedLayouts) {
       // Dashboard has saved data
       widgetsToLoad = JSON.parse(savedWidgets);
-      layoutsToLoad = validateLayouts(JSON.parse(savedLayouts), { rebalanceWideSparse: true });
+      layoutsToLoad = reconcileLayoutsWithWidgets(
+        JSON.parse(savedLayouts),
+        widgetsToLoad,
+        { rebalanceWideSparse: true }
+      ).layouts;
     } else if (dashboardId === 'personal') {
       // Personal dashboard falls back to legacy storage
       widgetsToLoad = loadFromLocalStorage(STORAGE_KEYS.WIDGETS, getDefaultWidgets());
-      layoutsToLoad = validateLayouts(loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts()), { rebalanceWideSparse: true });
+      layoutsToLoad = reconcileLayoutsWithWidgets(
+        loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts()),
+        widgetsToLoad,
+        { rebalanceWideSparse: true }
+      ).layouts;
     } else {
       // Non-personal dashboards without storage get fresh widgets with unique IDs
       widgetsToLoad = generateFreshDefaultWidgets();
@@ -1077,7 +1173,9 @@ function App() {
         defaultItem.maxH = 2;
       }
       
-      updatedLayouts[breakpoint].push(defaultItem);
+      updatedLayouts[breakpoint].push(
+        applyWidgetLayoutConstraints(defaultItem, newWidget, breakpoint as BreakpointName)
+      );
     });
     
     // Update states and save data
@@ -1121,19 +1219,18 @@ function App() {
   };
   
   // Update layout function - refactored to reduce duplication
-  const handleLayoutChange = (currentLayout: LayoutItem[], allLayouts?: { [key: string]: LayoutItem[] }): void => {
+  const handleLayoutChange = (currentLayout: LayoutItem[], _allLayouts?: { [key: string]: LayoutItem[] }): void => {
     const validatedLayout = validateLayout(currentLayout);
 
-    // If we have all layouts from the responsive grid
-    if (allLayouts) {
-      setLayouts(validateLayouts(allLayouts));
-    } else {
-      // If we only have the current layout, update only the current breakpoint
-      const updatedLayouts = { ...layoutsRef.current };
-      updatedLayouts[currentBreakpoint] = validatedLayout;
-      
-      setLayouts(validateLayouts(updatedLayouts));
+    // Ignore mount/breakpoint normalization callbacks from react-grid-layout.
+    if (!draggedWidgetId && !resizingWidgetId) {
+      return;
     }
+
+    const updatedLayouts = { ...layoutsRef.current };
+    updatedLayouts[currentBreakpoint] = validatedLayout;
+
+    setLayouts(validateLayouts(updatedLayouts));
   };
   
   // Update widget config - refactored to be more maintainable
@@ -1229,63 +1326,26 @@ function App() {
   };
   
   // Handle drag events - refactored to be more maintainable
-  const [dragDirection, setDragDirection] = useState<'left' | 'right' | null>(null);
   const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
-  const lastMousePos = useRef<{ x: number, y: number } | null>(null);
-  const dragThreshold = 5; // Minimum mouse movement to determine direction
   
-  const handleDragStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem, _placeholder: LayoutItem, event: MouseEvent): void => {
-    document.body.classList.add('dragging', 'react-grid-layout--dragging');
+  const handleDragStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
+    document.body.classList.add('react-grid-layout--dragging');
     setDraggedWidgetId(newItem.i);
-    lastMousePos.current = { x: event.clientX, y: event.clientY };
-    setDragDirection(null);
-    // Drag started
-  };
-  
-  const handleDrag = (_layout: LayoutItem[], _oldItem: LayoutItem, _newItem: LayoutItem, _placeholder: LayoutItem, event: MouseEvent): void => {
-    // Skip if no mouse position
-    if (!lastMousePos.current) return;
-    
-    // Calculate direction based on mouse movement
-    const deltaX = event.clientX - lastMousePos.current.x;
-    
-    // Only change direction if movement is significant
-    if (Math.abs(deltaX) > dragThreshold) {
-      const newDirection = deltaX < 0 ? 'left' : 'right';
-      
-      // Only update if direction changed
-      if (newDirection !== dragDirection) {
-        setDragDirection(newDirection);
-      }
-      
-      // Update last position
-      lastMousePos.current = { x: event.clientX, y: event.clientY };
-    }
   };
   
   const handleDragStop = (currentLayout: LayoutItem[]): void => {
-    // Apply rebound class before removing direction class
-    if (draggedWidgetId) {
-      // Find the widget that was being dragged by ID
-      const widgetElement = document.querySelector(`.react-grid-item[data-grid*="i:${draggedWidgetId}"]`);
-      if (widgetElement) {
-        widgetElement.classList.add('drag-rebound');
-        
-        // Remove rebound class after animation completes
-        setTimeout(() => {
-          widgetElement.classList.remove('drag-rebound');
-        }, TIMING.WIDGET_REMOVE_ANIMATION_MS);
-      }
-    }
+    const activeDraggedWidgetId = draggedWidgetId;
     
     // Reset states
-    setDragDirection(null);
     setDraggedWidgetId(null);
-    lastMousePos.current = null;
     
     // Remove classes
-    document.body.classList.remove('dragging', 'react-grid-layout--dragging');
+    document.body.classList.remove('react-grid-layout--dragging');
     
+    if (!activeDraggedWidgetId) {
+      return;
+    }
+
     const updatedLayouts = {
       ...layoutsRef.current,
       [currentBreakpoint]: validateLayout(currentLayout),
@@ -1296,36 +1356,14 @@ function App() {
     // Drag completed, layout saved
   };
   
-  // Apply drag direction classes to the dragged widget
-  useEffect(() => {
-    if (draggedWidgetId && dragDirection) {
-      // Find the dragged widget element
-      const widgetElement = document.querySelector(`.react-grid-item[data-grid*="i:${draggedWidgetId}"].react-draggable-dragging`);
-
-      if (widgetElement) {
-        // Remove any existing direction classes
-        widgetElement.classList.remove('dragging-left', 'dragging-right');
-
-        // Add the appropriate direction class
-        widgetElement.classList.add(`dragging-${dragDirection}`);
-      }
-    }
-  }, [draggedWidgetId, dragDirection]);
-
   // Cleanup drag/resize classes on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       // Clean up any lingering drag/resize classes from body
       document.body.classList.remove(
-        'dragging',
         'react-grid-layout--dragging',
         'react-grid-layout--resizing'
       );
-
-      // Clean up any widget-specific classes
-      document.querySelectorAll('.dragging-left, .dragging-right, .drag-rebound').forEach(el => {
-        el.classList.remove('dragging-left', 'dragging-right', 'drag-rebound');
-      });
     };
   }, []);
 
@@ -1344,7 +1382,7 @@ function App() {
   const handleResize = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     if (!resizingWidgetId || !lastResizeSize.current) return;
 
-    const widgetElement = document.querySelector(`[data-grid*='"i":"${newItem.i}"']`) as HTMLElement;
+    const widgetElement = document.querySelector(`.react-grid-item[data-widget-id="${newItem.i}"]`) as HTMLElement;
     if (!widgetElement) return;
 
     // Check if hitting min constraints
@@ -1373,17 +1411,11 @@ function App() {
     lastResizeSize.current = { w: newItem.w, h: newItem.h };
   };
 
-  const handleResizeStop = (currentLayout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
+  const handleResizeStop = (currentLayout: LayoutItem[], _oldItem: LayoutItem, _newItem: LayoutItem): void => {
     document.body.classList.remove('react-grid-layout--resizing');
 
-    // Apply bounce effect to the resized widget
-    const widgetElement = document.querySelector(`[data-grid*='"i":"${newItem.i}"']`) as HTMLElement;
-    if (widgetElement) {
-      widgetElement.classList.add('resize-complete');
-      // Remove class after animation completes
-      setTimeout(() => {
-        widgetElement.classList.remove('resize-complete');
-      }, 400);
+    if (!resizingWidgetId) {
+      return;
     }
 
     // Reset tracking
@@ -1406,25 +1438,8 @@ function App() {
   // Unified function to render widget items for the grid
   const renderWidgetItems = () => {
     return widgets.map(widget => {
-      // Find the layout data for this widget
-      const layoutItem = layouts[currentBreakpoint]?.find(item => item.i === widget.id);
-      const widgetMeta = getWidgetConfigByType(widget.type);
-      
       // Determine if mobile view
       const isMobile = currentBreakpoint === 'xs' || currentBreakpoint === 'xxs';
-      
-      // Set default dimensions
-      const defaultHeight = isMobile ? 2 : 3;
-      
-      // Let the grid own x/y/w/h from the controlled `layouts` prop.
-      const dataGrid = {
-        i: widget.id,
-        h: isMobile ? 5 : (layoutItem?.h ?? defaultHeight),
-        minW: layoutItem?.minW ?? widgetMeta?.minWidth ?? 2,
-        minH: isMobile ? 3 : (layoutItem?.minH ?? widgetMeta?.minHeight ?? 2),
-        maxW: isMobile ? undefined : (layoutItem?.maxW ?? widgetMeta?.maxSize?.w),
-        maxH: isMobile ? undefined : (layoutItem?.maxH ?? widgetMeta?.maxSize?.h),
-      };
       
       // Add different classes based on screen size
       const isTablet = currentBreakpoint === 'sm';
@@ -1434,7 +1449,7 @@ function App() {
         <div 
           key={widget.id} 
           className={`widget-wrapper ${sizeClass} app-widget`} 
-          data-grid={dataGrid}
+          data-widget-id={widget.id}
           data-breakpoint={currentBreakpoint}
           style={isMobile ? { marginBottom: '16px', height: 'auto' } : undefined}
         >
@@ -1470,8 +1485,17 @@ function App() {
     let loadedLayouts = await provider.getLayouts(currentDashboardId);
     console.log('[Storage] Loaded from provider - widgets:', loadedWidgets?.length || 0, 'layouts:', loadedLayouts ? Object.keys(loadedLayouts).length : 0);
 
-    if (loadedLayouts && Object.keys(loadedLayouts).length > 0) {
-      loadedLayouts = validateLayouts(loadedLayouts, { rebalanceWideSparse: true });
+    if (loadedLayouts && Object.keys(loadedLayouts).length > 0 && loadedWidgets && loadedWidgets.length > 0) {
+      const reconciledLayouts = reconcileLayoutsWithWidgets(
+        loadedLayouts,
+        loadedWidgets,
+        { rebalanceWideSparse: true }
+      );
+      loadedLayouts = reconciledLayouts.layouts;
+
+      if (reconciledLayouts.changed) {
+        await provider.saveLayouts(currentDashboardId, loadedLayouts);
+      }
     }
 
     // If no data in storage provider, check localStorage for migration
@@ -1485,8 +1509,13 @@ function App() {
 
       if (localWidgetsStr && localLayoutsStr) {
         // Migrate localStorage data to storage provider
-        loadedWidgets = JSON.parse(localWidgetsStr);
-        loadedLayouts = validateLayouts(JSON.parse(localLayoutsStr), { rebalanceWideSparse: true });
+        const migratedWidgets = JSON.parse(localWidgetsStr) as Widget[];
+        loadedWidgets = migratedWidgets;
+        loadedLayouts = reconcileLayoutsWithWidgets(
+          JSON.parse(localLayoutsStr),
+          migratedWidgets,
+          { rebalanceWideSparse: true }
+        ).layouts;
 
         // Save to storage provider for future use
         if (loadedWidgets && loadedWidgets.length > 0) {
@@ -1504,7 +1533,11 @@ function App() {
 
         if (legacyWidgets.length > 0) {
           loadedWidgets = legacyWidgets;
-          loadedLayouts = validateLayouts(legacyLayouts, { rebalanceWideSparse: true });
+          loadedLayouts = reconcileLayoutsWithWidgets(
+            legacyLayouts,
+            loadedWidgets,
+            { rebalanceWideSparse: true }
+          ).layouts;
 
           // Migrate to storage provider
           await provider.saveWidgets(currentDashboardId, loadedWidgets);
@@ -1525,7 +1558,11 @@ function App() {
       console.log('[Storage] Initialized with default widgets');
     }
 
-    const normalizedLayouts = validateLayouts(loadedLayouts || getDefaultLayouts(), { rebalanceWideSparse: true });
+    const normalizedLayouts = reconcileLayoutsWithWidgets(
+      loadedLayouts || getDefaultLayouts(),
+      loadedWidgets,
+      { rebalanceWideSparse: true }
+    ).layouts;
     setLayouts(normalizedLayouts);
 
     // Load and decrypt widget configs from storage provider
@@ -1855,7 +1892,9 @@ function App() {
             breakpoint,
             updatedLayouts[breakpoint]
           );
-          updatedLayouts[breakpoint].push(newItem);
+          updatedLayouts[breakpoint].push(
+            applyWidgetLayoutConstraints(newItem, widget, breakpoint as BreakpointName)
+          );
           needsUpdate = true;
         }
       });
@@ -2158,7 +2197,6 @@ function App() {
                       }
                     }}
                     onDragStart={handleDragStart}
-                    onDrag={handleDrag}
                     onDragStop={handleDragStop}
                     onResizeStart={handleResizeStart}
                     onResize={handleResize}
