@@ -126,8 +126,8 @@ const DEFAULT_LAYOUT_TEMPLATES: Record<BreakpointName, LayoutTemplate[]> = {
 
 const validateLayoutItem = (item: LayoutItem): LayoutItem => ({
   ...item,
-  w: Math.max(item.w, 2), // Minimum width of 2
-  h: Math.max(item.h, 2)  // Minimum height of 2
+  w: Math.max(item.w, GRID.MIN_WIDGET_WIDTH),
+  h: Math.max(item.h, GRID.MIN_WIDGET_HEIGHT)
 });
 
 const clampLayoutItemToCols = (item: LayoutItem, colCount: number): LayoutItem => {
@@ -157,10 +157,10 @@ const applyWidgetLayoutConstraints = (
 
   return clampLayoutItemToCols({
     ...item,
-    minW: isMobile ? 2 : Math.max(item.minW ?? GRID.MIN_WIDGET_WIDTH, widgetMeta?.minWidth ?? GRID.MIN_WIDGET_WIDTH),
-    minH: isMobile ? 2 : Math.max(item.minH ?? GRID.MIN_WIDGET_HEIGHT, widgetMeta?.minHeight ?? GRID.MIN_WIDGET_HEIGHT),
-    maxW: isMobile ? 2 : (widgetMeta?.maxSize?.w ?? item.maxW),
-    maxH: isMobile ? 2 : (widgetMeta?.maxSize?.h ?? item.maxH),
+    minW: isMobile ? 2 : (widgetMeta?.minWidth ?? GRID.MIN_WIDGET_WIDTH),
+    minH: isMobile ? 2 : (widgetMeta?.minHeight ?? GRID.MIN_WIDGET_HEIGHT),
+    maxW: isMobile ? 2 : widgetMeta?.maxSize?.w,
+    maxH: isMobile ? 2 : widgetMeta?.maxSize?.h,
   }, cols[breakpoint]);
 };
 
@@ -196,7 +196,7 @@ const scaleLayoutToCols = (
   const scale = toCols / fromCols;
 
   return layout.map((item) => {
-    const minW = item.minW || 2;
+    const minW = item.minW || GRID.MIN_WIDGET_WIDTH;
     const scaledX = Math.round(item.x * scale);
     const scaledRight = Math.round((item.x + item.w) * scale);
     const scaledW = Math.max(minW, scaledRight - scaledX);
@@ -285,7 +285,12 @@ const createLayoutsFromTemplates = (widgetIds: string[]): LayoutsByBreakpoint =>
 
     widgetIds.forEach((widgetId, index) => {
       if (index < template.length) {
-        layout.push({ ...template[index], i: widgetId });
+        layout.push({
+          ...template[index],
+          i: widgetId,
+          minW: GRID.MIN_WIDGET_WIDTH,
+          minH: GRID.MIN_WIDGET_HEIGHT,
+        });
         return;
       }
 
@@ -1696,10 +1701,19 @@ function App() {
             } as Widget;
           }) : [];
 
-          // 6. Validate and fix layouts based on the widgets
-          const validatedLayouts = validateLayouts(await userDashboardService.validateAndFixLayouts(
-            typedWidgets.map(w => ({ id: w.id, type: w.type }))
-          ), { rebalanceWideSparse: true });
+          // 6. Validate and reconcile layouts against the current widget constraints
+          const validatedLayoutsResult = reconcileLayoutsWithWidgets(
+            validateLayouts(await userDashboardService.validateAndFixLayouts(
+              typedWidgets.map(w => ({ id: w.id, type: w.type }))
+            ), { rebalanceWideSparse: true }),
+            typedWidgets,
+            { rebalanceWideSparse: true }
+          );
+          const validatedLayouts = validatedLayoutsResult.layouts;
+
+          if (validatedLayoutsResult.changed) {
+            await userDashboardService.saveLayouts(validatedLayouts);
+          }
 
           // 7. Update localStorage for personal dashboard
           const personalKeys = getDashboardStorageKeys('personal');

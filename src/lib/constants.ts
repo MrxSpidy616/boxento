@@ -20,9 +20,9 @@ export const TIMING = {
 // Grid layout constants
 export const GRID = {
   /** Default minimum widget width */
-  MIN_WIDGET_WIDTH: 2,
+  MIN_WIDGET_WIDTH: 1,
   /** Default minimum widget height */
-  MIN_WIDGET_HEIGHT: 2,
+  MIN_WIDGET_HEIGHT: 1,
   /** Container padding in pixels */
   CONTAINER_PADDING: 10,
   /** Margin between grid items in pixels */

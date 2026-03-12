@@ -24,7 +24,11 @@ import {
   Bot,
   Plus,
   Trash2,
-  LucideIcon
+  LucideIcon,
+  ArrowUpRight,
+  Wifi,
+  WifiOff,
+  Activity
 } from 'lucide-react';
 
 type ServicesWidgetProps = WidgetProps<ServicesWidgetConfig>;
@@ -189,18 +193,51 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  // Determine grid columns based on width
-  const getGridCols = () => {
+  const getCompactGridCols = () => {
     if (width >= 4) return 'grid-cols-4';
     if (width >= 3) return 'grid-cols-3';
-    return 'grid-cols-2';
+    if (width >= 2) return 'grid-cols-2';
+    return 'grid-cols-1';
   };
 
   const getRegularGridColumns = () => {
-    if (width >= 8) return 4;
+    if (width >= 12) return 5;
+    if (width >= 9) return 4;
     if (width >= 6) return 3;
     if (width >= 3) return 2;
     return 1;
+  };
+
+  const getStatusLabel = (status?: 'online' | 'offline' | 'checking') => {
+    switch (status) {
+      case 'online':
+        return 'Online';
+      case 'offline':
+        return 'Offline';
+      case 'checking':
+        return 'Checking';
+      default:
+        return 'Unknown';
+    }
+  };
+
+  const getStatusIcon = (status?: 'online' | 'offline' | 'checking') => {
+    switch (status) {
+      case 'online':
+        return Wifi;
+      case 'offline':
+        return WifiOff;
+      default:
+        return Activity;
+    }
+  };
+
+  const getServiceHost = (url: string) => {
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return url.replace(/^https?:\/\//, '').split('/')[0];
+    }
   };
 
   // Render service card
@@ -209,39 +246,74 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     const status = serviceStatus[service.id];
 
     if (compact) {
+      const StatusIcon = getStatusIcon(status);
+
       return (
         <button
           key={service.id}
           onClick={() => openService(service.url)}
-          className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors relative group"
+          className="relative flex flex-col items-center justify-center gap-2 rounded-xl border border-black/5 bg-black/[0.02] p-2 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
           title={`${service.name}${service.description ? ` - ${service.description}` : ''}`}
         >
           {localConfig.showStatus && (
             <div className={`absolute top-1 right-1 w-2 h-2 rounded-full ${getStatusColor(status)}`} />
           )}
-          <Icon className="w-6 h-6 mb-1 text-gray-700 dark:text-gray-300" />
-          <span className="text-xs text-center truncate w-full">{service.name}</span>
+          <Icon className="h-6 w-6 text-gray-700 dark:text-gray-300" />
+          <span className="w-full truncate text-center text-xs font-medium">{service.name}</span>
+          {localConfig.showStatus && (
+            <StatusIcon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
+          )}
         </button>
       );
     }
+
+    const serviceHost = getServiceHost(service.url);
+    const StatusIcon = getStatusIcon(status);
 
     return (
       <button
         key={service.id}
         onClick={() => openService(service.url)}
-        className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors relative group"
+        className="group flex h-full min-h-[112px] flex-col justify-between rounded-xl border border-black/5 bg-black/[0.02] p-4 text-left transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
       >
-        {localConfig.showStatus && (
-          <div className={`absolute top-2 right-2 w-2 h-2 rounded-full ${getStatusColor(status)}`} />
-        )}
-        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-          <Icon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-white/80 text-gray-700 shadow-sm ring-1 ring-black/5 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10">
+              <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{service.name}</div>
+              <div className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">{serviceHost}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-2 py-1 text-[11px] font-medium text-gray-600 ring-1 ring-black/5 dark:bg-black/20 dark:text-gray-300 dark:ring-white/10">
+            {localConfig.showStatus && (
+              <div className={`h-2 w-2 rounded-full ${getStatusColor(status)}`} />
+            )}
+            <StatusIcon className="h-3.5 w-3.5" />
+            <span>{getStatusLabel(status)}</span>
+          </div>
         </div>
-        <div className="flex-grow min-w-0 text-left">
-          <div className="font-medium text-sm truncate">{service.name}</div>
+
+        <div className="min-w-0 flex-1">
           {service.description && (
-            <div className="text-xs text-gray-500 truncate">{service.description}</div>
+            <div className="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{service.description}</div>
           )}
+          {!service.description && (
+            <div className="text-sm text-gray-500 dark:text-gray-400">Open service dashboard</div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 text-[11px] text-gray-500 dark:text-gray-400">
+          <div className="flex min-w-0 items-center gap-2">
+            {service.category && (
+              <span className="truncate rounded-full bg-white/70 px-2 py-1 ring-1 ring-black/5 dark:bg-black/20 dark:ring-white/10">
+                {service.category}
+              </span>
+            )}
+            <span className="truncate">{serviceHost}</span>
+          </div>
+          <ArrowUpRight className="h-3.5 w-3.5 flex-shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
         </div>
       </button>
     );
@@ -252,6 +324,16 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     const services = localConfig.services || [];
     const isCompact = width <= 2 || height <= 2;
     const regularColumns = Math.min(getRegularGridColumns(), Math.max(services.length, 1));
+    const statusSummary = services.reduce(
+      (summary, service) => {
+        const status = serviceStatus[service.id];
+        if (status === 'online') summary.online += 1;
+        else if (status === 'offline') summary.offline += 1;
+        else if (status === 'checking') summary.checking += 1;
+        return summary;
+      },
+      { online: 0, offline: 0, checking: 0 }
+    );
 
     if (services.length === 0) {
       return (
@@ -270,18 +352,44 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
 
     if (isCompact) {
       return (
-        <div className={`grid ${getGridCols()} gap-1 h-full overflow-auto`}>
+        <div className={`grid ${getCompactGridCols()} gap-2 h-full overflow-auto`}>
           {services.map(service => renderServiceCard(service, true))}
         </div>
       );
     }
 
     return (
-      <div
-        className="grid gap-2 h-full overflow-auto"
-        style={{ gridTemplateColumns: `repeat(${regularColumns}, minmax(0, 1fr))` }}
-      >
-        {services.map(service => renderServiceCard(service, false))}
+      <div className="flex h-full flex-col gap-3 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-2 px-1 text-[11px] text-gray-500 dark:text-gray-400">
+          <span className="rounded-full bg-black/[0.04] px-2.5 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+            {services.length} services
+          </span>
+          {localConfig.showStatus && (
+            <>
+              <span className="rounded-full bg-green-500/10 px-2.5 py-1 text-green-700 dark:text-green-300">
+                {statusSummary.online} online
+              </span>
+              <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-red-700 dark:text-red-300">
+                {statusSummary.offline} offline
+              </span>
+              {statusSummary.checking > 0 && (
+                <span className="rounded-full bg-yellow-500/10 px-2.5 py-1 text-yellow-700 dark:text-yellow-300">
+                  {statusSummary.checking} checking
+                </span>
+              )}
+            </>
+          )}
+        </div>
+
+        <div
+          className="grid flex-1 gap-3 overflow-auto pr-1"
+          style={{
+            gridTemplateColumns: `repeat(${regularColumns}, minmax(0, 1fr))`,
+            gridAutoRows: 'minmax(112px, auto)',
+          }}
+        >
+          {services.map(service => renderServiceCard(service, false))}
+        </div>
       </div>
     );
   };
