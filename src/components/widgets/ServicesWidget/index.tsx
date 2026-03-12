@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -123,6 +123,8 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   // const [editingService, setEditingService] = useState<Service | null>(null);
   const [showAddService, setShowAddService] = useState<boolean>(false);
   const [newService, setNewService] = useState<Partial<Service>>({});
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   // Update local config when props change
   useEffect(() => {
@@ -172,6 +174,22 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     return () => clearInterval(interval);
   }, [localConfig.services, localConfig.showStatus, localConfig.checkInterval, checkServiceStatus]);
 
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateWidth = () => {
+      setContainerWidth(element.getBoundingClientRect().width);
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
   // Get Lucide icon component
   const getIcon = (iconName?: string): LucideIcon => {
     if (!iconName) return Globe;
@@ -200,7 +218,12 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     return 'grid-cols-1';
   };
 
-  const getRegularGridColumns = () => {
+  const getRegularGridColumns = (measuredWidth: number) => {
+    if (measuredWidth >= 1500) return 5;
+    if (measuredWidth >= 1100) return 4;
+    if (measuredWidth >= 680) return 3;
+    if (measuredWidth >= 430) return 2;
+
     if (width >= 12) return 5;
     if (width >= 9) return 4;
     if (width >= 6) return 3;
@@ -325,7 +348,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     const isTiny = width === 1 && height === 1;
     const isShort = height === 1 && width > 1;
     const isCompact = width <= 2 || height <= 2;
-    const regularColumns = Math.min(getRegularGridColumns(), Math.max(services.length, 1));
+    const regularColumns = Math.min(getRegularGridColumns(containerWidth), Math.max(services.length, 1));
     const statusSummary = services.reduce(
       (summary, service) => {
         const status = serviceStatus[service.id];
@@ -656,7 +679,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   );
 
   return (
-    <div className="widget-container h-full flex flex-col relative">
+    <div ref={containerRef} className="widget-container h-full flex flex-col relative">
       <WidgetHeader
         title={localConfig.title || defaultConfig.title}
         onSettingsClick={() => setShowSettings(true)}
