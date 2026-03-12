@@ -322,6 +322,8 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   // Render content based on size
   const renderContent = () => {
     const services = localConfig.services || [];
+    const isTiny = width === 1 && height === 1;
+    const isShort = height === 1 && width > 1;
     const isCompact = width <= 2 || height <= 2;
     const regularColumns = Math.min(getRegularGridColumns(), Math.max(services.length, 1));
     const statusSummary = services.reduce(
@@ -346,6 +348,65 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
           >
             Add services
           </button>
+        </div>
+      );
+    }
+
+    if (isTiny) {
+      const previewStatuses = services.slice(0, 4);
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.04] text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+            <Server className="h-4 w-4" />
+          </div>
+          <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
+            {localConfig.showStatus ? `${statusSummary.online}/${services.length}` : services.length}
+          </div>
+          <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {localConfig.showStatus ? 'online' : 'services'}
+          </div>
+          <div className="flex items-center gap-1">
+            {previewStatuses.map((service) => (
+              <span
+                key={service.id}
+                className={`h-1.5 w-1.5 rounded-full ${getStatusColor(serviceStatus[service.id])}`}
+              />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (isShort) {
+      const ribbonServices = services.slice(0, Math.min(services.length, Math.max(2, width + 1)));
+      return (
+        <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
+          <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+            {services.length} services
+          </span>
+          {localConfig.showStatus && (
+            <>
+              <span className="shrink-0 rounded-full bg-green-500/10 px-2 py-1 text-green-700 dark:text-green-300">
+                {statusSummary.online} online
+              </span>
+              <span className="shrink-0 rounded-full bg-red-500/10 px-2 py-1 text-red-700 dark:text-red-300">
+                {statusSummary.offline} offline
+              </span>
+            </>
+          )}
+          {ribbonServices.map((service) => {
+            const Icon = getIcon(service.icon);
+            return (
+              <button
+                key={service.id}
+                onClick={() => openService(service.url)}
+                className="flex shrink-0 items-center gap-2 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10"
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span className="max-w-[8rem] truncate">{service.name}</span>
+              </button>
+            );
+          })}
         </div>
       );
     }
@@ -599,9 +660,10 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
       <WidgetHeader
         title={localConfig.title || defaultConfig.title}
         onSettingsClick={() => setShowSettings(true)}
+        compact={width === 1 || height === 1}
       />
 
-      <div className="flex-grow p-2 overflow-hidden">
+      <div className={`flex-grow overflow-hidden ${width === 1 || height === 1 ? 'p-1.5' : 'p-2'}`}>
         {renderContent()}
       </div>
 
