@@ -53,6 +53,9 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 type BreakpointName = keyof typeof cols;
 type LayoutsByBreakpoint = { [key: string]: LayoutItem[] };
 type LayoutTemplate = Omit<LayoutItem, 'i'>;
+type ValidateLayoutsOptions = {
+  rebalanceWideSparse?: boolean;
+};
 
 const BREAKPOINT_ORDER = Object.keys(breakpoints)
   .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
@@ -265,7 +268,10 @@ const createLayoutsFromTemplates = (widgetIds: string[]): LayoutsByBreakpoint =>
   return layoutsByBreakpoint;
 };
 
-const validateLayouts = (layouts: LayoutsByBreakpoint): LayoutsByBreakpoint => {
+const validateLayouts = (
+  layouts: LayoutsByBreakpoint,
+  options: ValidateLayoutsOptions = {}
+): LayoutsByBreakpoint => {
   const validatedLayouts: LayoutsByBreakpoint = { ...layouts };
 
   BREAKPOINT_ORDER.forEach((breakpoint) => {
@@ -297,7 +303,7 @@ const validateLayouts = (layouts: LayoutsByBreakpoint): LayoutsByBreakpoint => {
       validatedLayouts[breakpoint] = scaleLayoutToCols(fallbackLayout, fallbackCols, targetCols);
     }
 
-    if (targetCols > cols.lg) {
+    if (options.rebalanceWideSparse && targetCols > cols.lg) {
       const rebalancedLayout = rebalanceWideSparseLayout(validatedLayouts[breakpoint], targetCols);
       if (rebalancedLayout) {
         validatedLayouts[breakpoint] = rebalancedLayout;
@@ -431,7 +437,7 @@ function App() {
       if (dashboardLayouts) {
         const parsed = JSON.parse(dashboardLayouts);
         if (Object.keys(parsed).length > 0) {
-          return validateLayouts(parsed);
+          return validateLayouts(parsed, { rebalanceWideSparse: true });
         }
       }
 
@@ -439,7 +445,7 @@ function App() {
       if (dashboardId === 'personal') {
         const savedLayouts = loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, {});
         if (Object.keys(savedLayouts).length > 0) {
-          return validateLayouts(savedLayouts);
+          return validateLayouts(savedLayouts, { rebalanceWideSparse: true });
         }
       }
     } catch (error) {
@@ -592,15 +598,15 @@ function App() {
     if (savedWidgets && savedLayouts) {
       // Dashboard has saved data
       widgetsToLoad = JSON.parse(savedWidgets);
-      layoutsToLoad = validateLayouts(JSON.parse(savedLayouts));
+      layoutsToLoad = validateLayouts(JSON.parse(savedLayouts), { rebalanceWideSparse: true });
     } else if (dashboardId === 'personal') {
       // Personal dashboard falls back to legacy storage
       widgetsToLoad = loadFromLocalStorage(STORAGE_KEYS.WIDGETS, getDefaultWidgets());
-      layoutsToLoad = validateLayouts(loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts()));
+      layoutsToLoad = validateLayouts(loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts()), { rebalanceWideSparse: true });
     } else {
       // Non-personal dashboards without storage get fresh widgets with unique IDs
       widgetsToLoad = generateFreshDefaultWidgets();
-      layoutsToLoad = validateLayouts(generateLayoutsForWidgets(widgetsToLoad));
+      layoutsToLoad = validateLayouts(generateLayoutsForWidgets(widgetsToLoad), { rebalanceWideSparse: true });
       // Save immediately so they persist
       localStorage.setItem(keys.widgets, JSON.stringify(widgetsToLoad));
       localStorage.setItem(keys.layouts, JSON.stringify(layoutsToLoad));
@@ -1114,7 +1120,7 @@ function App() {
       updatedLayouts[breakpoint] = updatedLayouts[breakpoint].filter(item => item.i !== widgetId);
     });
 
-    const normalizedLayouts = validateLayouts(updatedLayouts);
+    const normalizedLayouts = validateLayouts(updatedLayouts, { rebalanceWideSparse: true });
     
     // Update state and save
     setWidgets(updatedWidgets);
@@ -1484,7 +1490,7 @@ function App() {
     console.log('[Storage] Loaded from provider - widgets:', loadedWidgets?.length || 0, 'layouts:', loadedLayouts ? Object.keys(loadedLayouts).length : 0);
 
     if (loadedLayouts && Object.keys(loadedLayouts).length > 0) {
-      loadedLayouts = validateLayouts(loadedLayouts);
+      loadedLayouts = validateLayouts(loadedLayouts, { rebalanceWideSparse: true });
     }
 
     // If no data in storage provider, check localStorage for migration
@@ -1499,7 +1505,7 @@ function App() {
       if (localWidgetsStr && localLayoutsStr) {
         // Migrate localStorage data to storage provider
         loadedWidgets = JSON.parse(localWidgetsStr);
-        loadedLayouts = validateLayouts(JSON.parse(localLayoutsStr));
+        loadedLayouts = validateLayouts(JSON.parse(localLayoutsStr), { rebalanceWideSparse: true });
 
         // Save to storage provider for future use
         if (loadedWidgets && loadedWidgets.length > 0) {
@@ -1517,7 +1523,7 @@ function App() {
 
         if (legacyWidgets.length > 0) {
           loadedWidgets = legacyWidgets;
-          loadedLayouts = validateLayouts(legacyLayouts);
+          loadedLayouts = validateLayouts(legacyLayouts, { rebalanceWideSparse: true });
 
           // Migrate to storage provider
           await provider.saveWidgets(currentDashboardId, loadedWidgets);
@@ -1538,7 +1544,7 @@ function App() {
       console.log('[Storage] Initialized with default widgets');
     }
 
-    const normalizedLayouts = validateLayouts(loadedLayouts || getDefaultLayouts());
+    const normalizedLayouts = validateLayouts(loadedLayouts || getDefaultLayouts(), { rebalanceWideSparse: true });
     setLayouts(normalizedLayouts);
 
     // Load and decrypt widget configs from storage provider
@@ -1675,7 +1681,7 @@ function App() {
           // 6. Validate and fix layouts based on the widgets
           const validatedLayouts = validateLayouts(await userDashboardService.validateAndFixLayouts(
             typedWidgets.map(w => ({ id: w.id, type: w.type }))
-          ));
+          ), { rebalanceWideSparse: true });
 
           // 7. Update localStorage for personal dashboard
           const personalKeys = getDashboardStorageKeys('personal');
