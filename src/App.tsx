@@ -57,6 +57,19 @@ type ValidateLayoutsOptions = {
   rebalanceWideSparse?: boolean;
 };
 
+const getBreakpointForWidth = (width: number): BreakpointName => {
+  const orderedBreakpoints = Object.keys(breakpoints)
+    .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
+
+  for (const breakpoint of orderedBreakpoints) {
+    if (width >= breakpoints[breakpoint]) {
+      return breakpoint;
+    }
+  }
+
+  return 'lg';
+};
+
 const BREAKPOINT_ORDER = Object.keys(breakpoints)
   .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
 
@@ -490,7 +503,9 @@ function App() {
   
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [widgetSelectorOpen, setWidgetSelectorOpen] = useState<boolean>(false);
-  const [currentBreakpoint, setCurrentBreakpoint] = useState<string>('lg');
+  const [currentBreakpoint, setCurrentBreakpoint] = useState<string>(() => (
+    typeof window === 'undefined' ? 'lg' : getBreakpointForWidth(window.innerWidth)
+  ));
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isTransitionsEnabled, setIsTransitionsEnabled] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
@@ -728,9 +743,14 @@ function App() {
   })();
   
   // References for debouncing updates
-  const layoutUpdateTimeout = useRef<number | null>(null);
+  const layoutSaveTimeout = useRef<number | null>(null);
   const widgetUpdateTimeout = useRef<number | null>(null);
   const publicDashboardSyncTimeout = useRef<number | null>(null);
+  const layoutsRef = useRef(layouts);
+
+  useEffect(() => {
+    layoutsRef.current = layouts;
+  }, [layouts]);
 
   // Get sync status from context
   const { isSyncing, syncStatus } = useSync();
@@ -856,14 +876,14 @@ function App() {
     };
 
     // Always cancel pending debounced save to prevent race conditions
-    if (layoutUpdateTimeout.current !== null) {
-      clearTimeout(layoutUpdateTimeout.current);
-      layoutUpdateTimeout.current = null;
+    if (layoutSaveTimeout.current !== null) {
+      clearTimeout(layoutSaveTimeout.current);
+      layoutSaveTimeout.current = null;
     }
 
     if (debounce) {
       // Schedule save for later (returns immediately)
-      layoutUpdateTimeout.current = window.setTimeout(saveToProvider, TIMING.SAVE_DEBOUNCE_MS);
+      layoutSaveTimeout.current = window.setTimeout(saveToProvider, TIMING.SAVE_DEBOUNCE_MS);
     } else {
       // Save immediately and wait for completion
       await saveToProvider();
@@ -909,37 +929,6 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
-  // Listen for resize events to update the breakpoint
-  useEffect(() => {
-    const updateBreakpoint = () => {
-      const width = window.innerWidth;
-      let newBreakpoint = 'lg';
-      
-      // Find which breakpoint we're in
-      for (const bp of Object.keys(breakpoints).sort((a, b) => 
-        breakpoints[b as keyof typeof breakpoints] - breakpoints[a as keyof typeof breakpoints])) {
-        if (width >= breakpoints[bp as keyof typeof breakpoints]) {
-          newBreakpoint = bp;
-          break;
-        }
-      }
-      
-      if (newBreakpoint !== currentBreakpoint) {
-        setCurrentBreakpoint(newBreakpoint);
-        // Breakpoint changed
-      }
-    };
-    
-    // Initial check
-    updateBreakpoint();
-    
-    // Add listener
-    window.addEventListener('resize', updateBreakpoint);
-    
-    // Clean up
-    return () => window.removeEventListener('resize', updateBreakpoint);
-  }, [currentBreakpoint]);
   
   // Calculate row height based on window width to ensure square widgets
   const calculateRowHeight = (): number => {
@@ -1137,27 +1126,13 @@ function App() {
 
     // If we have all layouts from the responsive grid
     if (allLayouts) {
-      // Use a timeout to debounce the layout update
-      if (layoutUpdateTimeout.current !== null) {
-        clearTimeout(layoutUpdateTimeout.current);
-      }
-      
-      layoutUpdateTimeout.current = window.setTimeout(() => {
-        // Create a validated copy to prevent mutating the input
-        const validatedLayouts = validateLayouts(allLayouts);
-        
-        // Update layout state and save
-        setLayouts(validatedLayouts);
-        saveLayouts(validatedLayouts);
-      }, 100); // 100ms debounce
+      setLayouts(validateLayouts(allLayouts));
     } else {
       // If we only have the current layout, update only the current breakpoint
-      const updatedLayouts = { ...layouts };
+      const updatedLayouts = { ...layoutsRef.current };
       updatedLayouts[currentBreakpoint] = validatedLayout;
       
-      // Update state and save
-      setLayouts(updatedLayouts);
-      saveLayouts(updatedLayouts);
+      setLayouts(validateLayouts(updatedLayouts));
     }
   };
   
@@ -1312,7 +1287,7 @@ function App() {
     document.body.classList.remove('dragging', 'react-grid-layout--dragging');
     
     const updatedLayouts = {
-      ...layouts,
+      ...layoutsRef.current,
       [currentBreakpoint]: validateLayout(currentLayout),
     };
 
@@ -1416,7 +1391,7 @@ function App() {
     lastResizeSize.current = null;
 
     const updatedLayouts = {
-      ...layouts,
+      ...layoutsRef.current,
       [currentBreakpoint]: validateLayout(currentLayout),
     };
 
@@ -1439,15 +1414,11 @@ function App() {
       const isMobile = currentBreakpoint === 'xs' || currentBreakpoint === 'xxs';
       
       // Set default dimensions
-      const defaultWidth = isMobile ? 2 : 3;
       const defaultHeight = isMobile ? 2 : 3;
       
-      // Create data-grid object with fallbacks
+      // Let the grid own x/y/w/h from the controlled `layouts` prop.
       const dataGrid = {
         i: widget.id,
-        x: layoutItem?.x ?? 0,
-        y: layoutItem?.y ?? 0,
-        w: layoutItem?.w ?? defaultWidth,
         h: isMobile ? 5 : (layoutItem?.h ?? defaultHeight),
         minW: layoutItem?.minW ?? widgetMeta?.minWidth ?? 2,
         minH: isMobile ? 3 : (layoutItem?.minH ?? widgetMeta?.minHeight ?? 2),
