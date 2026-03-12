@@ -137,3 +137,42 @@ test('reflows service cards without right-edge clipping on laptop widths', async
 
   expect(allCardsWithinBounds).toBe(true);
 });
+
+test('renders audited 1x1 widgets without header chrome', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await seedDashboard(page, {
+    widgets: [
+      {
+        id: 'world-clocks-1',
+        type: 'world-clocks',
+        config: {
+          timezones: [{ id: 1, name: 'Tokyo, Japan', timezone: 'Asia/Tokyo' }],
+        },
+      },
+      {
+        id: 'year-progress-1',
+        type: 'year-progress',
+        config: {
+          showPercentage: true,
+          showDaysLeft: true,
+        },
+      },
+    ],
+    layouts: {
+      lg: [
+        { i: 'world-clocks-1', x: 0, y: 0, w: 1, h: 1, minW: 1, minH: 1 },
+        { i: 'year-progress-1', x: 1, y: 0, w: 1, h: 1, minW: 1, minH: 1 },
+      ],
+    },
+  });
+
+  const clocksWidget = page.locator('.react-grid-item[data-widget-id="world-clocks-1"]');
+  await expect(clocksWidget).toBeVisible();
+  await expect(clocksWidget.getByRole('heading', { name: 'World Clocks' })).toHaveCount(0);
+  await expect(clocksWidget.getByText('Tokyo')).toBeVisible();
+
+  const yearProgressWidget = page.locator('.react-grid-item[data-widget-id="year-progress-1"]');
+  await expect(yearProgressWidget).toBeVisible();
+  await expect(yearProgressWidget.getByRole('heading', { name: 'Year Progress' })).toHaveCount(0);
+  await expect(yearProgressWidget.getByText(/\d+%/)).toBeVisible();
+});

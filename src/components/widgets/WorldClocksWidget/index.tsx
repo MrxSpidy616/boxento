@@ -31,6 +31,7 @@ import {
  * @returns {JSX.Element} World Clocks widget component
  */
 const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [timezones, setTimezones] = useState<TimezoneItem[]>(config?.timezones || [
     { id: 1, name: 'New York, USA', timezone: 'America/New_York' },
@@ -436,6 +437,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     const mainTimezone = timezones[0] || { id: 0, name: 'Local', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
     const timeString = formatTime(currentTime, mainTimezone.timezone).split(':').slice(0, 2).join(':');
     const period = formatTime(currentTime, mainTimezone.timezone).split(' ')[1];
+    const label = mainTimezone.name.split(',')[0];
     
     return (
       <div className="flex flex-col items-center justify-center h-full p-2">
@@ -443,7 +445,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
           {timeString}
         </div>
         <div className="text-xs leading-tight mt-0.5 font-medium text-center">
-          {mainTimezone.name}
+          {label}
         </div>
         <div className="text-xs text-gray-500 dark:text-gray-400 leading-none">
           {period}
@@ -1091,13 +1093,16 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title="World Clocks" 
-        onSettingsClick={() => setShowSettings(true)}
-      />
+    <div ref={widgetRef} className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && (
+        <WidgetHeader 
+          title="World Clocks" 
+          onSettingsClick={() => setShowSettings(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
       
-      <div className="flex-1 overflow-hidden">
+      <div className={`flex-1 overflow-hidden ${isTiny ? 'p-1' : ''}`}>
         {renderContent()}
       </div>
       

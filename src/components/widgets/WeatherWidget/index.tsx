@@ -43,6 +43,7 @@ interface CitySearchResult {
  * @returns {JSX.Element} Weather widget component
  */
 const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshInterval = 15 }) => {
+  const isTiny = width === 1 && height === 1;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -510,6 +511,14 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    * @returns {JSX.Element} Loading indicator
    */
   const renderLoading = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+      );
+    }
+
     return (
       <div className="h-full w-full p-4 flex flex-col">
         {/* Temperature and icon skeleton */}
@@ -535,6 +544,15 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    * @returns {JSX.Element} Error indicator
    */
   const renderError = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+          <Info className="text-amber-500" size={18} />
+          <p className="text-[10px] text-amber-500">Weather unavailable</p>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-full p-3 text-center">
         <Info className="text-amber-500 mb-2" size={24} />
@@ -554,6 +572,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    */
   const renderMinimalView = () => {
     if (!weather) return null;
+    const shortLocation = weather.location.split(',')[0];
     
     return (
       <div className="flex flex-col items-center justify-center h-full px-2 py-3">
@@ -564,7 +583,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
           {formatTemperature(weather.temperature)}
         </div>
         <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-          {weather.location}
+          {shortLocation}
         </div>
       </div>
     );
@@ -1034,13 +1053,16 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   }, []);
 
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title="Weather" 
-        onSettingsClick={() => setIsSettingsOpen(true)}
-      />
+    <div ref={widgetRef} className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && (
+        <WidgetHeader 
+          title="Weather" 
+          onSettingsClick={() => setIsSettingsOpen(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
       
-      <div className="flex-1 overflow-hidden rounded-md m-1">
+      <div className={`flex-1 overflow-hidden rounded-md ${isTiny ? 'm-0 p-1' : 'm-1'}`}>
         {renderContent()}
       </div>
       

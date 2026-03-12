@@ -74,6 +74,9 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'quick-links',
   'services',
   'cron-health',
+  'world-clocks',
+  'year-progress',
+  'weather',
 ]);
 
 // Widget registry with enhanced metadata
