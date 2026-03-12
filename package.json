@@ -9,6 +9,10 @@
     "build": "bun run build:types && bunx --bun vite build",
     "build:types": "bunx tsc -b",
     "lint": "bun eslint .",
+    "test": "bunx vitest run",
+    "test:watch": "bunx vitest",
+    "test:e2e": "bunx playwright test",
+    "test:e2e:reuse": "PLAYWRIGHT_USE_EXISTING_SERVER=1 bunx playwright test",
     "preview": "bunx --bun vite preview",
     "deploy": "bun run build && firebase deploy --only hosting"
   },
@@ -49,6 +53,7 @@
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@eslint/js": "^9.39.2",
     "@types/node": "^22.19.3",
     "@types/react": "19.2.1",
@@ -64,6 +69,7 @@
     "globals": "^15.15.0",
     "typescript": "~5.7.3",
     "typescript-eslint": "^8.50.1",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "vitest": "^3.2.4"
   }
 }

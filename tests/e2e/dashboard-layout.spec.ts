@@ -1,0 +1,139 @@
+import { expect, test } from '@playwright/test';
+
+import { seedDashboard } from './helpers/dashboardSeed';
+
+type StoredLayoutItem = {
+  i: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+const SERVICES = [
+  { id: 'boxento', name: 'Boxento', url: 'https://boxento.test', icon: 'LayoutGrid', description: 'Dashboard', category: 'Utilities' },
+  { id: 'paisa', name: 'Paisa', url: 'https://paisa.test', icon: 'PiggyBank', description: 'Personal Finance', category: 'Finance' },
+  { id: 'fava', name: 'Fava', url: 'https://fava.test', icon: 'BookOpen', description: 'Beancount', category: 'Finance' },
+  { id: 'jellyfin', name: 'Jellyfin', url: 'https://jellyfin.test', icon: 'Play', description: 'Media Server', category: 'Media' },
+  { id: 'riven', name: 'Riven', url: 'https://riven.test', icon: 'Film', description: 'Media Requests', category: 'Media' },
+  { id: 'open-webui', name: 'Open WebUI', url: 'https://open-webui.test', icon: 'Bot', description: 'Local AI Chat', category: 'AI' },
+];
+
+test('persists quick links drag and resize changes across reloads', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await seedDashboard(page, {
+    widgets: [
+      { id: 'quick-links-1', type: 'quick-links', config: { customTitle: 'Quick Links', links: [] } },
+    ],
+    layouts: {
+      lg: [
+        { i: 'quick-links-1', x: 0, y: 0, w: 2, h: 2, minW: 1, minH: 1 },
+      ],
+    },
+  });
+
+  const widget = page.locator('.react-grid-item[data-widget-id="quick-links-1"]');
+  await expect(widget).toBeVisible();
+
+  const dragHandle = widget.locator('.widget-drag-handle').first();
+  const dragBox = await dragHandle.boundingBox();
+  if (!dragBox) {
+    throw new Error('Quick Links drag handle is not available');
+  }
+
+  await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dragBox.x + dragBox.width / 2 + 260, dragBox.y + dragBox.height / 2 + 12, { steps: 12 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const layouts = JSON.parse(localStorage.getItem('boxento-layouts-personal') || '{}');
+      return layouts.lg?.find((item: { i: string; x: number }) => item.i === 'quick-links-1')?.x ?? -1;
+    });
+  }).toBeGreaterThan(0);
+
+  const resizeHandle = widget.locator('.react-resizable-handle-se');
+  const resizeBox = await resizeHandle.boundingBox();
+  if (!resizeBox) {
+    throw new Error('Quick Links resize handle is not available');
+  }
+
+  await page.mouse.move(resizeBox.x + resizeBox.width / 2, resizeBox.y + resizeBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(resizeBox.x + 180, resizeBox.y + 120, { steps: 10 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const layouts = JSON.parse(localStorage.getItem('boxento-layouts-personal') || '{}');
+      const item = layouts.lg?.find((entry: { i: string; w: number; h: number }) => entry.i === 'quick-links-1');
+      return item ? `${item.w}x${item.h}` : 'missing';
+    });
+  }).not.toBe('2x2');
+
+  const persistedLayout = await page.evaluate<StoredLayoutItem | null>(() => {
+    const layouts = JSON.parse(localStorage.getItem('boxento-layouts-personal') || '{}');
+    return layouts.lg?.find((item: { i: string }) => item.i === 'quick-links-1') ?? null;
+  });
+
+  expect(persistedLayout).not.toBeNull();
+  if (!persistedLayout) {
+    throw new Error('Quick Links layout was not persisted');
+  }
+  expect(persistedLayout.x).toBeGreaterThan(0);
+  expect(persistedLayout.w).toBeGreaterThan(2);
+  expect(persistedLayout.h).toBeGreaterThan(2);
+
+  await page.reload();
+  await expect(widget).toBeVisible();
+
+  const reloadedLayout = await page.evaluate<StoredLayoutItem | null>(() => {
+    const layouts = JSON.parse(localStorage.getItem('boxento-layouts-personal') || '{}');
+    return layouts.lg?.find((item: { i: string }) => item.i === 'quick-links-1') ?? null;
+  });
+
+  expect(reloadedLayout).toEqual(persistedLayout);
+});
+
+test('reflows service cards without right-edge clipping on laptop widths', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 982 });
+  await seedDashboard(page, {
+    widgets: [
+      {
+        id: 'services-1',
+        type: 'services',
+        config: {
+          title: 'Services',
+          showStatus: false,
+          services: SERVICES,
+        },
+      },
+    ],
+    layouts: {
+      lg: [
+        { i: 'services-1', x: 0, y: 0, w: 10, h: 4, minW: 1, minH: 1 },
+      ],
+    },
+  });
+
+  const widget = page.locator('.react-grid-item[data-widget-id="services-1"]');
+  await expect(widget).toBeVisible();
+  await expect(widget.getByRole('heading', { name: 'Services' })).toBeVisible();
+
+  for (const service of SERVICES) {
+    await expect(widget.getByRole('button', { name: new RegExp(service.name, 'i') })).toBeVisible();
+  }
+
+  const allCardsWithinBounds = await widget.evaluate((element) => {
+    const widgetRect = element.getBoundingClientRect();
+    const cards = Array.from(element.querySelectorAll('button')).filter((node) => {
+      const text = node.textContent?.trim() || '';
+      return text.length > 0 && text !== 'Login' && text !== 'Add Widget';
+    });
+
+    return cards.every((card) => card.getBoundingClientRect().right <= widgetRect.right + 1);
+  });
+
+  expect(allCardsWithinBounds).toBe(true);
+});
