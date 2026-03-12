@@ -1288,7 +1288,7 @@ function App() {
     }
   };
   
-  const handleDragStop = (): void => {
+  const handleDragStop = (currentLayout: LayoutItem[]): void => {
     // Apply rebound class before removing direction class
     if (draggedWidgetId) {
       // Find the widget that was being dragged by ID
@@ -1311,8 +1311,13 @@ function App() {
     // Remove classes
     document.body.classList.remove('dragging', 'react-grid-layout--dragging');
     
-    // Save the layout
-    saveLayouts(layouts, false);
+    const updatedLayouts = {
+      ...layouts,
+      [currentBreakpoint]: validateLayout(currentLayout),
+    };
+
+    // Save the actual layout emitted by the grid, not stale React state.
+    saveLayouts(updatedLayouts, false);
     // Drag completed, layout saved
   };
   
@@ -1393,7 +1398,7 @@ function App() {
     lastResizeSize.current = { w: newItem.w, h: newItem.h };
   };
 
-  const handleResizeStop = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
+  const handleResizeStop = (currentLayout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     document.body.classList.remove('react-grid-layout--resizing');
 
     // Apply bounce effect to the resized widget
@@ -1410,7 +1415,12 @@ function App() {
     setResizingWidgetId(null);
     lastResizeSize.current = null;
 
-    saveLayouts(layouts, false);
+    const updatedLayouts = {
+      ...layouts,
+      [currentBreakpoint]: validateLayout(currentLayout),
+    };
+
+    saveLayouts(updatedLayouts, false);
   };
   
   // Toggle widget selector
