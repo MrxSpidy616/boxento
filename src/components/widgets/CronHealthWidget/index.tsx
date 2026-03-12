@@ -33,6 +33,7 @@ const DEFAULT_CONFIG: CronHealthWidgetConfig = {
 };
 
 const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [localConfig, setLocalConfig] = useState<CronHealthWidgetConfig>({
     ...DEFAULT_CONFIG,
@@ -154,6 +155,9 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
 
   // Render content
   const renderContent = () => {
+    const isShort = height === 1 && width > 1;
+    const isCompact = width <= 2 || height <= 2;
+
     if (loading && !healthData) {
       return (
         <div className="flex items-center justify-center h-full text-gray-500">
@@ -181,8 +185,6 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
       );
     }
 
-    const isCompact = width <= 2 || height <= 2;
-
     // Summary counts - use reduce for single-pass calculation
     const { running, failed } = healthData.jobs.reduce(
       (acc, j) => {
@@ -196,6 +198,50 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
       { running: 0, failed: 0 }
     );
     const total = healthData.jobs.length;
+    const problematicJob = healthData.jobs.find((job) => (
+      job.status === 'failed' || job.status === 'stopped' || job.status === 'unloaded'
+    )) || healthData.jobs[0];
+    const SummaryIcon = failed > 0 ? AlertCircle : CheckCircle;
+    const summaryTone = failed > 0
+      ? 'text-red-600 dark:text-red-300'
+      : 'text-green-600 dark:text-green-300';
+
+    if (isTiny) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+          <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
+            {running}/{total}
+          </div>
+          <div className={`text-[10px] uppercase tracking-wide ${summaryTone}`}>
+            {failed > 0 ? `${failed} issue${failed > 1 ? 's' : ''}` : 'healthy'}
+          </div>
+        </div>
+      );
+    }
+
+    if (isShort) {
+      return (
+        <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs text-gray-600 dark:text-gray-300">
+          <div className={`flex items-center gap-1 rounded-full px-2 py-1 font-medium ${failed > 0 ? 'bg-red-500/10 text-red-700 dark:text-red-300' : 'bg-green-500/10 text-green-700 dark:text-green-300'}`}>
+            <SummaryIcon className="h-3.5 w-3.5" />
+            <span>{running}/{total} ok</span>
+          </div>
+          {failed > 0 && (
+            <div className="rounded-full bg-red-500/10 px-2 py-1 text-red-700 dark:text-red-300">
+              {failed} failed
+            </div>
+          )}
+          <div className="min-w-0 truncate rounded-full bg-black/[0.04] px-2 py-1 text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">
+            {problematicJob?.name}
+          </div>
+          {healthData.updated && (
+            <div className="shrink-0 text-[11px] text-gray-400">
+              {formatTimeAgo(healthData.updated)}
+            </div>
+          )}
+        </div>
+      );
+    }
 
     return (
       <div className="h-full flex flex-col gap-2">
@@ -294,13 +340,16 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
   );
 
   return (
-    <div className="widget-container h-full flex flex-col relative">
-      <WidgetHeader
-        title={localConfig.title || DEFAULT_CONFIG.title}
-        onSettingsClick={() => setShowSettings(true)}
-      />
+    <div className={`widget-container h-full flex flex-col relative ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && (
+        <WidgetHeader
+          title={localConfig.title || DEFAULT_CONFIG.title}
+          onSettingsClick={() => setShowSettings(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
 
-      <div className="flex-grow p-2 overflow-hidden">
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-2' : width === 1 || height === 1 ? 'p-1.5' : 'p-2'}`}>
         {renderContent()}
       </div>
 

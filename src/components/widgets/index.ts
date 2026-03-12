@@ -70,8 +70,14 @@ export interface EnhancedWidgetConfig extends WidgetConfig {
   [key: string]: unknown;
 }
 
+const TINY_READY_WIDGET_TYPES = new Set([
+  'quick-links',
+  'services',
+  'cron-health',
+]);
+
 // Widget registry with enhanced metadata
-export const WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
+const BASE_WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
   {
     type: 'calendar',
     name: 'Calendar',
@@ -322,7 +328,6 @@ export const WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
     minHeight: 2,
     defaultWidth: 3,
     defaultHeight: 3,
-    maxSize: { w: 6, h: 4 },
     category: 'Local Services',
     description: 'Monitor and access your self-hosted services'
   },
@@ -393,6 +398,14 @@ export const WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
     description: 'Monitor cron jobs and launchd services health'
   }
 ];
+
+// Keep default widget sizes intact. Only widgets with dedicated tiny-state designs
+// should collapse to 1x1; the rest remain at their authored minimums.
+export const WIDGET_REGISTRY: EnhancedWidgetConfig[] = BASE_WIDGET_REGISTRY.map((widget) => ({
+  ...widget,
+  minWidth: TINY_READY_WIDGET_TYPES.has(widget.type) ? 1 : widget.minWidth,
+  minHeight: TINY_READY_WIDGET_TYPES.has(widget.type) ? 1 : widget.minHeight,
+}));
 
 // Widget categories
 export const WIDGET_CATEGORIES = [

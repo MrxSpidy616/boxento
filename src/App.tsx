@@ -53,9 +53,22 @@ const ResponsiveReactGridLayout = WidthProvider(Responsive);
 type BreakpointName = keyof typeof cols;
 type LayoutsByBreakpoint = { [key: string]: LayoutItem[] };
 type LayoutTemplate = Omit<LayoutItem, 'i'>;
+type ValidateLayoutsOptions = {
+  rebalanceWideSparse?: boolean;
+};
 
 const BREAKPOINT_ORDER = Object.keys(breakpoints)
   .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
+
+const getBreakpointForWidth = (width: number): BreakpointName => {
+  for (const breakpoint of BREAKPOINT_ORDER) {
+    if (width >= breakpoints[breakpoint]) {
+      return breakpoint;
+    }
+  }
+
+  return 'lg';
+};
 
 const DEFAULT_LAYOUT_TEMPLATES: Record<BreakpointName, LayoutTemplate[]> = {
   xxxl: [
@@ -110,8 +123,8 @@ const DEFAULT_LAYOUT_TEMPLATES: Record<BreakpointName, LayoutTemplate[]> = {
 
 const validateLayoutItem = (item: LayoutItem): LayoutItem => ({
   ...item,
-  w: Math.max(item.w, 2), // Minimum width of 2
-  h: Math.max(item.h, 2)  // Minimum height of 2
+  w: Math.max(item.w, GRID.MIN_WIDGET_WIDTH),
+  h: Math.max(item.h, GRID.MIN_WIDGET_HEIGHT)
 });
 
 const clampLayoutItemToCols = (item: LayoutItem, colCount: number): LayoutItem => {
@@ -129,6 +142,23 @@ const clampLayoutItemToCols = (item: LayoutItem, colCount: number): LayoutItem =
 
 const validateLayout = (layout: LayoutItem[]): LayoutItem[] => {
   return layout.map(validateLayoutItem);
+};
+
+const applyWidgetLayoutConstraints = (
+  item: LayoutItem,
+  widget: Widget,
+  breakpoint: BreakpointName
+): LayoutItem => {
+  const widgetMeta = getWidgetConfigByType(widget.type);
+  const isMobile = breakpoint === 'xs' || breakpoint === 'xxs';
+
+  return clampLayoutItemToCols({
+    ...item,
+    minW: isMobile ? 2 : (widgetMeta?.minWidth ?? GRID.MIN_WIDGET_WIDTH),
+    minH: isMobile ? 2 : (widgetMeta?.minHeight ?? GRID.MIN_WIDGET_HEIGHT),
+    maxW: isMobile ? 2 : widgetMeta?.maxSize?.w,
+    maxH: isMobile ? 2 : widgetMeta?.maxSize?.h,
+  }, cols[breakpoint]);
 };
 
 const layoutSignature = (layout: LayoutItem[]): string => (
@@ -163,7 +193,7 @@ const scaleLayoutToCols = (
   const scale = toCols / fromCols;
 
   return layout.map((item) => {
-    const minW = item.minW || 2;
+    const minW = item.minW || GRID.MIN_WIDGET_WIDTH;
     const scaledX = Math.round(item.x * scale);
     const scaledRight = Math.round((item.x + item.w) * scale);
     const scaledW = Math.max(minW, scaledRight - scaledX);
@@ -181,6 +211,73 @@ const scaleLayoutToCols = (
   });
 };
 
+const getLargestHorizontalGap = (layout: LayoutItem[]): number => {
+  const orderedItems = [...layout].sort((a, b) => a.x - b.x);
+  let largestGap = 0;
+
+  for (let index = 1; index < orderedItems.length; index += 1) {
+    const previousItem = orderedItems[index - 1];
+    const currentItem = orderedItems[index];
+    largestGap = Math.max(largestGap, currentItem.x - (previousItem.x + previousItem.w));
+  }
+
+  return largestGap;
+};
+
+const WIDE_LAYOUT_FILL_RATIO_THRESHOLD = 0.72;
+const WIDE_LAYOUT_MIN_GAP = 3;
+const WIDE_LAYOUT_GAP_DIVISOR = 6;
+
+const rebalanceWideSparseLayout = (layout: LayoutItem[], colCount: number): LayoutItem[] | null => {
+  if (layout.length < 2 || layout.length > 4) {
+    return null;
+  }
+
+  const orderedItems = [...layout].sort((a, b) => a.y - b.y || a.x - b.x || a.i.localeCompare(b.i));
+  const isSingleRow = orderedItems.every((item) => item.y === orderedItems[0].y);
+
+  if (!isSingleRow) {
+    return null;
+  }
+
+  const totalWidth = orderedItems.reduce((sum, item) => sum + item.w, 0);
+  const fillRatio = totalWidth / colCount;
+  const largestGap = getLargestHorizontalGap(orderedItems);
+  const shouldRebalance =
+    fillRatio < WIDE_LAYOUT_FILL_RATIO_THRESHOLD
+    || largestGap >= Math.max(WIDE_LAYOUT_MIN_GAP, Math.floor(colCount / WIDE_LAYOUT_GAP_DIVISOR));
+
+  if (!shouldRebalance) {
+    return null;
+  }
+
+  let currentX = 0;
+  let remainingCols = colCount;
+
+  return orderedItems.map((item, index) => {
+    const itemsRemaining = orderedItems.length - index;
+    const minW = Math.min(item.minW || GRID.MIN_WIDGET_WIDTH, colCount);
+    const maxW = item.maxW ? Math.min(item.maxW, colCount) : undefined;
+    const balancedW = Math.max(minW, Math.floor(remainingCols / itemsRemaining));
+    const nextW = maxW ? Math.min(balancedW, maxW) : balancedW;
+
+    const rebalancedItem = clampLayoutItemToCols(
+      {
+        ...item,
+        x: currentX,
+        y: orderedItems[0].y,
+        w: nextW,
+      },
+      colCount
+    );
+
+    currentX = rebalancedItem.x + rebalancedItem.w;
+    remainingCols = Math.max(0, colCount - currentX);
+
+    return rebalancedItem;
+  });
+};
+
 const createLayoutsFromTemplates = (widgetIds: string[]): LayoutsByBreakpoint => {
   const layoutsByBreakpoint: LayoutsByBreakpoint = {};
 
@@ -191,7 +288,12 @@ const createLayoutsFromTemplates = (widgetIds: string[]): LayoutsByBreakpoint =>
 
     widgetIds.forEach((widgetId, index) => {
       if (index < template.length) {
-        layout.push({ ...template[index], i: widgetId });
+        layout.push({
+          ...template[index],
+          i: widgetId,
+          minW: GRID.MIN_WIDGET_WIDTH,
+          minH: GRID.MIN_WIDGET_HEIGHT,
+        });
         return;
       }
 
@@ -204,7 +306,10 @@ const createLayoutsFromTemplates = (widgetIds: string[]): LayoutsByBreakpoint =>
   return layoutsByBreakpoint;
 };
 
-const validateLayouts = (layouts: LayoutsByBreakpoint): LayoutsByBreakpoint => {
+const validateLayouts = (
+  layouts: LayoutsByBreakpoint,
+  options: ValidateLayoutsOptions = {}
+): LayoutsByBreakpoint => {
   const validatedLayouts: LayoutsByBreakpoint = { ...layouts };
 
   BREAKPOINT_ORDER.forEach((breakpoint) => {
@@ -234,6 +339,13 @@ const validateLayouts = (layouts: LayoutsByBreakpoint): LayoutsByBreakpoint => {
 
     if (targetCols > cols.lg && layoutSignature(currentLayout) === layoutSignature(fallbackLayout)) {
       validatedLayouts[breakpoint] = scaleLayoutToCols(fallbackLayout, fallbackCols, targetCols);
+    }
+
+    if (options.rebalanceWideSparse && targetCols > cols.lg) {
+      const rebalancedLayout = rebalanceWideSparseLayout(validatedLayouts[breakpoint], targetCols);
+      if (rebalancedLayout) {
+        validatedLayouts[breakpoint] = rebalancedLayout;
+      }
     }
   });
 
@@ -363,7 +475,7 @@ function App() {
       if (dashboardLayouts) {
         const parsed = JSON.parse(dashboardLayouts);
         if (Object.keys(parsed).length > 0) {
-          return validateLayouts(parsed);
+          return validateLayouts(parsed, { rebalanceWideSparse: true });
         }
       }
 
@@ -371,7 +483,7 @@ function App() {
       if (dashboardId === 'personal') {
         const savedLayouts = loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, {});
         if (Object.keys(savedLayouts).length > 0) {
-          return validateLayouts(savedLayouts);
+          return validateLayouts(savedLayouts, { rebalanceWideSparse: true });
         }
       }
     } catch (error) {
@@ -416,7 +528,9 @@ function App() {
   
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [widgetSelectorOpen, setWidgetSelectorOpen] = useState<boolean>(false);
-  const [currentBreakpoint, setCurrentBreakpoint] = useState<string>('lg');
+  const [currentBreakpoint, setCurrentBreakpoint] = useState<string>(() => (
+    typeof window === 'undefined' ? 'lg' : getBreakpointForWidth(window.innerWidth)
+  ));
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [isTransitionsEnabled, setIsTransitionsEnabled] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
@@ -510,6 +624,77 @@ function App() {
     widgets.map((widget) => widget.id)
   );
 
+  const reconcileLayoutsWithWidgets = (
+    layoutsToReconcile: LayoutsByBreakpoint,
+    widgetsToReconcile: Widget[],
+    options: ValidateLayoutsOptions = {}
+  ): { layouts: LayoutsByBreakpoint; changed: boolean } => {
+    const widgetIds = new Set(widgetsToReconcile.map((widget) => widget.id));
+    const widgetsById = new Map(widgetsToReconcile.map((widget) => [widget.id, widget]));
+    const reconciledLayouts: LayoutsByBreakpoint = {};
+    let changed = false;
+
+    BREAKPOINT_ORDER.forEach((breakpoint) => {
+      const currentLayout = layoutsToReconcile[breakpoint] || [];
+      const filteredLayout = currentLayout.filter((item) => widgetIds.has(item.i));
+
+      if (filteredLayout.length !== currentLayout.length) {
+        changed = true;
+      }
+
+      const existingIds = new Set(filteredLayout.map((item) => item.i));
+      const nextLayout = [...filteredLayout];
+
+      widgetsToReconcile.forEach((widget, index) => {
+        if (existingIds.has(widget.id)) {
+          return;
+        }
+
+        nextLayout.push(
+          applyWidgetLayoutConstraints(
+            createDefaultLayoutItem(
+              widget.id,
+              index,
+              cols[breakpoint],
+              breakpoint,
+              nextLayout
+            ),
+            widget,
+            breakpoint
+          )
+        );
+        existingIds.add(widget.id);
+        changed = true;
+      });
+
+      reconciledLayouts[breakpoint] = nextLayout.map((item) => {
+        const widget = widgetsById.get(item.i);
+        if (!widget) {
+          return item;
+        }
+
+        const constrainedItem = applyWidgetLayoutConstraints(item, widget, breakpoint);
+        if (
+          constrainedItem.minW !== item.minW
+          || constrainedItem.minH !== item.minH
+          || constrainedItem.maxW !== item.maxW
+          || constrainedItem.maxH !== item.maxH
+          || constrainedItem.x !== item.x
+          || constrainedItem.w !== item.w
+        ) {
+          changed = true;
+        }
+
+        return constrainedItem;
+      });
+    });
+
+    return {
+      layouts: validateLayouts(reconciledLayouts, options),
+      changed,
+    };
+  };
+
   // Load widgets and layouts for a specific dashboard
   const loadDashboardData = async (dashboardId: string) => {
     const keys = getDashboardStorageKeys(dashboardId);
@@ -524,15 +709,23 @@ function App() {
     if (savedWidgets && savedLayouts) {
       // Dashboard has saved data
       widgetsToLoad = JSON.parse(savedWidgets);
-      layoutsToLoad = validateLayouts(JSON.parse(savedLayouts));
+      layoutsToLoad = reconcileLayoutsWithWidgets(
+        JSON.parse(savedLayouts),
+        widgetsToLoad,
+        { rebalanceWideSparse: true }
+      ).layouts;
     } else if (dashboardId === 'personal') {
       // Personal dashboard falls back to legacy storage
       widgetsToLoad = loadFromLocalStorage(STORAGE_KEYS.WIDGETS, getDefaultWidgets());
-      layoutsToLoad = validateLayouts(loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts()));
+      layoutsToLoad = reconcileLayoutsWithWidgets(
+        loadFromLocalStorage(STORAGE_KEYS.LAYOUTS, getDefaultLayouts()),
+        widgetsToLoad,
+        { rebalanceWideSparse: true }
+      ).layouts;
     } else {
       // Non-personal dashboards without storage get fresh widgets with unique IDs
       widgetsToLoad = generateFreshDefaultWidgets();
-      layoutsToLoad = validateLayouts(generateLayoutsForWidgets(widgetsToLoad));
+      layoutsToLoad = validateLayouts(generateLayoutsForWidgets(widgetsToLoad), { rebalanceWideSparse: true });
       // Save immediately so they persist
       localStorage.setItem(keys.widgets, JSON.stringify(widgetsToLoad));
       localStorage.setItem(keys.layouts, JSON.stringify(layoutsToLoad));
@@ -654,9 +847,14 @@ function App() {
   })();
   
   // References for debouncing updates
-  const layoutUpdateTimeout = useRef<number | null>(null);
+  const layoutSaveTimeout = useRef<number | null>(null);
   const widgetUpdateTimeout = useRef<number | null>(null);
   const publicDashboardSyncTimeout = useRef<number | null>(null);
+  const layoutsRef = useRef(layouts);
+
+  useEffect(() => {
+    layoutsRef.current = layouts;
+  }, [layouts]);
 
   // Get sync status from context
   const { isSyncing, syncStatus } = useSync();
@@ -782,14 +980,14 @@ function App() {
     };
 
     // Always cancel pending debounced save to prevent race conditions
-    if (layoutUpdateTimeout.current !== null) {
-      clearTimeout(layoutUpdateTimeout.current);
-      layoutUpdateTimeout.current = null;
+    if (layoutSaveTimeout.current !== null) {
+      clearTimeout(layoutSaveTimeout.current);
+      layoutSaveTimeout.current = null;
     }
 
     if (debounce) {
       // Schedule save for later (returns immediately)
-      layoutUpdateTimeout.current = window.setTimeout(saveToProvider, TIMING.SAVE_DEBOUNCE_MS);
+      layoutSaveTimeout.current = window.setTimeout(saveToProvider, TIMING.SAVE_DEBOUNCE_MS);
     } else {
       // Save immediately and wait for completion
       await saveToProvider();
@@ -835,37 +1033,6 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  
-  // Listen for resize events to update the breakpoint
-  useEffect(() => {
-    const updateBreakpoint = () => {
-      const width = window.innerWidth;
-      let newBreakpoint = 'lg';
-      
-      // Find which breakpoint we're in
-      for (const bp of Object.keys(breakpoints).sort((a, b) => 
-        breakpoints[b as keyof typeof breakpoints] - breakpoints[a as keyof typeof breakpoints])) {
-        if (width >= breakpoints[bp as keyof typeof breakpoints]) {
-          newBreakpoint = bp;
-          break;
-        }
-      }
-      
-      if (newBreakpoint !== currentBreakpoint) {
-        setCurrentBreakpoint(newBreakpoint);
-        // Breakpoint changed
-      }
-    };
-    
-    // Initial check
-    updateBreakpoint();
-    
-    // Add listener
-    window.addEventListener('resize', updateBreakpoint);
-    
-    // Clean up
-    return () => window.removeEventListener('resize', updateBreakpoint);
-  }, [currentBreakpoint]);
   
   // Calculate row height based on window width to ensure square widgets
   const calculateRowHeight = (): number => {
@@ -1014,7 +1181,9 @@ function App() {
         defaultItem.maxH = 2;
       }
       
-      updatedLayouts[breakpoint].push(defaultItem);
+      updatedLayouts[breakpoint].push(
+        applyWidgetLayoutConstraints(defaultItem, newWidget, breakpoint as BreakpointName)
+      );
     });
     
     // Update states and save data
@@ -1045,44 +1214,31 @@ function App() {
     Object.keys(updatedLayouts).forEach(breakpoint => {
       updatedLayouts[breakpoint] = updatedLayouts[breakpoint].filter(item => item.i !== widgetId);
     });
+
+    const normalizedLayouts = validateLayouts(updatedLayouts, { rebalanceWideSparse: true });
     
     // Update state and save
     setWidgets(updatedWidgets);
-    setLayouts(updatedLayouts);
+    setLayouts(normalizedLayouts);
     
     // Save changes
     saveWidgets(updatedWidgets);
-    saveLayouts(updatedLayouts, false);
+    saveLayouts(normalizedLayouts, false);
   };
   
   // Update layout function - refactored to reduce duplication
-  const handleLayoutChange = (currentLayout: LayoutItem[], allLayouts?: { [key: string]: LayoutItem[] }): void => {
+  const handleLayoutChange = (currentLayout: LayoutItem[], _allLayouts?: { [key: string]: LayoutItem[] }): void => {
     const validatedLayout = validateLayout(currentLayout);
 
-    // If we have all layouts from the responsive grid
-    if (allLayouts) {
-      // Use a timeout to debounce the layout update
-      if (layoutUpdateTimeout.current !== null) {
-        clearTimeout(layoutUpdateTimeout.current);
-      }
-      
-      layoutUpdateTimeout.current = window.setTimeout(() => {
-        // Create a validated copy to prevent mutating the input
-        const validatedLayouts = validateLayouts(allLayouts);
-        
-        // Update layout state and save
-        setLayouts(validatedLayouts);
-        saveLayouts(validatedLayouts);
-      }, 100); // 100ms debounce
-    } else {
-      // If we only have the current layout, update only the current breakpoint
-      const updatedLayouts = { ...layouts };
-      updatedLayouts[currentBreakpoint] = validatedLayout;
-      
-      // Update state and save
-      setLayouts(updatedLayouts);
-      saveLayouts(updatedLayouts);
+    // Ignore mount/breakpoint normalization callbacks from react-grid-layout.
+    if (!draggedWidgetId && !resizingWidgetId) {
+      return;
     }
+
+    const updatedLayouts = { ...layoutsRef.current };
+    updatedLayouts[currentBreakpoint] = validatedLayout;
+
+    setLayouts(validateLayouts(updatedLayouts));
   };
   
   // Update widget config - refactored to be more maintainable
@@ -1178,98 +1334,44 @@ function App() {
   };
   
   // Handle drag events - refactored to be more maintainable
-  const [dragDirection, setDragDirection] = useState<'left' | 'right' | null>(null);
   const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
-  const lastMousePos = useRef<{ x: number, y: number } | null>(null);
-  const dragThreshold = 5; // Minimum mouse movement to determine direction
   
-  const handleDragStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem, _placeholder: LayoutItem, event: MouseEvent): void => {
-    document.body.classList.add('dragging', 'react-grid-layout--dragging');
+  const handleDragStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
+    document.body.classList.add('react-grid-layout--dragging');
     setDraggedWidgetId(newItem.i);
-    lastMousePos.current = { x: event.clientX, y: event.clientY };
-    setDragDirection(null);
-    // Drag started
   };
   
-  const handleDrag = (_layout: LayoutItem[], _oldItem: LayoutItem, _newItem: LayoutItem, _placeholder: LayoutItem, event: MouseEvent): void => {
-    // Skip if no mouse position
-    if (!lastMousePos.current) return;
-    
-    // Calculate direction based on mouse movement
-    const deltaX = event.clientX - lastMousePos.current.x;
-    
-    // Only change direction if movement is significant
-    if (Math.abs(deltaX) > dragThreshold) {
-      const newDirection = deltaX < 0 ? 'left' : 'right';
-      
-      // Only update if direction changed
-      if (newDirection !== dragDirection) {
-        setDragDirection(newDirection);
-      }
-      
-      // Update last position
-      lastMousePos.current = { x: event.clientX, y: event.clientY };
-    }
-  };
-  
-  const handleDragStop = (): void => {
-    // Apply rebound class before removing direction class
-    if (draggedWidgetId) {
-      // Find the widget that was being dragged by ID
-      const widgetElement = document.querySelector(`.react-grid-item[data-grid*="i:${draggedWidgetId}"]`);
-      if (widgetElement) {
-        widgetElement.classList.add('drag-rebound');
-        
-        // Remove rebound class after animation completes
-        setTimeout(() => {
-          widgetElement.classList.remove('drag-rebound');
-        }, TIMING.WIDGET_REMOVE_ANIMATION_MS);
-      }
-    }
+  const handleDragStop = (currentLayout: LayoutItem[]): void => {
+    const activeDraggedWidgetId = draggedWidgetId;
     
     // Reset states
-    setDragDirection(null);
     setDraggedWidgetId(null);
-    lastMousePos.current = null;
     
     // Remove classes
-    document.body.classList.remove('dragging', 'react-grid-layout--dragging');
+    document.body.classList.remove('react-grid-layout--dragging');
     
-    // Save the layout
-    saveLayouts(layouts, false);
+    if (!activeDraggedWidgetId) {
+      return;
+    }
+
+    const updatedLayouts = {
+      ...layoutsRef.current,
+      [currentBreakpoint]: validateLayout(currentLayout),
+    };
+
+    // Save the actual layout emitted by the grid, not stale React state.
+    saveLayouts(updatedLayouts, false);
     // Drag completed, layout saved
   };
   
-  // Apply drag direction classes to the dragged widget
-  useEffect(() => {
-    if (draggedWidgetId && dragDirection) {
-      // Find the dragged widget element
-      const widgetElement = document.querySelector(`.react-grid-item[data-grid*="i:${draggedWidgetId}"].react-draggable-dragging`);
-
-      if (widgetElement) {
-        // Remove any existing direction classes
-        widgetElement.classList.remove('dragging-left', 'dragging-right');
-
-        // Add the appropriate direction class
-        widgetElement.classList.add(`dragging-${dragDirection}`);
-      }
-    }
-  }, [draggedWidgetId, dragDirection]);
-
   // Cleanup drag/resize classes on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       // Clean up any lingering drag/resize classes from body
       document.body.classList.remove(
-        'dragging',
         'react-grid-layout--dragging',
         'react-grid-layout--resizing'
       );
-
-      // Clean up any widget-specific classes
-      document.querySelectorAll('.dragging-left, .dragging-right, .drag-rebound').forEach(el => {
-        el.classList.remove('dragging-left', 'dragging-right', 'drag-rebound');
-      });
     };
   }, []);
 
@@ -1288,7 +1390,7 @@ function App() {
   const handleResize = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     if (!resizingWidgetId || !lastResizeSize.current) return;
 
-    const widgetElement = document.querySelector(`[data-grid*='"i":"${newItem.i}"']`) as HTMLElement;
+    const widgetElement = document.querySelector(`.react-grid-item[data-widget-id="${newItem.i}"]`) as HTMLElement;
     if (!widgetElement) return;
 
     // Check if hitting min constraints
@@ -1317,24 +1419,23 @@ function App() {
     lastResizeSize.current = { w: newItem.w, h: newItem.h };
   };
 
-  const handleResizeStop = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
+  const handleResizeStop = (currentLayout: LayoutItem[], _oldItem: LayoutItem, _newItem: LayoutItem): void => {
     document.body.classList.remove('react-grid-layout--resizing');
 
-    // Apply bounce effect to the resized widget
-    const widgetElement = document.querySelector(`[data-grid*='"i":"${newItem.i}"']`) as HTMLElement;
-    if (widgetElement) {
-      widgetElement.classList.add('resize-complete');
-      // Remove class after animation completes
-      setTimeout(() => {
-        widgetElement.classList.remove('resize-complete');
-      }, 400);
+    if (!resizingWidgetId) {
+      return;
     }
 
     // Reset tracking
     setResizingWidgetId(null);
     lastResizeSize.current = null;
 
-    saveLayouts(layouts, false);
+    const updatedLayouts = {
+      ...layoutsRef.current,
+      [currentBreakpoint]: validateLayout(currentLayout),
+    };
+
+    saveLayouts(updatedLayouts, false);
   };
   
   // Toggle widget selector
@@ -1345,29 +1446,8 @@ function App() {
   // Unified function to render widget items for the grid
   const renderWidgetItems = () => {
     return widgets.map(widget => {
-      // Find the layout data for this widget
-      const layoutItem = layouts[currentBreakpoint]?.find(item => item.i === widget.id);
-      const widgetMeta = getWidgetConfigByType(widget.type);
-      
       // Determine if mobile view
       const isMobile = currentBreakpoint === 'xs' || currentBreakpoint === 'xxs';
-      
-      // Set default dimensions
-      const defaultWidth = isMobile ? 2 : 3;
-      const defaultHeight = isMobile ? 2 : 3;
-      
-      // Create data-grid object with fallbacks
-      const dataGrid = {
-        i: widget.id,
-        x: layoutItem?.x ?? 0,
-        y: layoutItem?.y ?? 0,
-        w: layoutItem?.w ?? defaultWidth,
-        h: isMobile ? 5 : (layoutItem?.h ?? defaultHeight),
-        minW: layoutItem?.minW ?? widgetMeta?.minWidth ?? 2,
-        minH: isMobile ? 3 : (layoutItem?.minH ?? widgetMeta?.minHeight ?? 2),
-        maxW: isMobile ? undefined : (layoutItem?.maxW ?? widgetMeta?.maxSize?.w),
-        maxH: isMobile ? undefined : (layoutItem?.maxH ?? widgetMeta?.maxSize?.h),
-      };
       
       // Add different classes based on screen size
       const isTablet = currentBreakpoint === 'sm';
@@ -1377,7 +1457,7 @@ function App() {
         <div 
           key={widget.id} 
           className={`widget-wrapper ${sizeClass} app-widget`} 
-          data-grid={dataGrid}
+          data-widget-id={widget.id}
           data-breakpoint={currentBreakpoint}
           style={isMobile ? { marginBottom: '16px', height: 'auto' } : undefined}
         >
@@ -1413,8 +1493,17 @@ function App() {
     let loadedLayouts = await provider.getLayouts(currentDashboardId);
     console.log('[Storage] Loaded from provider - widgets:', loadedWidgets?.length || 0, 'layouts:', loadedLayouts ? Object.keys(loadedLayouts).length : 0);
 
-    if (loadedLayouts && Object.keys(loadedLayouts).length > 0) {
-      loadedLayouts = validateLayouts(loadedLayouts);
+    if (loadedLayouts && Object.keys(loadedLayouts).length > 0 && loadedWidgets && loadedWidgets.length > 0) {
+      const reconciledLayouts = reconcileLayoutsWithWidgets(
+        loadedLayouts,
+        loadedWidgets,
+        { rebalanceWideSparse: true }
+      );
+      loadedLayouts = reconciledLayouts.layouts;
+
+      if (reconciledLayouts.changed) {
+        await provider.saveLayouts(currentDashboardId, loadedLayouts);
+      }
     }
 
     // If no data in storage provider, check localStorage for migration
@@ -1428,8 +1517,13 @@ function App() {
 
       if (localWidgetsStr && localLayoutsStr) {
         // Migrate localStorage data to storage provider
-        loadedWidgets = JSON.parse(localWidgetsStr);
-        loadedLayouts = validateLayouts(JSON.parse(localLayoutsStr));
+        const migratedWidgets = JSON.parse(localWidgetsStr) as Widget[];
+        loadedWidgets = migratedWidgets;
+        loadedLayouts = reconcileLayoutsWithWidgets(
+          JSON.parse(localLayoutsStr),
+          migratedWidgets,
+          { rebalanceWideSparse: true }
+        ).layouts;
 
         // Save to storage provider for future use
         if (loadedWidgets && loadedWidgets.length > 0) {
@@ -1447,7 +1541,11 @@ function App() {
 
         if (legacyWidgets.length > 0) {
           loadedWidgets = legacyWidgets;
-          loadedLayouts = validateLayouts(legacyLayouts);
+          loadedLayouts = reconcileLayoutsWithWidgets(
+            legacyLayouts,
+            loadedWidgets,
+            { rebalanceWideSparse: true }
+          ).layouts;
 
           // Migrate to storage provider
           await provider.saveWidgets(currentDashboardId, loadedWidgets);
@@ -1468,7 +1566,11 @@ function App() {
       console.log('[Storage] Initialized with default widgets');
     }
 
-    const normalizedLayouts = validateLayouts(loadedLayouts || getDefaultLayouts());
+    const normalizedLayouts = reconcileLayoutsWithWidgets(
+      loadedLayouts || getDefaultLayouts(),
+      loadedWidgets,
+      { rebalanceWideSparse: true }
+    ).layouts;
     setLayouts(normalizedLayouts);
 
     // Load and decrypt widget configs from storage provider
@@ -1602,10 +1704,19 @@ function App() {
             } as Widget;
           }) : [];
 
-          // 6. Validate and fix layouts based on the widgets
-          const validatedLayouts = validateLayouts(await userDashboardService.validateAndFixLayouts(
-            typedWidgets.map(w => ({ id: w.id, type: w.type }))
-          ));
+          // 6. Validate and reconcile layouts against the current widget constraints
+          const validatedLayoutsResult = reconcileLayoutsWithWidgets(
+            validateLayouts(await userDashboardService.validateAndFixLayouts(
+              typedWidgets.map(w => ({ id: w.id, type: w.type }))
+            ), { rebalanceWideSparse: true }),
+            typedWidgets,
+            { rebalanceWideSparse: true }
+          );
+          const validatedLayouts = validatedLayoutsResult.layouts;
+
+          if (validatedLayoutsResult.changed) {
+            await userDashboardService.saveLayouts(validatedLayouts);
+          }
 
           // 7. Update localStorage for personal dashboard
           const personalKeys = getDashboardStorageKeys('personal');
@@ -1798,7 +1909,9 @@ function App() {
             breakpoint,
             updatedLayouts[breakpoint]
           );
-          updatedLayouts[breakpoint].push(newItem);
+          updatedLayouts[breakpoint].push(
+            applyWidgetLayoutConstraints(newItem, widget, breakpoint as BreakpointName)
+          );
           needsUpdate = true;
         }
       });
@@ -2101,7 +2214,6 @@ function App() {
                       }
                     }}
                     onDragStart={handleDragStart}
-                    onDrag={handleDrag}
                     onDragStop={handleDragStop}
                     onResizeStart={handleResizeStart}
                     onResize={handleResize}

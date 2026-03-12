@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { ExternalLink, Plus, Trash, Edit } from 'lucide-react'
 import WidgetHeader from '../../widgets/common/WidgetHeader'
 import {
@@ -104,39 +104,20 @@ const fetchUrlMetadata = async (url: string): Promise<{ title: string; favicon: 
  * @param {QuickLinksWidgetProps} props - Component props
  * @returns {JSX.Element} QuickLinks widget component
  */
-const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
+const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
   const [links, setLinks] = useState<LinkItem[]>(config?.links || []);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [editingLink, setEditingLink] = useState<LinkItem | null>(null);
   const [newLinkUrl, setNewLinkUrl] = useState<string>('');
   const [isLoading] = useState<boolean>(false);
   const newLinkInputRef = useRef<HTMLInputElement | null>(null);
-  const widgetRef = useRef<HTMLDivElement | null>(null);
   const [loadingLinkIds, setLoadingLinkIds] = useState<number[]>([]);
 
   // Widget settings state
   const [displayMode, setDisplayMode] = useState<'regular' | 'compact'>(config?.displayMode || 'regular');
   const [showFavicons, setShowFavicons] = useState<boolean>(config?.showFavicons !== false);
   const [customTitle, setCustomTitle] = useState<string>(config?.customTitle || 'Quick Links');
-  const [isCompact, setIsCompact] = useState(false);
-
-  // Detect if widget is in compact mode (small size)
-  useEffect(() => {
-    const checkSize = () => {
-      if (widgetRef.current) {
-        const height = widgetRef.current.offsetHeight;
-        setIsCompact(height < 280);
-      }
-    };
-
-    checkSize();
-    const resizeObserver = new ResizeObserver(checkSize);
-    if (widgetRef.current) {
-      resizeObserver.observe(widgetRef.current);
-    }
-
-    return () => resizeObserver.disconnect();
-  }, []);
 
   // Remove the separate useEffects and combine them into one
   React.useEffect(() => {
@@ -390,14 +371,82 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
    * Renders the main content of the widget
    */
   const renderContent = () => {
+    const isShort = height === 1 && width > 1;
+    const isCompactLayout = displayMode === 'compact' || width <= 2 || height <= 2;
+    const previewLinks = links.slice(0, Math.min(links.length, Math.max(2, width + 1)));
+    const firstLink = links[0];
+
+    if (links.length === 0) {
+      if (isTiny) {
+        return (
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+            <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">0</div>
+            <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">links</div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400">
+          <p className="text-xs">No links yet</p>
+          {!isTiny && (
+            <button
+              onClick={() => startEdit(null)}
+              className="mt-2 text-xs text-blue-500 hover:underline"
+            >
+              Add link
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    if (isTiny && firstLink) {
+      return (
+        <a
+          href={firstLink.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-full flex-col items-center justify-center gap-1 text-center text-gray-800 dark:text-gray-100"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <div className="text-lg font-semibold leading-none">{links.length}</div>
+          <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">links</div>
+        </a>
+      );
+    }
+
+    if (isShort) {
+      return (
+        <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
+          <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+            {links.length} links
+          </span>
+          {previewLinks.map(link => (
+            <a
+              key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex shrink-0 items-center gap-2 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10 ${
+                loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
+              }`}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              {showFavicons && (
+                <img src={link.favicon} alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
+              )}
+              <span className="max-w-[8rem] truncate">{loadingLinkIds.includes(link.id) ? 'Loading...' : link.title}</span>
+            </a>
+          ))}
+        </div>
+      );
+    }
+
     return (
       <div className="h-full flex flex-col">
         <div className="flex-grow overflow-y-auto">
-          {links.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-              <p>No links yet. Add one below!</p>
-            </div>
-          ) : displayMode === 'compact' ? (
+          {isCompactLayout ? (
             // Compact view - slim single-column layout with smaller elements
             <div className="space-y-1 pr-1">
               {links.map(link => (
@@ -516,7 +565,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
         </div>
 
         {/* Integrated add link form - hidden on small sizes */}
-        {isCompact ? (
+        {isCompactLayout ? (
           <button
             onClick={() => startEdit(null)}
             className="mt-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center justify-center gap-1"
@@ -555,15 +604,15 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
   };
 
   return (
-    <div 
-      ref={widgetRef} 
-      className="widget-container h-full flex flex-col"
-    >
-      <WidgetHeader 
-        title={customTitle}
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      <div className="flex-1 overflow-hidden p-3">
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && (
+        <WidgetHeader 
+          title={customTitle}
+          onSettingsClick={() => setShowSettings(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
+      <div className={`flex-1 overflow-hidden ${isTiny ? 'p-2' : width === 1 || height === 1 ? 'p-1.5' : 'p-3'}`}>
         {renderContent()}
       </div>
       
