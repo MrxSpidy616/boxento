@@ -164,8 +164,9 @@ const scaleLayoutToCols = (
 
   return layout.map((item) => {
     const minW = item.minW || 2;
-    const scaledW = Math.max(minW, Math.round(item.w * scale));
     const scaledX = Math.round(item.x * scale);
+    const scaledRight = Math.round((item.x + item.w) * scale);
+    const scaledW = Math.max(minW, scaledRight - scaledX);
     const scaledMaxW = item.maxW ? Math.max(minW, Math.round(item.maxW * scale)) : item.maxW;
 
     return clampLayoutItemToCols(
@@ -552,7 +553,7 @@ function App() {
       return widget;
     });
     setWidgets(widgetsWithConfigs);
-    setLayouts(validateLayouts(layoutsToLoad));
+    setLayouts(layoutsToLoad);
   };
 
   const handleSwitchDashboard = async (dashboard: Dashboard) => {
@@ -1618,7 +1619,7 @@ function App() {
           // This prevents overwriting other dashboard data with personal dashboard data
           if (currentDashboardId === 'personal') {
             setWidgets(typedWidgets);
-            setLayouts(validateLayouts(validatedLayouts));
+            setLayouts(validatedLayouts);
           }
 
           userHasFirestoreData = true;
