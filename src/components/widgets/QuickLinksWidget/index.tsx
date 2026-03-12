@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { ExternalLink, Plus, Trash, Edit, Link2 } from 'lucide-react'
+import { ExternalLink, Plus, Trash, Edit } from 'lucide-react'
 import WidgetHeader from '../../widgets/common/WidgetHeader'
 import {
   Dialog,
@@ -105,6 +105,7 @@ const fetchUrlMetadata = async (url: string): Promise<{ title: string; favicon: 
  * @returns {JSX.Element} QuickLinks widget component
  */
 const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
   const [links, setLinks] = useState<LinkItem[]>(config?.links || []);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [editingLink, setEditingLink] = useState<LinkItem | null>(null);
@@ -370,16 +371,23 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
    * Renders the main content of the widget
    */
   const renderContent = () => {
-    const isTiny = width === 1 && height === 1;
     const isShort = height === 1 && width > 1;
     const isCompactLayout = displayMode === 'compact' || width <= 2 || height <= 2;
     const previewLinks = links.slice(0, Math.min(links.length, Math.max(2, width + 1)));
     const firstLink = links[0];
 
     if (links.length === 0) {
+      if (isTiny) {
+        return (
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+            <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">0</div>
+            <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">links</div>
+          </div>
+        );
+      }
+
       return (
         <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400">
-          <Link2 className="mb-2 h-5 w-5" />
           <p className="text-xs">No links yet</p>
           {!isTiny && (
             <button
@@ -402,11 +410,6 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
           className="flex h-full flex-col items-center justify-center gap-1 text-center text-gray-800 dark:text-gray-100"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
-          {showFavicons && firstLink.favicon ? (
-            <img src={firstLink.favicon} alt="" className="h-6 w-6 rounded" loading="lazy" />
-          ) : (
-            <Link2 className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-          )}
           <div className="text-lg font-semibold leading-none">{links.length}</div>
           <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">links</div>
         </a>
@@ -602,12 +605,14 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
 
   return (
     <div className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title={customTitle}
-        onSettingsClick={() => setShowSettings(true)}
-        compact={width === 1 || height === 1}
-      />
-      <div className={`flex-1 overflow-hidden ${width === 1 || height === 1 ? 'p-1.5' : 'p-3'}`}>
+      {!isTiny && (
+        <WidgetHeader 
+          title={customTitle}
+          onSettingsClick={() => setShowSettings(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
+      <div className={`flex-1 overflow-hidden ${isTiny ? 'p-2' : width === 1 || height === 1 ? 'p-1.5' : 'p-3'}`}>
         {renderContent()}
       </div>
       

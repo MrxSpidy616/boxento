@@ -107,6 +107,7 @@ const DEFAULT_SERVICES: Service[] = [
 ];
 
 const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
   const defaultConfig: ServicesWidgetConfig = {
     title: 'Services',
     services: DEFAULT_SERVICES,
@@ -345,7 +346,6 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   // Render content based on size
   const renderContent = () => {
     const services = localConfig.services || [];
-    const isTiny = width === 1 && height === 1;
     const isShort = height === 1 && width > 1;
     const isCompact = width <= 2 || height <= 2;
     const regularColumns = Math.min(getRegularGridColumns(containerWidth), Math.max(services.length, 1));
@@ -376,25 +376,13 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     }
 
     if (isTiny) {
-      const previewStatuses = services.slice(0, 4);
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.04] text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
-            <Server className="h-4 w-4" />
-          </div>
           <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
             {localConfig.showStatus ? `${statusSummary.online}/${services.length}` : services.length}
           </div>
-          <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <div className="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">
             {localConfig.showStatus ? 'online' : 'services'}
-          </div>
-          <div className="flex items-center gap-1">
-            {previewStatuses.map((service) => (
-              <span
-                key={service.id}
-                className={`h-1.5 w-1.5 rounded-full ${getStatusColor(serviceStatus[service.id])}`}
-              />
-            ))}
           </div>
         </div>
       );
@@ -680,13 +668,15 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
 
   return (
     <div ref={containerRef} className="widget-container h-full flex flex-col relative">
-      <WidgetHeader
-        title={localConfig.title || defaultConfig.title}
-        onSettingsClick={() => setShowSettings(true)}
-        compact={width === 1 || height === 1}
-      />
+      {!isTiny && (
+        <WidgetHeader
+          title={localConfig.title || defaultConfig.title}
+          onSettingsClick={() => setShowSettings(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
 
-      <div className={`flex-grow overflow-hidden ${width === 1 || height === 1 ? 'p-1.5' : 'p-2'}`}>
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-2' : width === 1 || height === 1 ? 'p-1.5' : 'p-2'}`}>
         {renderContent()}
       </div>
 

@@ -33,6 +33,7 @@ const DEFAULT_CONFIG: CronHealthWidgetConfig = {
 };
 
 const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [localConfig, setLocalConfig] = useState<CronHealthWidgetConfig>({
     ...DEFAULT_CONFIG,
@@ -154,7 +155,6 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
 
   // Render content
   const renderContent = () => {
-    const isTiny = width === 1 && height === 1;
     const isShort = height === 1 && width > 1;
     const isCompact = width <= 2 || height <= 2;
 
@@ -209,13 +209,10 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
     if (isTiny) {
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-          <div className={`flex h-8 w-8 items-center justify-center rounded-full bg-black/[0.04] dark:bg-white/[0.06] ${summaryTone}`}>
-            <SummaryIcon className="h-4 w-4" />
-          </div>
           <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
             {running}/{total}
           </div>
-          <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <div className={`text-[10px] uppercase tracking-wide ${summaryTone}`}>
             {failed > 0 ? `${failed} issue${failed > 1 ? 's' : ''}` : 'healthy'}
           </div>
         </div>
@@ -344,13 +341,15 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
 
   return (
     <div className="widget-container h-full flex flex-col relative">
-      <WidgetHeader
-        title={localConfig.title || DEFAULT_CONFIG.title}
-        onSettingsClick={() => setShowSettings(true)}
-        compact={width === 1 || height === 1}
-      />
+      {!isTiny && (
+        <WidgetHeader
+          title={localConfig.title || DEFAULT_CONFIG.title}
+          onSettingsClick={() => setShowSettings(true)}
+          compact={width === 1 || height === 1}
+        />
+      )}
 
-      <div className={`flex-grow overflow-hidden ${width === 1 || height === 1 ? 'p-1.5' : 'p-2'}`}>
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-2' : width === 1 || height === 1 ? 'p-1.5' : 'p-2'}`}>
         {renderContent()}
       </div>
 
