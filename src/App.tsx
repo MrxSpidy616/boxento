@@ -57,11 +57,11 @@ type ValidateLayoutsOptions = {
   rebalanceWideSparse?: boolean;
 };
 
-const getBreakpointForWidth = (width: number): BreakpointName => {
-  const orderedBreakpoints = Object.keys(breakpoints)
-    .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
+const BREAKPOINT_ORDER = Object.keys(breakpoints)
+  .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
 
-  for (const breakpoint of orderedBreakpoints) {
+const getBreakpointForWidth = (width: number): BreakpointName => {
+  for (const breakpoint of BREAKPOINT_ORDER) {
     if (width >= breakpoints[breakpoint]) {
       return breakpoint;
     }
@@ -69,9 +69,6 @@ const getBreakpointForWidth = (width: number): BreakpointName => {
 
   return 'lg';
 };
-
-const BREAKPOINT_ORDER = Object.keys(breakpoints)
-  .sort((a, b) => breakpoints[b as BreakpointName] - breakpoints[a as BreakpointName]) as BreakpointName[];
 
 const DEFAULT_LAYOUT_TEMPLATES: Record<BreakpointName, LayoutTemplate[]> = {
   xxxl: [
@@ -227,6 +224,10 @@ const getLargestHorizontalGap = (layout: LayoutItem[]): number => {
   return largestGap;
 };
 
+const WIDE_LAYOUT_FILL_RATIO_THRESHOLD = 0.72;
+const WIDE_LAYOUT_MIN_GAP = 3;
+const WIDE_LAYOUT_GAP_DIVISOR = 6;
+
 const rebalanceWideSparseLayout = (layout: LayoutItem[], colCount: number): LayoutItem[] | null => {
   if (layout.length < 2 || layout.length > 4) {
     return null;
@@ -242,7 +243,9 @@ const rebalanceWideSparseLayout = (layout: LayoutItem[], colCount: number): Layo
   const totalWidth = orderedItems.reduce((sum, item) => sum + item.w, 0);
   const fillRatio = totalWidth / colCount;
   const largestGap = getLargestHorizontalGap(orderedItems);
-  const shouldRebalance = fillRatio < 0.72 || largestGap >= Math.max(3, Math.floor(colCount / 6));
+  const shouldRebalance =
+    fillRatio < WIDE_LAYOUT_FILL_RATIO_THRESHOLD
+    || largestGap >= Math.max(WIDE_LAYOUT_MIN_GAP, Math.floor(colCount / WIDE_LAYOUT_GAP_DIVISOR));
 
   if (!shouldRebalance) {
     return null;
