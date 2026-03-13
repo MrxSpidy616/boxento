@@ -572,17 +572,20 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    */
   const renderMinimalView = () => {
     if (!weather) return null;
-    const shortLocation = weather.location.split(',')[0];
+    const shortLocation = weather.location.split(',')[0].trim();
     
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-1 px-1 text-center">
         <div className="text-gray-700 dark:text-gray-300">
           {getWeatherIcon(weather.condition, weather.icon)}
         </div>
-        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
+        <div className="text-[2rem] font-semibold leading-[0.92] tracking-tight text-gray-900 dark:text-gray-100">
           {formatTemperature(weather.temperature)}
         </div>
-        <div className="max-w-[5.25rem] truncate whitespace-nowrap text-[11px] font-medium leading-none text-gray-500 dark:text-gray-400">
+        <div
+          className="max-w-[5.5rem] truncate whitespace-nowrap text-[11px] font-medium leading-[1.15] text-gray-500 dark:text-gray-400"
+          title={shortLocation}
+        >
           {shortLocation}
         </div>
       </div>
