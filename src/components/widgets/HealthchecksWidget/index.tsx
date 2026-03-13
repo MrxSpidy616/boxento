@@ -6,6 +6,7 @@ import {
   ExternalLink,
   RefreshCw,
   Search,
+  Settings,
   Siren,
   Timer,
   XCircle,
@@ -33,6 +34,8 @@ const DEFAULT_API_URL = SQLITE_API_URL ? `${SQLITE_API_URL}/monitoring/healthche
 const DEFAULT_CONFIG: HealthchecksWidgetConfig = {
   title: 'Job Monitoring',
   apiUrl: DEFAULT_API_URL,
+  baseUrl: '',
+  apiKey: '',
   refreshInterval: 60,
   maxItems: 6,
   tagFilter: '',
@@ -149,6 +152,9 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [selectedCheckSlug, setSelectedCheckSlug] = useState<string | null>(null);
+  const hasCustomHealthchecksConfig = Boolean(localConfig.baseUrl?.trim() && localConfig.apiKey?.trim());
+  const shouldUseServerFallback = !hasCustomHealthchecksConfig;
+  const shouldShowSetupPrompt = !data && !loading && shouldUseServerFallback && error === 'Healthchecks monitoring is not configured';
 
   useEffect(() => {
     setLocalConfig(mergedConfig);
@@ -159,10 +165,19 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
       setLoading(true);
       setError(null);
       const response = await fetch(localConfig.apiUrl || DEFAULT_API_URL, {
+        method: hasCustomHealthchecksConfig ? 'POST' : 'GET',
+        headers: hasCustomHealthchecksConfig ? { 'Content-Type': 'application/json' } : undefined,
+        body: hasCustomHealthchecksConfig
+          ? JSON.stringify({
+              baseUrl: localConfig.baseUrl?.trim(),
+              apiKey: localConfig.apiKey?.trim(),
+            })
+          : undefined,
         signal: AbortSignal.timeout(10000),
       });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || `HTTP ${response.status}`);
       }
       const payload: HealthchecksWidgetData = await response.json();
       setData(payload);
@@ -171,7 +186,7 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
     } finally {
       setLoading(false);
     }
-  }, [localConfig.apiUrl]);
+  }, [hasCustomHealthchecksConfig, localConfig.apiKey, localConfig.apiUrl, localConfig.baseUrl]);
 
   useEffect(() => {
     fetchData();
@@ -245,6 +260,28 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
     setShowSettings(false);
   };
 
+  const renderSetupPrompt = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <Clock3 className="h-5 w-5 text-muted-foreground" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+        <Settings className="h-8 w-8" />
+        <p className="text-sm">Add your Healthchecks URL and read-only API key to get started.</p>
+        {!readOnly && (
+          <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+            Open Settings
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   const renderLoading = () => (
     <div className="flex flex-1 flex-col gap-2 p-2">
       <Skeleton className="h-8 w-full" />
@@ -281,6 +318,34 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
       <span className="rounded-full bg-muted px-2.5 py-1">
         {summary.total} total
       </span>
+    </div>
+  );
+
+  const renderActions = (textOnly = false) => (
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Button
+        variant="ghost"
+        size={textOnly ? 'sm' : 'icon'}
+        onClick={fetchData}
+        className={cn(textOnly ? 'h-7 px-2' : 'h-7 w-7')}
+        aria-label="Refresh job monitoring"
+      >
+        <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
+        {textOnly && <span className="ml-1">Refresh</span>}
+      </Button>
+      {openUrl && (
+        <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
+          <Button
+            variant="ghost"
+            size={textOnly ? 'sm' : 'icon'}
+            className={cn(textOnly ? 'h-7 px-2' : 'h-7 w-7')}
+            aria-label="Open Healthchecks"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {textOnly && <span className="ml-1">Open</span>}
+          </Button>
+        </a>
+      )}
     </div>
   );
 
@@ -412,7 +477,10 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderCompact = () => (
     <div className="flex h-full flex-col gap-2">
-      {renderStatusPills()}
+      <div className="flex items-start justify-between gap-2">
+        {renderStatusPills()}
+        {renderActions()}
+      </div>
       <div className="flex-1 space-y-2 overflow-auto">
         {visibleChecks.length > 0
           ? visibleChecks.slice(0, 3).map((check) => renderCheckRow(check, true))
@@ -423,7 +491,10 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderDefault = () => (
     <div className="flex h-full flex-col gap-3">
-      {renderStatusPills()}
+      <div className="flex items-start justify-between gap-3">
+        {renderStatusPills()}
+        {renderActions()}
+      </div>
       <div className="flex-1 space-y-2 overflow-auto">
         {visibleChecks.length > 0
           ? visibleChecks.map((check) => renderCheckRow(check))
@@ -440,7 +511,10 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
   const renderPanel = () => (
     <div className="flex h-full overflow-hidden">
       <div className="flex w-2/5 flex-col border-r border-border/60 p-3">
-        {renderStatusPills()}
+        <div className="flex items-start justify-between gap-3">
+          {renderStatusPills()}
+          {renderActions()}
+        </div>
         <div className="mt-3 flex-1 space-y-2 overflow-auto">
           {visibleChecks.length > 0
             ? visibleChecks.map((check) => renderCheckRow(check, false, check.slug === selectedCheckSlug))
@@ -455,27 +529,20 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderApp = () => (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2 widget-drag-handle cursor-move">
+      <div className="border-b border-border px-4 py-2 widget-drag-handle cursor-move">
         <div>
           <h2 className="text-base font-semibold text-foreground">{localConfig.title || DEFAULT_CONFIG.title}</h2>
-          <div className="mt-1">{renderStatusPills()}</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={fetchData} aria-label="Refresh job monitoring">
-            <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
-          </Button>
-          {openUrl && (
-            <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
-              <Button variant="ghost" size="icon" aria-label="Open Healthchecks">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </a>
-          )}
-          {!readOnly && (
-            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
-              Settings
-            </Button>
-          )}
+          <div className="mt-1 flex items-start justify-between gap-3">
+            {renderStatusPills()}
+            <div className="flex items-center gap-2">
+              {renderActions(true)}
+              {!readOnly && (
+                <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+                  Settings
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex flex-1 overflow-hidden">
@@ -508,7 +575,7 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
     return <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : '')}>{renderLoading()}</div>;
   }
 
-  if (error && !data) {
+  if (error && !data && !shouldShowSetupPrompt) {
     return <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : '')}>{renderError()}</div>;
   }
 
@@ -517,27 +584,14 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || DEFAULT_CONFIG.title}
-          icon={<Clock3 className="h-4 w-4" />}
           onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
           compact={isShort}
-        >
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={fetchData} className="h-7 w-7" aria-label="Refresh job monitoring">
-              <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
-            </Button>
-            {openUrl && (
-              <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Open Healthchecks">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </a>
-            )}
-          </div>
-        </WidgetHeader>
+        />
       )}
 
       <div className={cn('flex-1 overflow-hidden', isTiny ? 'p-1' : isApp ? '' : 'p-2 md:p-3')}>
-        {isTiny ? renderTiny()
+        {shouldShowSetupPrompt ? renderSetupPrompt()
+          : isTiny ? renderTiny()
           : isShort ? renderShort()
           : isApp ? renderApp()
           : isWide && isTall ? renderPanel()
@@ -561,15 +615,44 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="health-api-url">API URL</Label>
+                <Label htmlFor="health-base-url">Healthchecks URL *</Label>
+                <Input
+                  id="health-base-url"
+                  type="url"
+                  value={localConfig.baseUrl || ''}
+                  onChange={(event) => setLocalConfig((prev) => ({ ...prev, baseUrl: event.target.value }))}
+                  placeholder="https://healthchecks.example.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required. Your Healthchecks instance base URL.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="health-api-key">Read-only API Key *</Label>
+                <Input
+                  id="health-api-key"
+                  type="password"
+                  value={localConfig.apiKey || ''}
+                  onChange={(event) => setLocalConfig((prev) => ({ ...prev, apiKey: event.target.value }))}
+                  placeholder="hcs_..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Required. Stored as an encrypted widget config field by Boxento.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="health-api-url">Backend Endpoint</Label>
                 <Input
                   id="health-api-url"
                   value={localConfig.apiUrl || ''}
                   onChange={(event) => setLocalConfig((prev) => ({ ...prev, apiUrl: event.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Advanced: override the Boxento backend endpoint used by this widget.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="health-dashboard-url">Open URL</Label>
+                <Label htmlFor="health-dashboard-url">Open URL Override</Label>
                 <Input
                   id="health-dashboard-url"
                   value={localConfig.dashboardUrl || ''}

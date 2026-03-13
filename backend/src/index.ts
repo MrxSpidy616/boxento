@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { getDatabase, closeDatabase } from './db/connection.js';
@@ -99,7 +99,18 @@ interface HealthchecksApiResponse {
   checks: HealthchecksApiCheck[];
 }
 
+interface KumaRequestBody {
+  statusPageUrl?: string;
+}
+
+interface HealthchecksRequestBody {
+  baseUrl?: string;
+  apiKey?: string;
+}
+
 const app = new Hono();
+
+class BadRequestError extends Error {}
 
 const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   const response = await fetch(url, {
@@ -112,6 +123,52 @@ const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
   }
 
   return response.json() as Promise<T>;
+};
+
+const parseOptionalJsonBody = async <T>(c: Context): Promise<T> => {
+  const rawBody = await c.req.text();
+
+  if (!rawBody.trim()) {
+    return {} as T;
+  }
+
+  try {
+    return JSON.parse(rawBody) as T;
+  } catch {
+    throw new BadRequestError('Malformed JSON request body');
+  }
+};
+
+const normalizeHttpUrl = (value: string, label: string): string => {
+  try {
+    const parsed = new URL(value.startsWith('http') ? value : `https://${value}`);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error();
+    }
+    return parsed.href.replace(/\/$/, '');
+  } catch {
+    throw new BadRequestError(`Invalid ${label}`);
+  }
+};
+
+const parseKumaStatusPageUrl = (statusPageUrl: string): { baseUrl: string; slug: string; dashboardUrl: string } => {
+  const normalizedUrl = normalizeHttpUrl(statusPageUrl, 'Uptime Kuma status page URL');
+  const parsed = new URL(normalizedUrl);
+  const segments = parsed.pathname.split('/').filter(Boolean);
+  const statusIndex = segments.findIndex((segment) => segment === 'status');
+  const slug = statusIndex >= 0 ? segments[statusIndex + 1] : '';
+
+  if (!slug) {
+    throw new BadRequestError('Expected a Uptime Kuma status page URL like https://kuma.example.com/status/your-page');
+  }
+
+  const basePath = segments.slice(0, statusIndex).join('/');
+
+  return {
+    baseUrl: `${parsed.origin}${basePath ? `/${basePath}` : ''}`,
+    slug,
+    dashboardUrl: normalizedUrl,
+  };
 };
 
 // Middleware
@@ -130,15 +187,26 @@ app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.get('/api/monitoring/kuma', async (c) => {
-  const baseUrl = process.env.UPTIME_KUMA_BASE_URL;
-  const slug = process.env.UPTIME_KUMA_STATUS_PAGE_SLUG;
-
-  if (!baseUrl || !slug) {
-    return c.json({ error: 'Kuma monitoring is not configured' }, 503);
-  }
+app.on(['GET', 'POST'], '/api/monitoring/kuma', async (c) => {
+  let baseUrl = process.env.UPTIME_KUMA_BASE_URL;
+  let slug = process.env.UPTIME_KUMA_STATUS_PAGE_SLUG;
+  let dashboardUrl = baseUrl && slug ? `${baseUrl.replace(/\/$/, '')}/status/${slug}` : '';
 
   try {
+    if (c.req.method === 'POST') {
+      const body = await parseOptionalJsonBody<KumaRequestBody>(c);
+      if (body.statusPageUrl?.trim()) {
+        const parsed = parseKumaStatusPageUrl(body.statusPageUrl.trim());
+        baseUrl = parsed.baseUrl;
+        slug = parsed.slug;
+        dashboardUrl = parsed.dashboardUrl;
+      }
+    }
+
+    if (!baseUrl || !slug) {
+      return c.json({ error: 'Kuma monitoring is not configured' }, 503);
+    }
+
     const normalizedBase = baseUrl.replace(/\/$/, '');
     const [statusPage, heartbeats] = await Promise.all([
       fetchJson<KumaStatusPageResponse>(`${normalizedBase}/api/status-page/${slug}`),
@@ -186,25 +254,43 @@ app.get('/api/monitoring/kuma', async (c) => {
     );
 
     return c.json({
-      dashboardUrl: `${normalizedBase}/status/${slug}`,
+      dashboardUrl: dashboardUrl || `${normalizedBase}/status/${slug}`,
       monitors,
       summary,
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof BadRequestError) {
+      return c.json({ error: error.message }, 400);
+    }
     return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch Kuma data' }, 502);
   }
 });
 
-app.get('/api/monitoring/healthchecks', async (c) => {
-  const baseUrl = process.env.HEALTHCHECKS_BASE_URL;
-  const apiKey = process.env.HEALTHCHECKS_READONLY_API_KEY;
-
-  if (!baseUrl || !apiKey) {
-    return c.json({ error: 'Healthchecks monitoring is not configured' }, 503);
-  }
+app.on(['GET', 'POST'], '/api/monitoring/healthchecks', async (c) => {
+  let baseUrl = process.env.HEALTHCHECKS_BASE_URL;
+  let apiKey = process.env.HEALTHCHECKS_READONLY_API_KEY;
 
   try {
+    if (c.req.method === 'POST') {
+      const body = await parseOptionalJsonBody<HealthchecksRequestBody>(c);
+      const baseUrlOverride = body.baseUrl?.trim();
+      const apiKeyOverride = body.apiKey?.trim();
+
+      if ((baseUrlOverride && !apiKeyOverride) || (!baseUrlOverride && apiKeyOverride)) {
+        throw new BadRequestError('Healthchecks URL and read-only API key must be provided together');
+      }
+
+      if (baseUrlOverride && apiKeyOverride) {
+        baseUrl = normalizeHttpUrl(baseUrlOverride, 'Healthchecks URL');
+        apiKey = apiKeyOverride;
+      }
+    }
+
+    if (!baseUrl || !apiKey) {
+      return c.json({ error: 'Healthchecks monitoring is not configured' }, 503);
+    }
+
     const normalizedBase = baseUrl.replace(/\/$/, '');
     const payload = await fetchJson<HealthchecksApiResponse>(`${normalizedBase}/api/v3/checks/`, {
       headers: {
@@ -247,6 +333,9 @@ app.get('/api/monitoring/healthchecks', async (c) => {
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof BadRequestError) {
+      return c.json({ error: error.message }, 400);
+    }
     return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch Healthchecks data' }, 502);
   }
 });

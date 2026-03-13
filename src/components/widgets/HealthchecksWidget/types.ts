@@ -35,6 +35,8 @@ export interface HealthchecksWidgetConfig {
   id?: string;
   title?: string;
   apiUrl?: string;
+  baseUrl?: string;
+  apiKey?: string;
   dashboardUrl?: string;
   refreshInterval?: number;
   maxItems?: number;
