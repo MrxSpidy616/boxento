@@ -61,7 +61,7 @@ Before writing code, clarify:
 - What data does it display or manage?
 - Does it need external API calls? If so, what APIs?
 - Does it need user configuration (settings modal)?
-- What's the minimum sensible size? (most widgets are 2x2 minimum; only very simple ones support 1x1)
+- What's the minimum sensible size? (all widgets support 1x1 — see the icon tier — but the default is 2x2 minimum grid registration)
 - What categories does it belong to? Existing categories: `Information`, `Productivity`, `Finance`, `Media`, `Self-hosted`, `Developer`, `Fun`, `Utilities`
 
 ### Step 2: Create the widget folder and types
@@ -88,7 +88,7 @@ export type {WidgetName}Props = WidgetProps<{WidgetName}Config>;
 **Important type rules:**
 - Always include `id?`, `onUpdate?`, `onDelete?`, `readOnly?`, and the index signature `[key: string]: unknown`
 - For list-based widgets, define item interfaces separately (e.g., `TodoItem`, `Service`)
-- Use `Date` for date fields — the config manager auto-restores ISO strings to `Date` objects
+- Use `Date` for the `createdAt` field — the config manager auto-restores its ISO string back to a `Date` object. For any other date fields, parse them explicitly (e.g., `new Date(config.myDate)`) when reading from config
 - If the widget has API keys or secrets, those fields will be auto-encrypted if named `apiKey`, `token`, `secret`, `password`, or `key`
 
 ### Step 3: Create the widget component
@@ -185,6 +185,21 @@ const {WidgetName}: React.FC<{WidgetName}Props> = ({ width, height, config }) =>
     </div>
   );
 
+  const renderWide = () => (
+    // 4x2 / 4x3 WIDE: multi-column layout, extra metadata shown
+    <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 overflow-y-auto">{/* primary content */}</div>
+      <div className="w-1/3 border-l overflow-y-auto">{/* secondary info */}</div>
+    </div>
+  );
+
+  const renderTall = () => (
+    // 2x4 / 3x4 TALL: extended vertical list, more items visible
+    <div className="flex-1 overflow-auto">
+      {/* tall single-column list with more items */}
+    </div>
+  );
+
   const renderPanel = () => (
     // 4x4–5x5 PANEL: split views, inline editing, summary + detail
     <div className="flex flex-1 overflow-hidden">
@@ -222,6 +237,8 @@ const {WidgetName}: React.FC<{WidgetName}Props> = ({ width, height, config }) =>
     if (isShort) return renderShort();
     if (isApp) return renderApp();
     if (isWide && isTall) return renderPanel();
+    if (isWide) return renderWide();
+    if (isTall) return renderTall();
     if (isCompact) return renderCompact();
     return renderDefault();
   };
