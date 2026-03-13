@@ -628,7 +628,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
         {/* Left sidebar: categories + service list */}
         <div className="flex w-1/3 min-w-[200px] max-w-[320px] flex-col border-r border-border">
           {/* Search */}
-          <div className="p-2 border-b border-border">
+          <div className="p-2 border-b border-border widget-drag-handle cursor-move">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input

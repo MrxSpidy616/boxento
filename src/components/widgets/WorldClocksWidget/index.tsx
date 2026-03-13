@@ -554,7 +554,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     return (
       <div className="flex h-full flex-col overflow-hidden">
         {/* Title bar for app view */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 widget-drag-handle cursor-move">
           <h2 className="text-base font-semibold text-foreground">World Clocks</h2>
           {!readOnly && (
             <Button

@@ -924,19 +924,18 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
    */
   const renderCompactCalendar = () => {
     const today = new Date()
-    const dayOfWeek = today.toLocaleDateString('default', { weekday: 'long' })
     const dayOfMonth = today.getDate()
     const month = today.toLocaleDateString('default', { month: 'long' })
-    
+
     return (
-      <div ref={widgetRef} className="h-full flex flex-col justify-center items-center text-center">
-        <div className="text-xs text-muted-foreground mb-0.5">
-          {dayOfWeek}
+      <div ref={widgetRef} className="h-full flex flex-col justify-center items-center text-center overflow-hidden">
+        <div className="text-xs text-muted-foreground mb-0.5 truncate max-w-full px-1">
+          {today.toLocaleDateString('default', { weekday: width <= 2 ? 'short' : 'long' })}
         </div>
-        
+
         <div className="flex flex-col items-center">
           <span className="text-6xl font-bold text-rose-500">{dayOfMonth}</span>
-          <span className="text-sm">{month}</span>
+          <span className="text-sm truncate max-w-full px-1">{month}</span>
         </div>
         
         {(() => {
@@ -1688,7 +1687,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
       };
 
       return (
-        <div className="flex items-center justify-between border-b border-border px-4 py-2">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2 widget-drag-handle cursor-move">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"

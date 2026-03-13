@@ -560,7 +560,7 @@ const OllamaWidget: React.FC<OllamaWidgetProps> = ({ width, height, config }) =>
         {/* Sidebar */}
         <div className="w-1/4 min-w-[200px] max-w-[280px] border-r flex flex-col overflow-y-auto">
           {/* Model selector */}
-          <div className="p-3 border-b space-y-3">
+          <div className="p-3 border-b space-y-3 widget-drag-handle cursor-move">
             <div className="flex items-center gap-2">
               <Cpu className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium text-foreground">Model</span>

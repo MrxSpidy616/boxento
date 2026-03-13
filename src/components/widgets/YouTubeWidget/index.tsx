@@ -390,7 +390,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
               className="w-full h-full"
             />
           </div>
-          <div className="mt-3 min-w-0">
+          <div className="mt-3 min-w-0 widget-drag-handle cursor-move">
             <h2 className="text-base font-semibold truncate">
               {videoTitle || localConfig.title || 'YouTube Video'}
             </h2>

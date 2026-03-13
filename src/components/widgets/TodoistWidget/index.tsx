@@ -679,7 +679,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
       <div className="flex h-full">
         {/* Sidebar: project filter */}
         <div className="w-1/4 min-w-[160px] max-w-[240px] border-r border-border/50 overflow-y-auto flex flex-col">
-          <div className="p-3 border-b border-border/50">
+          <div className="p-3 border-b border-border/50 widget-drag-handle cursor-move">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input

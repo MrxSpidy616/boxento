@@ -744,7 +744,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
         {/* Left panel: stats + contribution graph */}
         <div className="flex-1 flex flex-col overflow-y-auto pr-3 border-r border-border/50">
           {/* Hero stats */}
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-4 mb-4 widget-drag-handle cursor-move">
             <div className="flex items-center gap-2">
               <Flame className={`h-8 w-8 ${streakFlameColor}`} />
               <div>

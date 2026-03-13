@@ -338,7 +338,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
     return (
       <div className="flex h-full flex-col overflow-hidden">
         {/* App header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 widget-drag-handle cursor-move">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
               {localConfig.title || defaultConfig.title}

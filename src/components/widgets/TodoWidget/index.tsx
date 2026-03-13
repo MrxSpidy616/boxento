@@ -922,7 +922,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
       <div className="h-full flex">
         {/* Left sidebar - Filter tabs */}
         <div className="w-1/3 max-w-[200px] border-r border-border flex flex-col p-3">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-4 widget-drag-handle cursor-move">
             <ListTodo size={18} className="text-foreground" />
             <h2 className="text-base font-semibold text-foreground truncate">
               {localConfig.title || defaultConfig.title}
