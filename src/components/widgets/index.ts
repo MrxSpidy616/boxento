@@ -78,6 +78,9 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'year-progress',
   'weather',
   'calendar',
+  'todo',
+  'notes',
+  'rss',
 ]);
 
 // Widget registry with enhanced metadata
