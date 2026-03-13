@@ -89,6 +89,12 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'qrcode',
   'countdown',
   'todoist',
+  'uf-chile',
+  'youtube',
+  'readwise',
+  'github-streak',
+  'flight-tracker',
+  'geography-quiz',
 ]);
 
 // Widget registry with enhanced metadata
