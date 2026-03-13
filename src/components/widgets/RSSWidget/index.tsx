@@ -350,7 +350,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
       <div className="flex h-full flex-col items-center justify-center gap-0.5 text-center">
         <Rss size={18} className="text-orange-500" strokeWidth={1.5} />
         {hasFeeds && !isLoading && (
-          <div className="text-[1.5rem] font-bold leading-none text-gray-900 dark:text-gray-100">
+          <div className="text-[1.5rem] font-bold leading-none text-foreground">
             {count}
           </div>
         )}
@@ -375,7 +375,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="flex flex-col items-center rounded-lg bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5">
             <Rss size={12} className="text-orange-500" strokeWidth={2} />
-            <span className="text-lg font-bold leading-tight text-gray-900 dark:text-gray-100">
+            <span className="text-lg font-bold leading-tight text-foreground">
               {isLoading ? '-' : count}
             </span>
           </div>
@@ -389,17 +389,17 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
               href={item.link}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex shrink-0 items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2.5 py-1 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1 hover:bg-accent transition-colors"
             >
-              <span className="max-w-[120px] truncate text-xs font-medium text-gray-700 dark:text-gray-300">
+              <span className="max-w-[120px] truncate text-xs font-medium text-foreground">
                 {item.title}
               </span>
             </a>
           ))
         ) : !isLoading ? (
-          <span className="text-xs text-gray-400 dark:text-gray-500">No articles</span>
+          <span className="text-xs text-muted-foreground">No articles</span>
         ) : (
-          <span className="text-xs text-gray-400 dark:text-gray-500 animate-pulse">Loading...</span>
+          <span className="text-xs text-muted-foreground animate-pulse">Loading...</span>
         )}
       </div>
     );
@@ -438,13 +438,13 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
             href={item.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="block py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors rounded-sm px-1"
+            className="block py-1.5 border-b border-border last:border-0 hover:bg-accent transition-colors rounded-sm px-1"
           >
-            <div className="text-xs font-medium text-gray-800 dark:text-gray-200 line-clamp-2 leading-snug">
+            <div className="text-xs font-medium text-foreground line-clamp-2 leading-snug">
               {item.title}
             </div>
             {item.feedTitle && (
-              <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+              <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                 {item.feedTitle}
               </div>
             )}
@@ -464,7 +464,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
       return (
         <div className="flex h-full">
           {/* Left sidebar skeleton */}
-          <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 p-3 space-y-3">
+          <div className="w-1/3 border-r border-border p-3 space-y-3">
             {[1, 2, 3, 4, 5].map(i => (
               <div key={i} className="space-y-1.5">
                 <Skeleton className="h-4 w-full" />
@@ -496,10 +496,10 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
     return (
       <div className="flex h-full flex-col">
         {/* Top bar */}
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-2">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2">
           <div className="flex items-center gap-3">
             <Rss size={16} className="text-orange-500" />
-            <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+            <span className="text-sm font-semibold text-foreground">
               {localConfig.title || 'RSS Reader'}
             </span>
           </div>
@@ -508,7 +508,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
             <div className="relative" ref={feedFilterRef}>
               <button
                 onClick={() => setShowFeedFilterDropdown(!showFeedFilterDropdown)}
-                className="flex items-center gap-1.5 rounded-md border border-gray-200 dark:border-gray-700 px-2.5 py-1 text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent transition-colors"
               >
                 <span className="max-w-[140px] truncate">
                   {appFeedFilter === 'all' ? 'All Feeds' : appFeedFilter}
@@ -516,10 +516,10 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                 <ChevronDown size={12} />
               </button>
               {showFeedFilterDropdown && (
-                <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1">
+                <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-md border border-border bg-background shadow-lg py-1">
                   <button
                     onClick={() => { setAppFeedFilter('all'); setShowFeedFilterDropdown(false); setSelectedArticleIndex(null); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${appFeedFilter === 'all' ? 'font-semibold text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}`}
+                    className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors ${appFeedFilter === 'all' ? 'font-semibold text-orange-600 dark:text-orange-400' : 'text-foreground'}`}
                   >
                     All Feeds
                   </button>
@@ -527,7 +527,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                     <button
                       key={title}
                       onClick={() => { setAppFeedFilter(title); setShowFeedFilterDropdown(false); setSelectedArticleIndex(null); }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors truncate ${appFeedFilter === title ? 'font-semibold text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}`}
+                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors truncate ${appFeedFilter === title ? 'font-semibold text-orange-600 dark:text-orange-400' : 'text-foreground'}`}
                     >
                       {title}
                     </button>
@@ -536,21 +536,23 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
               )}
             </div>
             {/* Article count */}
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-muted-foreground">
               {filteredFeedItems.length} article{filteredFeedItems.length !== 1 ? 's' : ''}
             </span>
             {/* Settings button */}
             {!readOnly && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
                 onClick={() => setShowSettings(true)}
-                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 title="Settings"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 dark:text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
                   <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -558,28 +560,28 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
         {/* Main content area */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left sidebar: Article list */}
-          <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
+          <div className="w-1/3 border-r border-border overflow-y-auto">
             {filteredFeedItems.map((item, index) => (
               <button
                 key={`${item.link}-${index}`}
                 onClick={() => setSelectedArticleIndex(index)}
-                className={`w-full text-left px-3 py-2.5 border-b border-gray-100 dark:border-gray-800 transition-colors ${
+                className={`w-full text-left px-3 py-2.5 border-b border-border transition-colors ${
                   selectedArticleIndex === index
                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                    : 'hover:bg-accent'
                 }`}
               >
-                <div className="text-sm font-medium text-gray-800 dark:text-gray-200 line-clamp-2 leading-snug">
+                <div className="text-sm font-medium text-foreground line-clamp-2 leading-snug">
                   {item.title}
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {item.feedTitle && (
-                    <span className="text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[60%]">
+                    <span className="text-[11px] text-muted-foreground truncate max-w-[60%]">
                       {item.feedTitle}
                     </span>
                   )}
                   {item.pubDate && (
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0">
+                    <span className="text-[10px] text-muted-foreground shrink-0">
                       {formatTimeAgo(item.pubDate)}
                     </span>
                   )}
@@ -593,25 +595,25 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
             {selectedArticle ? (
               <div className="p-6">
                 {/* Article title */}
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                <h1 className="text-xl font-bold text-foreground leading-tight">
                   {selectedArticle.title}
                 </h1>
                 {/* Meta line */}
-                <div className="flex items-center gap-2 mt-3 text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center gap-2 mt-3 text-sm text-muted-foreground">
                   {selectedArticle.feedTitle && (
-                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                    <span className="font-medium text-muted-foreground">
                       {selectedArticle.feedTitle}
                     </span>
                   )}
                   {selectedArticle.feedTitle && selectedArticle.pubDate && (
-                    <span className="text-gray-300 dark:text-gray-600">|</span>
+                    <span className="text-muted-foreground/40">|</span>
                   )}
                   {selectedArticle.pubDate && (
                     <span>{formatDate(selectedArticle.pubDate)}</span>
                   )}
                   {selectedArticle.author && (
                     <>
-                      <span className="text-gray-300 dark:text-gray-600">|</span>
+                      <span className="text-muted-foreground/40">|</span>
                       <span>{selectedArticle.author}</span>
                     </>
                   )}
@@ -666,7 +668,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                       }}
                     />
                   ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic">
+                    <p className="text-muted-foreground italic">
                       No content available. Open in browser to read the full article.
                     </p>
                   )}
@@ -675,11 +677,11 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
             ) : (
               /* Empty state: no article selected */
               <div className="flex h-full flex-col items-center justify-center text-center p-6">
-                <Rss size={32} className="text-gray-300 dark:text-gray-600 mb-3" strokeWidth={1.5} />
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <Rss size={32} className="text-muted-foreground/40 mb-3" strokeWidth={1.5} />
+                <p className="text-sm text-muted-foreground">
                   Select an article to read
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {filteredFeedItems.length} article{filteredFeedItems.length !== 1 ? 's' : ''} available
                 </p>
               </div>
@@ -708,13 +710,13 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
         </a>
 
         {item.feedTitle && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {item.feedTitle}
           </div>
         )}
 
         {(showDate || showAuthor) && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {showDate && item.pubDate && <span>{formatDate(item.pubDate)}</span>}
             {showDate && showAuthor && item.pubDate && item.author && <span> · </span>}
             {showAuthor && item.author && <span>{item.author}</span>}
@@ -722,7 +724,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
         )}
 
         {showDescription && item.description && (
-          <p className="text-xs text-gray-700 dark:text-gray-300 mt-2 line-clamp-3">
+          <p className="text-xs text-foreground mt-2 line-clamp-3">
             {truncateText(item.description, mode === RSSDisplayMode.COMPACT ? 100 : 200)}
           </p>
         )}
@@ -754,7 +756,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
       case RSSDisplayMode.COMPACT:
         return (
           <div key={`${item.link}-${index}`} className="py-2 flex">
-            <div className="mr-2 text-gray-400 dark:text-gray-500">•</div>
+            <div className="mr-2 text-muted-foreground">•</div>
             <div className="flex-grow min-w-0">
               {commonContent}
             </div>
@@ -764,7 +766,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
       case RSSDisplayMode.LIST:
       default:
         return (
-          <div key={`${item.link}-${index}`} className="py-3 flex border-b border-gray-200 dark:border-gray-700 last:border-0">
+          <div key={`${item.link}-${index}`} className="py-3 flex border-b border-border last:border-0">
             {showImages && item.image && (
               <div className="w-16 h-16 mr-3 flex-shrink-0 overflow-hidden rounded">
                 <img
@@ -792,9 +794,9 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
     return (
       <div className="h-full flex flex-col items-center justify-center text-center">
         {/* Use Rss icon from Lucide with consistent styling */}
-        <Rss size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
+        <Rss size={24} className="text-muted-foreground mb-3" strokeWidth={1.5} />
         {/* Consistent text styling */}
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <p className="text-sm text-muted-foreground mb-3">
           No RSS feed configured.
         </p>
         {/* Consistent button styling */}
@@ -1094,7 +1096,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig({...localConfig, title: e.target.value})}
                       placeholder="RSS Feed"
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                       Leave empty to use the feed's title
                     </p>
                   </div>
@@ -1103,17 +1105,17 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                   <div className="space-y-2">
                     <Label>RSS Feeds</Label>
                     <div className="space-y-3">
-                      <div className="max-h-[300px] overflow-y-auto border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-950 shadow-inner">
+                      <div className="max-h-[300px] overflow-y-auto border border-border rounded-lg bg-background shadow-inner">
                         {localConfig.feeds?.length === 0 ? (
-                          <div className="p-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                          <div className="p-8 text-center text-sm text-muted-foreground">
                             <Rss className="w-8 h-8 mx-auto mb-2 opacity-50" />
                             <p>No feeds added yet</p>
-                            <p className="text-xs mt-1 text-gray-400 dark:text-gray-500">Add feeds manually or import from OPML</p>
+                            <p className="text-xs mt-1 text-muted-foreground">Add feeds manually or import from OPML</p>
                           </div>
                         ) : (
-                          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                          <div className="divide-y divide-border">
                             {localConfig.feeds?.map((feed, index) => (
-                              <div key={index} className="p-2 transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                              <div key={index} className="p-2 transition-colors hover:bg-accent">
                                 <div className="flex items-center gap-2">
                                   <div className="flex-1 min-w-0">
                                     <Input
@@ -1141,7 +1143,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                                       className={`${
                                         !validateFeedUrl(feed.url) || validationErrors[feed.url]
                                           ? 'border-red-500 dark:border-red-500'
-                                          : 'border-transparent focus:border-gray-300 dark:focus:border-gray-600'
+                                          : 'border-transparent focus:border-border'
                                       } text-sm bg-transparent shadow-none`}
                                       placeholder="https://example.com/rss"
                                     />
@@ -1160,7 +1162,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                                         feeds: newFeeds
                                       });
                                     }}
-                                    className="text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 h-8 w-8 p-0 transition-colors"
+                                    className="text-muted-foreground hover:text-red-500 dark:hover:text-red-400 h-8 w-8 p-0 transition-colors"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <path d="M18 6L6 18M6 6l12 12"/>
@@ -1221,7 +1223,7 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                         Please enter valid URLs
                       </p>
                     )}
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                       Add RSS feed URLs manually or import from an OPML file
                     </p>
                   </div>
@@ -1323,13 +1325,13 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
             <TabsContent value="examples">
               <div className="max-h-[min(60vh,500px)] overflow-y-auto py-4">
                 <div className="space-y-4 px-1">
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                  <div className="text-sm text-muted-foreground">
                     Select from popular RSS feeds to get started:
                   </div>
                   <div className="space-y-2">
                     {/* Example Feed Item: Hacker News */}
                     <div
-                      className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent transition-colors"
                       onClick={() => setExampleFeed('https://news.ycombinator.com/rss', 'Hacker News')}
                     >
                       <div className="flex-shrink-0 rounded-md bg-orange-100 dark:bg-orange-900/20 p-2 text-orange-600 dark:text-orange-400">
@@ -1339,31 +1341,31 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">Hacker News</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">Tech news and discussions</div>
+                        <div className="text-xs text-muted-foreground truncate">Tech news and discussions</div>
                       </div>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </div>
 
                     {/* Example Feed Item: New York Times */}
                     <div
-                      className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent transition-colors"
                       onClick={() => setExampleFeed('https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', 'New York Times')}
                     >
-                      <div className="flex-shrink-0 rounded-md bg-gray-100 dark:bg-gray-900/40 p-2 text-gray-600 dark:text-gray-400">
+                      <div className="flex-shrink-0 rounded-md bg-muted p-2 text-muted-foreground">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M4 7H20M4 12H20M4 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">New York Times</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">Breaking news and opinion</div>
+                        <div className="text-xs text-muted-foreground truncate">Breaking news and opinion</div>
                       </div>
-                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </div>
 
                     {/* Example Feed Item: Wired */}
                      <div
-                      className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      className="flex items-center gap-3 p-2 rounded-md cursor-pointer hover:bg-accent transition-colors"
                       onClick={() => setExampleFeed('https://www.wired.com/feed/rss', 'Wired')}
                     >
                       <div className="flex-shrink-0 rounded-md bg-purple-100 dark:bg-purple-900/20 p-2 text-purple-600 dark:text-purple-400">
@@ -1373,9 +1375,9 @@ export const RSSWidget: React.FC<RSSWidgetProps> = ({ config, width, height }) =
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-sm">Wired</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">Latest technology news and features</div>
+                        <div className="text-xs text-muted-foreground truncate">Latest technology news and features</div>
                       </div>
-                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400 dark:text-gray-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </div>
                   </div>
                 </div>

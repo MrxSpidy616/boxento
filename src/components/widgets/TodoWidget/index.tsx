@@ -403,10 +403,10 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           </>
         ) : (
           <>
-            <div className="text-[2rem] font-bold leading-none text-gray-900 dark:text-gray-100">
+            <div className="text-[2rem] font-bold leading-none text-foreground">
               {pendingCount}
             </div>
-            <div className="text-[9px] font-medium text-gray-500 dark:text-gray-400">
+            <div className="text-[9px] font-medium text-muted-foreground">
               {pendingCount === 1 ? 'task' : 'tasks'}
             </div>
           </>
@@ -427,8 +427,8 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
         {/* Count badge */}
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="flex flex-col items-center rounded-lg bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5">
-            <span className="text-lg font-bold leading-tight text-gray-900 dark:text-gray-100">{pendingCount}</span>
-            <span className="text-[9px] text-gray-500 dark:text-gray-400">to do</span>
+            <span className="text-lg font-bold leading-tight text-foreground">{pendingCount}</span>
+            <span className="text-[9px] text-muted-foreground">to do</span>
           </div>
         </div>
 
@@ -437,22 +437,22 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           pendingItems.map((item) => (
             <div
               key={item.id}
-              className="flex shrink-0 items-center gap-1 rounded-full bg-gray-100 dark:bg-slate-700 px-2.5 py-1"
+              className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-2.5 py-1"
             >
               {!readOnly && (
                 <button
                   onClick={() => toggleTodo(item.id)}
-                  className="h-3 w-3 shrink-0 rounded-full border border-gray-300 dark:border-gray-500 hover:border-green-400 transition-colors"
+                  className="h-3 w-3 shrink-0 rounded-full border border-border hover:border-green-400 transition-colors"
                   aria-label="Mark as complete"
                 />
               )}
-              <span className="max-w-[120px] truncate text-xs font-medium text-gray-700 dark:text-gray-300">
+              <span className="max-w-[120px] truncate text-xs font-medium text-foreground">
                 {item.text}
               </span>
             </div>
           ))
         ) : (
-          <span className="text-xs text-gray-400 dark:text-gray-500">All done!</span>
+          <span className="text-xs text-muted-foreground">All done!</span>
         )}
       </div>
     );
@@ -469,12 +469,12 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
       <div className="h-full flex flex-col">
         {/* Pending count header */}
         <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{pendingCount}</span>
-          <span className="text-[10px] text-gray-500 dark:text-gray-400">pending</span>
+          <span className="text-sm font-bold text-foreground">{pendingCount}</span>
+          <span className="text-[10px] text-muted-foreground">pending</span>
         </div>
         <div className="flex-grow overflow-y-auto">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-xs text-muted-foreground">
               <p>No tasks</p>
             </div>
           ) : (
@@ -487,14 +487,14 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                   onDragEnd={handleDragEnd}
                   onDragOver={(e) => handleDragOver(e, item)}
                   onDrop={(e) => handleDrop(e, item)}
-                  className={`flex items-center p-1 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
+                  className={`flex items-center p-1 rounded-md hover:bg-accent transition-all relative text-foreground group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
                 >
                   <button
                     onClick={() => !readOnly && toggleTodo(item.id)}
                     className={`flex-shrink-0 w-3 h-3 rounded-full border ${
                       item.completed
                         ? 'bg-green-500 border-green-500 text-white'
-                        : 'border-gray-300 dark:border-gray-600'
+                        : 'border-border'
                     } flex items-center justify-center mr-1.5`}
                     aria-label={item.completed ? "Mark as incomplete" : "Mark as complete"}
                     disabled={readOnly}
@@ -502,7 +502,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                     {item.completed && <Check size={8} />}
                   </button>
                   <span className={`text-xs font-medium flex-grow truncate ${
-                    item.completed ? 'line-through text-gray-400 dark:text-gray-500' : ''
+                    item.completed ? 'line-through text-muted-foreground' : ''
                   }`}>
                     {item.text}
                   </span>
@@ -510,7 +510,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-1">
                       <button
                         onClick={() => deleteTodo(item.id)}
-                        className="p-0.5 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
+                        className="p-0.5 text-muted-foreground hover:text-destructive"
                         aria-label="Delete task"
                       >
                         <Trash2 size={10} />
@@ -520,7 +520,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                 </li>
               ))}
               {items.length > visibleItems.length && (
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 text-center py-0.5">
+                <div className="text-[10px] text-muted-foreground text-center py-0.5">
                   +{items.length - visibleItems.length} more
                 </div>
               )}
@@ -528,7 +528,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           )}
         </div>
         {!readOnly && (
-          <div className="mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-1 pt-1 border-t border-border">
             <form
               onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
                 e.preventDefault();
@@ -546,13 +546,15 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                 placeholder="Add task..."
                 className="flex-grow text-xs h-7"
               />
-              <button
+              <Button
                 type="submit"
+                variant="ghost"
+                size="icon"
                 disabled={!newTodoText.trim()}
-                className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+                className="h-7 w-7"
               >
                 <Plus size={14} />
-              </button>
+              </Button>
             </form>
           </div>
         )}
@@ -570,10 +572,10 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           onDragEnd={handleDragEnd}
           onDragOver={(e) => handleDragOver(e, item)}
           onDrop={(e) => handleDrop(e, item)}
-          className={`flex items-center gap-3 p-2.5 hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 rounded-lg transition-all relative text-gray-800 dark:text-gray-100 group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
+          className={`flex items-center gap-3 p-2.5 hover:bg-accent rounded-lg transition-all relative text-foreground group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
         >
           {!readOnly && (
-            <div className="flex-shrink-0 mr-0.5 text-gray-300 dark:text-gray-700 group-hover:text-gray-400 dark:group-hover:text-gray-600 transition-colors">
+            <div className="flex-shrink-0 mr-0.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
               <GripVertical size={14} />
             </div>
           )}
@@ -583,7 +585,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
             className={`flex-shrink-0 w-5 h-5 rounded-full border ${
               item.completed
                 ? 'bg-green-500 border-green-500 text-white'
-                : 'border-gray-300 dark:border-gray-600'
+                : 'border-border'
             } flex items-center justify-center`}
             aria-label={item.completed ? "Mark as incomplete" : "Mark as complete"}
             disabled={readOnly}
@@ -593,7 +595,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
 
           <span
             className={`flex-grow truncate ${
-              item.completed ? 'line-through text-gray-400 dark:text-gray-500' : ''
+              item.completed ? 'line-through text-muted-foreground' : ''
             }`}
           >
             {item.text}
@@ -603,7 +605,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => deleteTodo(item.id)}
-                className="p-1 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
+                className="p-1 text-muted-foreground hover:text-destructive"
                 aria-label="Delete task"
               >
                 <Trash2 size={14} />
@@ -636,14 +638,15 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           className="flex-grow"
           aria-label="New task"
         />
-        <button
+        <Button
           type="submit"
+          variant="ghost"
+          size="icon"
           disabled={!newTodoText.trim()}
-          className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
           aria-label="Add task"
         >
           <Plus size={20} />
-        </button>
+        </Button>
       </form>
     );
   };
@@ -655,7 +658,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
       <div className="h-full flex flex-col">
         <div className="flex-grow overflow-y-auto">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <p>No tasks</p>
             </div>
           ) : (
@@ -663,7 +666,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           )}
         </div>
         {!readOnly && (
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-3 pt-3 border-t border-border">
             {renderAddTodoForm()}
           </div>
         )}
@@ -680,7 +683,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           <h3 className="text-sm font-medium mb-2">Tasks</h3>
           <div className="flex-grow overflow-y-auto">
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <p>No tasks</p>
               </div>
             ) : (
@@ -702,7 +705,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
       <div className="h-full flex flex-col">
         <div className="flex-grow overflow-y-auto">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
               <p>No tasks</p>
             </div>
           ) : (
@@ -730,7 +733,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           <h3 className="text-sm font-medium mb-2">Pending Tasks ({pendingItems.length})</h3>
           <div className="flex-grow overflow-y-auto">
             {pendingItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <p>No pending tasks</p>
               </div>
             ) : (
@@ -747,7 +750,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           <h3 className="text-sm font-medium mb-2">Completed Tasks ({completedItems.length})</h3>
           <div className="flex-grow overflow-y-auto">
             {completedItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                 <p>No completed tasks</p>
               </div>
             ) : (
@@ -834,10 +837,10 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
             setEditingText(item.text);
           }
         }}
-        className={`flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-slate-700/50 rounded-lg transition-all group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
+        className={`flex items-center gap-3 px-3 py-2.5 hover:bg-accent/50 rounded-lg transition-all group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
       >
         {!readOnly && (
-          <div className="flex-shrink-0 text-gray-300 dark:text-gray-700 group-hover:text-gray-400 dark:group-hover:text-gray-600 transition-colors">
+          <div className="flex-shrink-0 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
             <GripVertical size={14} />
           </div>
         )}
@@ -847,7 +850,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           className={`flex-shrink-0 w-5 h-5 rounded-full border-2 transition-colors ${
             item.completed
               ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 dark:border-gray-600 hover:border-green-400'
+              : 'border-border hover:border-green-400'
           } flex items-center justify-center`}
           aria-label={item.completed ? "Mark as incomplete" : "Mark as complete"}
           disabled={readOnly}
@@ -880,14 +883,14 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
         ) : (
           <span
             className={`flex-grow truncate text-sm ${
-              item.completed ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-100'
+              item.completed ? 'line-through text-muted-foreground' : 'text-foreground'
             }`}
           >
             {item.text}
           </span>
         )}
 
-        <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+        <span className="text-xs text-muted-foreground shrink-0">
           {formatDate(item.createdAt)}
         </span>
 
@@ -898,14 +901,14 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                 setEditingItemId(item.id);
                 setEditingText(item.text);
               }}
-              className="p-1 text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400"
+              className="p-1 text-muted-foreground hover:text-blue-500 dark:hover:text-blue-400"
               aria-label="Edit task"
             >
               <Pencil size={14} />
             </button>
             <button
               onClick={() => deleteTodo(item.id)}
-              className="p-1 text-gray-400 hover:text-red-600 dark:text-gray-500 dark:hover:text-red-400"
+              className="p-1 text-muted-foreground hover:text-destructive"
               aria-label="Delete task"
             >
               <Trash2 size={14} />
@@ -918,10 +921,10 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
     return (
       <div className="h-full flex">
         {/* Left sidebar - Filter tabs */}
-        <div className="w-1/3 max-w-[200px] border-r border-gray-200 dark:border-gray-700 flex flex-col p-3">
+        <div className="w-1/3 max-w-[200px] border-r border-border flex flex-col p-3">
           <div className="flex items-center gap-2 mb-4">
-            <ListTodo size={18} className="text-gray-700 dark:text-gray-200" />
-            <h2 className="text-base font-semibold text-gray-800 dark:text-gray-100 truncate">
+            <ListTodo size={18} className="text-foreground" />
+            <h2 className="text-base font-semibold text-foreground truncate">
               {localConfig.title || defaultConfig.title}
             </h2>
           </div>
@@ -934,14 +937,14 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
                   appFilter === tab.key
                     ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-medium'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                    : 'text-muted-foreground hover:bg-accent'
                 }`}
               >
                 <span>{tab.label}</span>
                 <span className={`text-xs rounded-full px-2 py-0.5 ${
                   appFilter === tab.key
                     ? 'bg-blue-100 dark:bg-blue-800/40 text-blue-700 dark:text-blue-300'
-                    : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+                    : 'bg-muted text-muted-foreground'
                 }`}>
                   {tab.count}
                 </span>
@@ -950,10 +953,10 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           </nav>
 
           {/* Sort controls */}
-          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-4 pt-4 border-t border-border">
             <div className="flex items-center gap-1.5 mb-2">
-              <ArrowUpDown size={12} className="text-gray-400 dark:text-gray-500" />
-              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Sort by</span>
+              <ArrowUpDown size={12} className="text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Sort by</span>
             </div>
             <Select
               value={localConfig.sortOrder || 'created'}
@@ -1017,8 +1020,8 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           {/* Todo list */}
           <div className="flex-grow overflow-y-auto">
             {filteredPending.length === 0 && filteredCompleted.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-                <ListTodo size={32} className="mb-2 text-gray-300 dark:text-gray-600" />
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <ListTodo size={32} className="mb-2 text-muted-foreground/40" />
                 <p className="text-sm">
                   {appFilter === 'completed' ? 'No completed tasks' : appFilter === 'pending' ? 'No pending tasks' : 'No tasks yet'}
                 </p>
@@ -1040,7 +1043,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                   <div className="mt-4">
                     <button
                       onClick={() => setShowCompletedSection(!showCompletedSection)}
-                      className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mb-2 transition-colors"
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-2 transition-colors"
                     >
                       {showCompletedSection ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                       <span>Completed ({filteredCompleted.length})</span>
@@ -1113,7 +1116,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                     checked={!!localConfig.showCompletedItems}
                     onCheckedChange={handleShowCompletedChange}
                   />
-                  <Label htmlFor="showCompleted" className="text-sm text-gray-500">
+                  <Label htmlFor="showCompleted" className="text-sm text-muted-foreground">
                     {localConfig.showCompletedItems ? 'On' : 'Off'}
                   </Label>
                 </div>

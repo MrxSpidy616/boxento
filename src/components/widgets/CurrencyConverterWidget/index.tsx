@@ -531,10 +531,10 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
 
     return (
       <div className="flex h-full flex-col items-center justify-center gap-0.5 text-center">
-        <span className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
+        <span className="text-lg font-semibold leading-none text-foreground">
           {baseSymbol}{rate ? rate.toFixed(2) : '--'}
         </span>
-        <span className="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
           {primaryCurrency || localConfig.baseCurrency}
         </span>
       </div>
@@ -548,7 +548,7 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
 
     return (
       <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
-        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-foreground dark:bg-white/[0.06]">
           {CURRENCIES[localConfig.baseCurrency as keyof typeof CURRENCIES]?.symbol || ''}{numericAmount || 1} {localConfig.baseCurrency}
         </span>
         {currencies.map(currency => {
@@ -557,7 +557,7 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
           return (
             <span
               key={currency}
-              className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 tabular-nums text-gray-700 dark:bg-white/[0.06] dark:text-gray-200"
+              className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 tabular-nums text-foreground dark:bg-white/[0.06]"
             >
               {CURRENCIES[currency as keyof typeof CURRENCIES]?.symbol}{value} {currency}
             </span>

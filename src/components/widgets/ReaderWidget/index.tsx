@@ -358,14 +358,16 @@ const ReaderWidget: React.FC<ReaderWidgetProps> = ({ width, height, config }) =>
           {allDocuments.length}
         </span>
         {allDocuments.slice(0, 8).map((doc) => (
-          <button
+          <Button
             key={doc.id}
+            variant="ghost"
+            size="sm"
             onClick={() => openDocument(doc)}
-            className="shrink-0 text-[10px] px-2 py-0.5 rounded bg-accent/50 hover:bg-accent text-foreground truncate max-w-[120px] transition-colors"
+            className="shrink-0 h-auto text-[10px] px-2 py-0.5 rounded bg-accent/50 hover:bg-accent text-foreground truncate max-w-[120px] transition-colors"
             title={doc.title}
           >
             {doc.title}
-          </button>
+          </Button>
         ))}
       </div>
     );
@@ -401,12 +403,14 @@ const ReaderWidget: React.FC<ReaderWidgetProps> = ({ width, height, config }) =>
             )}
           </div>
           {!readOnly && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={showRandomDocument}
-              className="hover:text-primary flex items-center"
+              className="h-auto p-0 hover:text-primary flex items-center text-[10px] text-muted-foreground"
             >
               <RefreshCw size={10} className="mr-0.5" /> Next
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -463,12 +467,14 @@ const ReaderWidget: React.FC<ReaderWidgetProps> = ({ width, height, config }) =>
             )}
           </div>
           {!readOnly && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={showRandomDocument}
-              className="hover:text-primary flex items-center"
+              className="h-auto p-0 hover:text-primary flex items-center text-xs text-muted-foreground"
             >
               <RefreshCw size={12} className="mr-1" /> Next
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -627,20 +633,24 @@ const ReaderWidget: React.FC<ReaderWidgetProps> = ({ width, height, config }) =>
               />
             </div>
             <div className="flex items-center gap-1 overflow-x-auto">
-              <button
-                className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full transition-colors ${appCategoryFilter === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`shrink-0 h-auto text-[10px] px-2 py-0.5 rounded-full transition-colors ${appCategoryFilter === 'all' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                 onClick={() => setAppCategoryFilter('all')}
               >
                 All
-              </button>
+              </Button>
               {availableCategories.map(cat => (
-                <button
+                <Button
                   key={cat}
-                  className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full transition-colors ${appCategoryFilter === cat ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                  variant="ghost"
+                  size="sm"
+                  className={`shrink-0 h-auto text-[10px] px-2 py-0.5 rounded-full transition-colors ${appCategoryFilter === cat ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                   onClick={() => setAppCategoryFilter(cat)}
                 >
                   {getCategoryLabel(cat)}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -680,12 +690,14 @@ const ReaderWidget: React.FC<ReaderWidgetProps> = ({ width, height, config }) =>
           <div className="p-2 border-t flex items-center justify-between text-[10px] text-muted-foreground flex-shrink-0">
             <span>{filteredDocuments.length} of {allDocuments.length} articles</span>
             {!readOnly && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={fetchDocuments}
-                className="hover:text-primary flex items-center"
+                className="h-auto p-0 hover:text-primary flex items-center text-[10px] text-muted-foreground"
               >
                 <RefreshCw size={10} className="mr-0.5" /> Refresh
-              </button>
+              </Button>
             )}
           </div>
         </div>

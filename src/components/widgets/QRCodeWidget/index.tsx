@@ -251,13 +251,15 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
           {localConfig.content}
         </span>
         {width >= 3 && !readOnly && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleCopy()}
-            className="p-1 text-muted-foreground hover:text-foreground rounded-full hover:bg-accent transition-colors shrink-0"
+            className="h-6 w-6 shrink-0"
             title="Copy content"
           >
             {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -303,20 +305,24 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
         </div>
 
         <div className="mt-2 flex gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleDownload()}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
+            className="h-7 w-7"
             title="Download PNG"
           >
             <Download size={14} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => handleCopy()}
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
+            className="h-7 w-7"
             title="Copy content"
           >
             {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-          </button>
+          </Button>
         </div>
 
         {localConfig.content.length <= 60 && (
@@ -423,9 +429,11 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Quick Templates</p>
             <div className="flex flex-wrap gap-1">
               {PRESET_TEMPLATES.map(preset => (
-                <button
+                <Button
                   key={preset.label}
-                  className="text-[10px] px-2 py-1 rounded-full border hover:bg-accent transition-colors"
+                  variant="outline"
+                  size="sm"
+                  className="text-[10px] px-2 py-1 h-auto rounded-full"
                   onClick={() => {
                     if (!readOnly) {
                       setAppInput(preset.prefix + preset.placeholder);
@@ -433,7 +441,7 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
                   }}
                 >
                   {preset.label}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -478,8 +486,10 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
                     </p>
                   </div>
                   {!readOnly && (
-                    <button
-                      className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors shrink-0"
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         removeFromHistory(item.id);
@@ -487,7 +497,7 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
                       title="Remove"
                     >
                       <Trash2 className="h-3 w-3" />
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))

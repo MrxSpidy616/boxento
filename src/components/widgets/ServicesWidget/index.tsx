@@ -136,7 +136,7 @@ const getStatusColor = (status?: 'online' | 'offline' | 'checking') => {
     case 'checking':
       return 'bg-yellow-500 animate-pulse';
     default:
-      return 'bg-gray-400';
+      return 'bg-muted-foreground';
   }
 };
 

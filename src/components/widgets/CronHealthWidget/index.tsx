@@ -135,7 +135,7 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
       case 'unloaded':
         return { icon: AlertCircle, color: 'text-yellow-500', bg: 'bg-yellow-500', label: 'Stopped' };
       default:
-        return { icon: AlertCircle, color: 'text-gray-400', bg: 'bg-gray-400', label: 'Unknown' };
+        return { icon: AlertCircle, color: 'text-muted-foreground', bg: 'bg-muted-foreground', label: 'Unknown' };
     }
   };
 
@@ -178,7 +178,7 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
       <XCircle className="w-6 h-6 mb-1 text-red-500" />
       <span className="text-xs">{error}</span>
-      <button onClick={fetchHealth} className="text-xs text-blue-500 mt-1 hover:underline">Retry</button>
+      <Button variant="link" size="sm" onClick={fetchHealth} className="text-xs mt-1 h-auto p-0">Retry</Button>
     </div>
   );
 
@@ -227,7 +227,7 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
     );
     if (!healthData || healthData.jobs.length === 0) return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-3 w-3 rounded-full bg-gray-400" />
+        <div className="h-3 w-3 rounded-full bg-muted-foreground" />
       </div>
     );
 

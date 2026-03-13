@@ -246,7 +246,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
         <div className="text-[10px] font-semibold uppercase tracking-wider text-green-500">
           {todayCompletedCount === habits.length ? 'DONE' : 'TODAY'}
         </div>
-        <div className="text-[1.75rem] font-bold leading-none text-gray-900 dark:text-gray-100">
+        <div className="text-[1.75rem] font-bold leading-none text-foreground">
           {todayCompletedCount}/{habits.length}
         </div>
         {maxStreak > 0 && (
@@ -277,7 +277,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="flex flex-col items-center rounded-lg bg-green-50 dark:bg-green-900/20 px-2 py-0.5">
             <span className="text-[9px] font-semibold uppercase text-green-600 dark:text-green-400">Today</span>
-            <span className="text-lg font-bold leading-tight text-gray-900 dark:text-gray-100">
+            <span className="text-lg font-bold leading-tight text-foreground">
               {todayCompletedCount}/{habits.length}
             </span>
           </div>
@@ -293,14 +293,14 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
               className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 transition-colors ${
                 done
                   ? 'bg-green-100 dark:bg-green-900/30'
-                  : 'bg-gray-100 dark:bg-gray-800'
+                  : 'bg-muted'
               }`}
             >
               {done && <Check className="h-3 w-3 text-green-600 dark:text-green-400" />}
               <span className={`max-w-[100px] truncate text-xs font-medium ${
                 done
                   ? 'text-green-700 dark:text-green-300'
-                  : 'text-gray-600 dark:text-gray-400'
+                  : 'text-muted-foreground'
               }`}>
                 {habit.name}
               </span>
@@ -334,7 +334,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                 <div className={`h-3.5 w-3.5 shrink-0 rounded border flex items-center justify-center ${
                   done
                     ? 'border-green-500 bg-green-500'
-                    : 'border-gray-300 dark:border-gray-600'
+                    : 'border-border'
                 }`}>
                   {done && <Check className="h-2.5 w-2.5 text-white" />}
                 </div>
@@ -353,13 +353,15 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
           })}
         </div>
         {!readOnly && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowAddDialog(true)}
-            className="mt-1 text-[10px] text-muted-foreground hover:text-foreground flex items-center justify-center gap-0.5"
+            className="mt-1 text-[10px] h-auto py-0.5"
           >
-            <Plus className="h-2.5 w-2.5" />
+            <Plus className="h-2.5 w-2.5 mr-0.5" />
             Add
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -386,18 +388,22 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                     </span>
                     {!readOnly && (
                       <>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 shrink-0"
                           onClick={() => openEditDialog(habit)}
-                          className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
                         >
                           <Pencil className="w-3 h-3" />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
                           onClick={() => handleDeleteHabit(habit.id)}
-                          className="p-0.5 text-muted-foreground hover:text-red-500 shrink-0"
                         >
                           <X className="w-3 h-3" />
-                        </button>
+                        </Button>
                       </>
                     )}
                   </div>
@@ -422,10 +428,10 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                           ${isToday
                             ? completed
                               ? 'bg-green-500 text-white'
-                              : 'bg-gray-700 dark:bg-gray-600 text-white'
+                              : 'bg-secondary text-white'
                             : completed
                               ? 'bg-green-500/80 text-white'
-                              : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground'
+                              : 'bg-muted text-muted-foreground'
                           }
                           ${readOnly ? '' : 'hover:opacity-80'}
                         `}
@@ -444,13 +450,15 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
         </div>
 
         {!readOnly && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowAddDialog(true)}
-            className="mt-2 text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1"
+            className="mt-2 text-xs"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3 h-3 mr-1" />
             Add Habit
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -511,7 +519,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                       className={`h-5 w-5 shrink-0 rounded border flex items-center justify-center transition-colors ${
                         isCompletedOn(habit, todayStr)
                           ? 'border-green-500 bg-green-500'
-                          : 'border-gray-300 dark:border-gray-600 hover:border-green-400'
+                          : 'border-border hover:border-green-400'
                       }`}
                     >
                       {isCompletedOn(habit, todayStr) && <Check className="h-3 w-3 text-white" />}
@@ -530,12 +538,12 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                     )}
                     {!readOnly && (
                       <div className="flex items-center gap-0.5">
-                        <button onClick={() => openEditDialog(habit)} className="p-0.5 text-muted-foreground hover:text-foreground">
+                        <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openEditDialog(habit)}>
                           <Pencil className="w-3 h-3" />
-                        </button>
-                        <button onClick={() => handleDeleteHabit(habit.id)} className="p-0.5 text-muted-foreground hover:text-red-500">
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteHabit(habit.id)}>
                           <X className="w-3 h-3" />
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -549,7 +557,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                       className={`h-2.5 flex-1 rounded-[2px] ${
                         completed
                           ? 'bg-green-500'
-                          : 'bg-gray-100 dark:bg-gray-800'
+                          : 'bg-muted'
                       }`}
                       title={`${dateStr}: ${completed ? 'Done' : 'Missed'}`}
                     />
@@ -592,7 +600,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                 className={`h-6 w-6 shrink-0 rounded-md border-2 flex items-center justify-center transition-colors ${
                   done
                     ? 'border-green-500 bg-green-500'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-green-400'
+                    : 'border-border hover:border-green-400'
                 }`}
               >
                 {done && <Check className="h-4 w-4 text-white" />}
@@ -659,10 +667,10 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                           isToday
                             ? completed
                               ? 'bg-green-500 text-white'
-                              : 'bg-gray-200 dark:bg-gray-700 text-muted-foreground'
+                              : 'bg-secondary text-muted-foreground'
                             : completed
                               ? 'bg-green-500/80 text-white'
-                              : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground'
+                              : 'bg-muted text-muted-foreground'
                         } ${readOnly ? '' : 'hover:opacity-80'}`}
                       >
                         {completed && <Check className="h-3.5 w-3.5" />}
@@ -726,7 +734,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                       className={`h-4 flex-1 rounded-[2px] transition-colors ${
                         completed
                           ? 'bg-green-500'
-                          : 'bg-gray-100 dark:bg-gray-800'
+                          : 'bg-muted'
                       }`}
                       title={`${dateStr}: ${completed ? 'Done' : 'Missed'}`}
                     />
@@ -795,7 +803,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                 <div
                   key={dateStr}
                   className={`h-5 flex-1 rounded-[2px] ${
-                    completed ? 'bg-green-500' : 'bg-gray-100 dark:bg-gray-800'
+                    completed ? 'bg-green-500' : 'bg-muted'
                   }`}
                   title={`${dateStr}: ${completed ? 'Done' : 'Missed'}`}
                 />
@@ -819,8 +827,8 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                     onClick={() => !readOnly && toggleCompletion(selectedHabit.id, dateStr)}
                     className={`flex-1 flex flex-col items-center rounded-lg py-2 transition-colors ${
                       isToday
-                        ? completed ? 'bg-green-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-foreground'
-                        : completed ? 'bg-green-500/80 text-white' : 'bg-gray-100 dark:bg-gray-800 text-muted-foreground'
+                        ? completed ? 'bg-green-500 text-white' : 'bg-secondary text-foreground'
+                        : completed ? 'bg-green-500/80 text-white' : 'bg-muted text-muted-foreground'
                     } ${readOnly ? '' : 'hover:opacity-80'}`}
                   >
                     <span className="text-xs font-medium">{dayName}</span>
@@ -860,9 +868,10 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
           </div>
           <div className="flex px-3">
             {(['today', 'all', 'analytics'] as const).map(tab => (
-              <button
+              <Button
                 key={tab}
-                className={`px-3 py-2 text-sm capitalize ${
+                variant="ghost"
+                className={`px-3 py-2 text-sm capitalize rounded-none ${
                   appTab === tab
                     ? 'border-b-2 border-primary font-medium'
                     : 'text-muted-foreground hover:text-foreground'
@@ -870,7 +879,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                 onClick={() => setAppTab(tab)}
               >
                 {tab}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

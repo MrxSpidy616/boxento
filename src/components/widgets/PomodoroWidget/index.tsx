@@ -289,7 +289,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         <div className={`text-lg font-bold leading-none ${getModeColor()} ${!isActive ? 'opacity-50' : ''}`}>
           {formatTime(timeLeft)}
         </div>
-        <div className="text-[9px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+        <div className="text-[9px] uppercase tracking-wide text-muted-foreground">
           {getShortModeLabel()}
         </div>
       </div>
@@ -307,16 +307,18 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
           {getShortModeLabel()}
         </span>
         {!readOnly && (
-          <button
-            className="shrink-0 rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 rounded-full h-7 w-7"
             onClick={toggleTimer}
             aria-label={isActive ? 'Pause' : 'Start'}
           >
             {isActive ? <Pause size={14} /> : <Play size={14} />}
-          </button>
+          </Button>
         )}
         {width >= 3 && (
-          <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
+          <span className="shrink-0 text-[10px] text-muted-foreground">
             Cycle {cyclesCompleted % (localConfig.cyclesBeforeLongBreak || 4) + 1}/{localConfig.cyclesBeforeLongBreak || 4}
           </span>
         )}
@@ -338,10 +340,10 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         {/* App header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h2 className="text-lg font-semibold text-foreground">
               {localConfig.title || defaultConfig.title}
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-muted-foreground">
               {getModeDescription()}
             </p>
           </div>
@@ -365,7 +367,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="6"
-                className="text-gray-200 dark:text-gray-700"
+                className="text-secondary"
               />
               {/* Progress ring */}
               <circle
@@ -394,13 +396,15 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
           {/* Controls */}
           {!readOnly && (
             <div className="flex items-center gap-3">
-              <button
-                className="rounded-full bg-gray-100 p-3 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+              <Button
+                variant="secondary"
+                size="icon"
+                className="rounded-full h-11 w-11"
                 onClick={resetTimer}
                 aria-label="Reset"
               >
                 <RotateCcw size={20} />
-              </button>
+              </Button>
               <button
                 className={`rounded-full p-5 text-white transition-colors ${
                   mode === TimerMode.WORK
@@ -414,19 +418,21 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
               >
                 {isActive ? <Pause size={28} /> : <Play size={28} />}
               </button>
-              <button
-                className="rounded-full bg-gray-100 p-3 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+              <Button
+                variant="secondary"
+                size="icon"
+                className="rounded-full h-11 w-11"
                 onClick={skipTimer}
                 aria-label="Skip to next"
               >
                 <SkipForward size={20} />
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Session progress dots */}
           <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Sessions</span>
+            <span className="text-xs text-muted-foreground">Sessions</span>
             <div className="flex items-center gap-1.5">
               {Array.from({ length: cyclesBeforeLong }).map((_, i) => (
                 <div
@@ -436,35 +442,35 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                       ? 'bg-red-500 dark:bg-red-400'
                       : i === currentCycleInSet && mode === TimerMode.WORK
                       ? 'bg-red-500/40 ring-2 ring-red-500/50'
-                      : 'bg-gray-200 dark:bg-gray-700'
+                      : 'bg-secondary'
                   }`}
                 />
               ))}
             </div>
-            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+            <span className="text-xs font-medium text-muted-foreground">
               {cyclesCompleted} total
             </span>
           </div>
         </div>
 
         {/* Bottom settings bar (inline durations) */}
-        <div className="grid grid-cols-3 gap-3 border-t border-gray-100 px-5 py-4 dark:border-gray-800">
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800/50">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Focus</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {localConfig.workDuration || 25}<span className="text-xs font-normal text-gray-400">m</span>
+        <div className="grid grid-cols-3 gap-3 border-t border-border px-5 py-4">
+          <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="text-xs text-muted-foreground">Focus</div>
+            <div className="text-lg font-semibold text-foreground">
+              {localConfig.workDuration || 25}<span className="text-xs font-normal text-muted-foreground">m</span>
             </div>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800/50">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Break</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {localConfig.breakDuration || 5}<span className="text-xs font-normal text-gray-400">m</span>
+          <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="text-xs text-muted-foreground">Break</div>
+            <div className="text-lg font-semibold text-foreground">
+              {localConfig.breakDuration || 5}<span className="text-xs font-normal text-muted-foreground">m</span>
             </div>
           </div>
-          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800/50">
-            <div className="text-xs text-gray-500 dark:text-gray-400">Long Break</div>
-            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {localConfig.longBreakDuration || 15}<span className="text-xs font-normal text-gray-400">m</span>
+          <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="text-xs text-muted-foreground">Long Break</div>
+            <div className="text-lg font-semibold text-foreground">
+              {localConfig.longBreakDuration || 15}<span className="text-xs font-normal text-muted-foreground">m</span>
             </div>
           </div>
         </div>
@@ -500,20 +506,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         <div className="text-sm font-medium">{getModeLabel()}</div>
         {!readOnly && (
           <div className="flex space-x-3">
-            <button
-              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full"
               onClick={toggleTimer}
               aria-label={isActive ? 'Pause' : 'Start'}
             >
               {isActive ? <Pause size={16} /> : <Play size={16} />}
-            </button>
-            <button
-              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full"
               onClick={resetTimer}
               aria-label="Reset"
             >
               <RotateCcw size={16} />
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -534,20 +544,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         <div className="flex flex-col items-center">
           {!readOnly && (
             <div className="flex space-x-3">
-              <button
-                className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              <Button
+                variant="secondary"
+                size="icon"
+                className="rounded-full h-11 w-11"
                 onClick={toggleTimer}
                 aria-label={isActive ? 'Pause' : 'Start'}
               >
                 {isActive ? <Pause size={20} /> : <Play size={20} />}
-              </button>
-              <button
-                className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="rounded-full h-11 w-11"
                 onClick={resetTimer}
                 aria-label="Reset"
               >
                 <RotateCcw size={20} />
-              </button>
+              </Button>
             </div>
           )}
           <div className="text-sm mt-2">
@@ -569,20 +583,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         <div className="text-sm opacity-75 text-center max-w-[180px]">{getModeDescription()}</div>
         {!readOnly && (
           <div className="flex space-x-3 mt-3">
-            <button
-              className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full h-11 w-11"
               onClick={toggleTimer}
               aria-label={isActive ? 'Pause' : 'Start'}
             >
               {isActive ? <Pause size={20} /> : <Play size={20} />}
-            </button>
-            <button
-              className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full h-11 w-11"
               onClick={resetTimer}
               aria-label="Reset"
             >
               <RotateCcw size={20} />
-            </button>
+            </Button>
           </div>
         )}
         <div className="text-sm mt-2">
@@ -606,20 +624,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         <div className="text-md opacity-75 text-center max-w-[280px]">{getModeDescription()}</div>
         {!readOnly && (
           <div className="flex space-x-4 mt-4">
-            <button
-              className="p-4 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full h-14 w-14"
               onClick={toggleTimer}
               aria-label={isActive ? 'Pause' : 'Start'}
             >
               {isActive ? <Pause size={24} /> : <Play size={24} />}
-            </button>
-            <button
-              className="p-4 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="rounded-full h-14 w-14"
               onClick={resetTimer}
               aria-label="Reset"
             >
               <RotateCcw size={24} />
-            </button>
+            </Button>
           </div>
         )}
         <div className="text-lg mt-2">
@@ -629,15 +651,15 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
           Total completed: {cyclesCompleted}
         </div>
         <div className="grid grid-cols-3 gap-4 mt-4 text-center w-full">
-          <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+          <div className="bg-muted p-3 rounded-lg">
             <div className="text-sm opacity-75">Focus Time</div>
             <div className="font-medium">{localConfig.workDuration} min</div>
           </div>
-          <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+          <div className="bg-muted p-3 rounded-lg">
             <div className="text-sm opacity-75">Short Break</div>
             <div className="font-medium">{localConfig.breakDuration} min</div>
           </div>
-          <div className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg">
+          <div className="bg-muted p-3 rounded-lg">
             <div className="text-sm opacity-75">Long Break</div>
             <div className="font-medium">{localConfig.longBreakDuration} min</div>
           </div>

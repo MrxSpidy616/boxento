@@ -440,7 +440,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   const getWeatherIcon = (condition: string, icon?: string): React.ReactElement => {
     // Default size and style
     const defaultSize = 24;
-    const className = "text-gray-700 dark:text-gray-300";
+    const className = "text-foreground";
     
     // Get WMO weather code if provided
     const weatherCode = icon ? parseInt(icon) : null;
@@ -560,7 +560,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
       <div className="flex flex-col items-center justify-center h-full p-3 text-center">
         <Info className="text-amber-500 mb-2" size={24} />
         <p className="text-sm text-amber-500 mb-1">{error}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <p className="text-xs text-muted-foreground">
           Check your location or try again later.
         </p>
         {isApp && !readOnly && (
@@ -584,14 +584,14 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 px-1 text-center">
-        <div className="text-gray-700 dark:text-gray-300">
+        <div className="text-foreground">
           {getWeatherIcon(weather.condition, weather.icon)}
         </div>
-        <div className="text-[2rem] font-semibold leading-[0.92] tracking-tight text-gray-900 dark:text-gray-100">
+        <div className="text-[2rem] font-semibold leading-[0.92] tracking-tight text-foreground">
           {formatTemperature(weather.temperature)}
         </div>
         <div
-          className="max-w-[5.5rem] truncate whitespace-nowrap text-[11px] font-medium leading-[1.15] text-gray-500 dark:text-gray-400"
+          className="max-w-[5.5rem] truncate whitespace-nowrap text-[11px] font-medium leading-[1.15] text-muted-foreground"
           title={shortLocation}
         >
           {shortLocation}
@@ -612,7 +612,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     return (
       <div className="flex h-full p-3">
         <div className="flex flex-col justify-center items-start flex-1">
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1 truncate">
+          <div className="text-sm text-muted-foreground mb-1 truncate">
             {weather.location}
           </div>
           <div className="flex items-center">
@@ -621,21 +621,21 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             </span>
             {getWeatherIcon(weather.condition, weather.icon)}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {weather.condition}
           </div>
         </div>
         
         <div className="flex flex-col justify-center items-end text-right space-y-1">
-          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <div className="text-xs text-muted-foreground flex items-center">
             <span className="mr-1">Feels</span> 
             <span className="font-medium">{formatTemperature(weather.feelsLike)}</span>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <div className="text-xs text-muted-foreground flex items-center">
             <Droplets size={12} className="mr-1" /> 
             <span className="font-medium">{weather.humidity}%</span>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <div className="text-xs text-muted-foreground flex items-center">
             <Wind size={12} className="mr-1" /> 
             <span className="font-medium">{weather.windSpeed}</span>
             <span className="ml-1">{unit === 'celsius' ? 'm/s' : 'mph'}</span>
@@ -664,11 +664,11 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             <div className="text-xl font-medium tracking-tight">
               {formatTemperature(weather.temperature)}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-muted-foreground">
               {weather.location}
             </div>
           </div>
-          <div className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+          <div className="ml-auto text-xs text-muted-foreground">
             Feels like {formatTemperature(weather.feelsLike)}
           </div>
         </div>
@@ -685,7 +685,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                   <div className="text-xs font-medium">
                     {Math.round(day.temp.max)}°
                   </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {Math.round(day.temp.min)}°
                   </div>
                 </div>
@@ -718,29 +718,29 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             <div className="text-3xl font-medium tracking-tight mr-2">
               {formatTemperature(weather.temperature)}
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <div className="text-sm text-muted-foreground mb-1">
               Feels like {formatTemperature(weather.feelsLike)}
             </div>
             <div className="ml-auto">
               {getWeatherIcon(weather.condition, weather.icon)}
             </div>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {weather.description}
           </div>
         </div>
         
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="rounded-md p-2 text-center">
-            <div className="text-xs text-gray-500 ">Humidity</div>
+            <div className="text-xs text-muted-foreground">Humidity</div>
             <div className="text-sm font-medium mt-1">{weather.humidity}%</div>
           </div>
           <div className="rounded-md p-2 text-center">
-            <div className="text-xs text-gray-500 ">Wind</div>
+            <div className="text-xs text-muted-foreground">Wind</div>
             <div className="text-sm font-medium mt-1">{weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}</div>
           </div>
           <div className="rounded-md p-2 text-center">
-            <div className="text-xs text-gray-500">Sunrise/Sunset</div>
+            <div className="text-xs text-muted-foreground">Sunrise/Sunset</div>
             <div className="text-xs font-medium mt-1">{sunriseTime} / {sunsetTime}</div>
           </div>
         </div>
@@ -756,7 +756,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                 </div>
                 <div className="text-xs w-16 text-right">
                   <span className="font-medium">{Math.round(day.temp.max)}°</span>
-                  <span className="text-gray-400 ml-1">{Math.round(day.temp.min)}°</span>
+                  <span className="text-muted-foreground ml-1">{Math.round(day.temp.min)}°</span>
                 </div>
               </div>
             ))}
@@ -789,7 +789,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         <div className="flex justify-between items-start mb-5">
           <div>
             <h3 className="text-lg font-medium">{weather.location}</h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {currentDate} • {currentTime}
             </div>
             <div className="text-sm mt-1">
@@ -804,7 +804,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
               <div className="text-3xl font-medium tracking-tight">
                 {formatTemperature(weather.temperature)}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-sm text-muted-foreground">
                 Feels like {formatTemperature(weather.feelsLike)}
               </div>
             </div>
@@ -813,19 +813,19 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         
         <div className="grid grid-cols-4 gap-3 mb-5">
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Humidity</div>
+            <div className="text-xs text-muted-foreground mb-1">Humidity</div>
             <div className="text-lg font-medium">{weather.humidity}%</div>
           </div>
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Wind</div>
+            <div className="text-xs text-muted-foreground mb-1">Wind</div>
             <div className="text-lg font-medium">{weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}</div>
           </div>
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Sunrise</div>
+            <div className="text-xs text-muted-foreground mb-1">Sunrise</div>
             <div className="text-lg font-medium">{sunriseTime}</div>
           </div>
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Sunset</div>
+            <div className="text-xs text-muted-foreground mb-1">Sunset</div>
             <div className="text-lg font-medium">{sunsetTime}</div>
           </div>
         </div>
@@ -842,10 +842,10 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                 <div className="text-sm font-medium">
                   {Math.round(day.temp.max)}°
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">
+                <div className="text-xs text-muted-foreground">
                   {Math.round(day.temp.min)}°
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                <div className="text-xs text-muted-foreground mt-1 text-center">
                   {day.condition}
                 </div>
               </div>
@@ -869,41 +869,41 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     return (
       <div className="flex h-full items-center gap-2 px-2 overflow-hidden">
         {/* Location chip */}
-        <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
-          <MapPin size={10} className="text-gray-500 dark:text-gray-400" />
-          <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[5rem]">
+        <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+          <MapPin size={10} className="text-muted-foreground" />
+          <span className="text-[11px] font-medium text-foreground truncate max-w-[5rem]">
             {shortLocation}
           </span>
         </div>
         {/* Temp + icon chip */}
-        <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
-          <span className="text-gray-700 dark:text-gray-300 [&>svg]:!h-3 [&>svg]:!w-3">
+        <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+          <span className="text-foreground [&>svg]:!h-3 [&>svg]:!w-3">
             {getWeatherIcon(weather.condition, weather.icon)}
           </span>
-          <span className="text-[11px] font-semibold text-gray-900 dark:text-gray-100">
+          <span className="text-[11px] font-semibold text-foreground">
             {formatTemperature(weather.temperature)}
           </span>
         </div>
         {/* Condition chip */}
-        <div className="flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
-          <span className="text-[11px] text-gray-600 dark:text-gray-400">
+        <div className="flex items-center rounded-full bg-muted px-2 py-0.5 shrink-0">
+          <span className="text-[11px] text-muted-foreground">
             {weather.condition}
           </span>
         </div>
         {/* Humidity chip (shown when space allows) */}
         {width >= 3 && (
-          <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
+          <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
             <Droplets size={10} className="text-blue-400" />
-            <span className="text-[11px] text-gray-600 dark:text-gray-400">
+            <span className="text-[11px] text-muted-foreground">
               {weather.humidity}%
             </span>
           </div>
         )}
         {/* Wind chip (shown when more space allows) */}
         {width >= 4 && (
-          <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
-            <Wind size={10} className="text-gray-400" />
-            <span className="text-[11px] text-gray-600 dark:text-gray-400">
+          <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+            <Wind size={10} className="text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground">
               {weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}
             </span>
           </div>
@@ -962,35 +962,37 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         {/* App header bar */}
         <div className="flex items-center justify-between px-5 pt-4 pb-2 widget-drag-handle cursor-move">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{weather.location}</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{currentDate} &middot; {currentTime}</p>
+            <h2 className="text-lg font-semibold text-foreground">{weather.location}</h2>
+            <p className="text-xs text-muted-foreground">{currentDate} &middot; {currentTime}</p>
           </div>
           {!readOnly && (
-            <button
-              className="settings-button hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full p-1.5"
+            <Button
+              variant="ghost"
+              size="icon"
+              className="settings-button rounded-full h-8 w-8"
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 setIsSettingsOpen(true);
               }}
             >
-              <Settings size={16} className="text-gray-500 dark:text-slate-400" />
-            </button>
+              <Settings size={16} className="text-muted-foreground" />
+            </Button>
           )}
         </div>
 
         {/* Current conditions - prominent */}
         <div className="px-5 py-4 flex items-center gap-6">
-          <div className="text-gray-700 dark:text-gray-300 [&>svg]:!h-16 [&>svg]:!w-16">
+          <div className="text-foreground [&>svg]:!h-16 [&>svg]:!w-16">
             {getWeatherIcon(weather.condition, weather.icon)}
           </div>
           <div>
-            <div className="text-5xl font-light tracking-tight text-gray-900 dark:text-gray-100">
+            <div className="text-5xl font-light tracking-tight text-foreground">
               {formatTemperature(weather.temperature)}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            <div className="text-sm text-muted-foreground mt-1">
               {weather.description}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5">
               Feels like {formatTemperature(weather.feelsLike)}
             </div>
           </div>
@@ -998,15 +1000,15 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
 
         {/* Hourly forecast timeline */}
         <div className="px-5 py-3">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Hourly Forecast</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Hourly Forecast</h3>
           <div className="flex gap-1 overflow-x-auto pb-1">
             {hourlyData.map((h, i) => (
-              <div key={i} className="flex flex-col items-center min-w-[3.5rem] px-1.5 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">{i === 0 ? 'Now' : h.time}</span>
-                <span className="text-gray-700 dark:text-gray-300 [&>svg]:!h-4 [&>svg]:!w-4 my-1">
+              <div key={i} className="flex flex-col items-center min-w-[3.5rem] px-1.5 py-2 rounded-lg bg-muted">
+                <span className="text-[10px] text-muted-foreground mb-1">{i === 0 ? 'Now' : h.time}</span>
+                <span className="text-foreground [&>svg]:!h-4 [&>svg]:!w-4 my-1">
                   {getWeatherIcon(h.condition, h.icon)}
                 </span>
-                <span className="text-xs font-medium text-gray-900 dark:text-gray-100">{h.temp}°</span>
+                <span className="text-xs font-medium text-foreground">{h.temp}°</span>
               </div>
             ))}
           </div>
@@ -1014,63 +1016,63 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
 
         {/* Weather details panel */}
         <div className="px-5 py-3">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Weather Details</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Weather Details</h3>
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
               <Droplets size={18} className="text-blue-400 mb-1" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">Humidity</span>
-              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{weather.humidity}%</span>
+              <span className="text-xs text-muted-foreground">Humidity</span>
+              <span className="text-lg font-semibold text-foreground">{weather.humidity}%</span>
             </div>
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
               <Wind size={18} className="text-sky-500 mb-1" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">Wind</span>
-              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{weather.windSpeed}</span>
-              <span className="text-[10px] text-gray-400">{unit === 'celsius' ? 'm/s' : 'mph'} {windDirectionLabel}</span>
+              <span className="text-xs text-muted-foreground">Wind</span>
+              <span className="text-lg font-semibold text-foreground">{weather.windSpeed}</span>
+              <span className="text-[10px] text-muted-foreground">{unit === 'celsius' ? 'm/s' : 'mph'} {windDirectionLabel}</span>
             </div>
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
               <Thermometer size={18} className="text-red-400 mb-1" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">Feels Like</span>
-              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatTemperature(weather.feelsLike)}</span>
+              <span className="text-xs text-muted-foreground">Feels Like</span>
+              <span className="text-lg font-semibold text-foreground">{formatTemperature(weather.feelsLike)}</span>
             </div>
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
               <Sunrise size={18} className="text-amber-400 mb-1" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">Sunrise</span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sunriseTime}</span>
+              <span className="text-xs text-muted-foreground">Sunrise</span>
+              <span className="text-sm font-semibold text-foreground">{sunriseTime}</span>
             </div>
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
               <Sunset size={18} className="text-orange-400 mb-1" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">Sunset</span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sunsetTime}</span>
+              <span className="text-xs text-muted-foreground">Sunset</span>
+              <span className="text-sm font-semibold text-foreground">{sunsetTime}</span>
             </div>
-            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
               <Gauge size={18} className="text-purple-400 mb-1" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">Pressure</span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">--</span>
-              <span className="text-[10px] text-gray-400">hPa</span>
+              <span className="text-xs text-muted-foreground">Pressure</span>
+              <span className="text-sm font-semibold text-foreground">--</span>
+              <span className="text-[10px] text-muted-foreground">hPa</span>
             </div>
           </div>
         </div>
 
         {/* 7-day forecast grid (uses available 5-day data) */}
         <div className="px-5 py-3 flex-1">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
             {weather.forecast.length}-Day Forecast
           </h3>
           <div className="space-y-1">
             {weather.forecast.map((day, index) => (
               <div
                 key={index}
-                className="flex items-center gap-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5"
+                className="flex items-center gap-3 rounded-lg bg-muted px-4 py-2.5"
               >
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 w-10">{day.day}</span>
-                <span className="text-gray-700 dark:text-gray-300 [&>svg]:!h-5 [&>svg]:!w-5 w-8 flex justify-center">
+                <span className="text-sm font-medium text-foreground w-10">{day.day}</span>
+                <span className="text-foreground [&>svg]:!h-5 [&>svg]:!w-5 w-8 flex justify-center">
                   {getWeatherIcon(day.condition, day.icon)}
                 </span>
-                <span className="text-xs text-gray-500 dark:text-gray-400 flex-1">{day.description}</span>
+                <span className="text-xs text-muted-foreground flex-1">{day.description}</span>
                 {/* Temperature bar visualization */}
                 <div className="flex items-center gap-2 w-32">
-                  <span className="text-xs text-gray-400 dark:text-gray-500 w-8 text-right">{Math.round(day.temp.min)}°</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                  <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(day.temp.min)}°</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-secondary relative overflow-hidden">
                     <div
                       className="absolute h-full rounded-full bg-gradient-to-r from-blue-400 to-orange-400"
                       style={{
@@ -1079,7 +1081,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                       }}
                     />
                   </div>
-                  <span className="text-xs font-medium text-gray-900 dark:text-gray-100 w-8">{Math.round(day.temp.max)}°</span>
+                  <span className="text-xs font-medium text-foreground w-8">{Math.round(day.temp.max)}°</span>
                 </div>
               </div>
             ))}

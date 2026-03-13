@@ -201,7 +201,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
           onChange={handleContentChange}
           readOnly={readOnly}
           className="w-full h-full resize-none border-none focus:outline-none focus:ring-0 bg-transparent
-                    text-gray-800 dark:text-gray-200 py-1 leading-relaxed placeholder-gray-500 dark:placeholder-gray-400"
+                    text-foreground py-1 leading-relaxed placeholder-muted-foreground"
           style={{
             fontFamily: localConfig.fontFamily || defaultConfig.fontFamily,
             fontSize: `${effectiveFontSize}px`,
@@ -228,7 +228,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
       <div className="flex h-full flex-col items-center justify-center gap-0.5 text-center">
         <StickyNote size={22} className="text-amber-500 dark:text-amber-400" />
         {words > 0 && (
-          <span className="text-[10px] font-medium leading-none text-gray-500 dark:text-gray-400">
+          <span className="text-[10px] font-medium leading-none text-muted-foreground">
             {words}
           </span>
         )}
@@ -250,13 +250,13 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
 
         {/* First line preview */}
         {firstLine ? (
-          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 dark:bg-slate-700 px-2.5 py-1">
-            <span className="max-w-[160px] truncate text-xs font-medium text-gray-700 dark:text-gray-300">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1">
+            <span className="max-w-[160px] truncate text-xs font-medium text-foreground">
               {firstLine}
             </span>
           </div>
         ) : (
-          <span className="text-xs text-gray-400 dark:text-gray-500">Empty note</span>
+          <span className="text-xs text-muted-foreground">Empty note</span>
         )}
 
         {/* Word count badge */}
@@ -273,40 +273,9 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
    * 2x2 COMPACT: Non-editable multi-line preview
    */
   const renderCompactView = () => {
-    const content = localConfig.content || '';
-    const previewLines = content.split('\n').slice(0, 5);
     return (
-      <div
-        className="h-full overflow-hidden rounded-md p-2 cursor-pointer"
-        style={{
-          backgroundImage: getLinedPaperBackground(),
-          backgroundColor: 'transparent'
-        }}
-        onClick={() => !readOnly && setShowSettings(true)}
-        role="button"
-        tabIndex={0}
-        aria-label="Open notes settings"
-      >
-        {previewLines.length > 0 && content.trim() ? (
-          <div
-            className="text-gray-700 dark:text-gray-300 overflow-hidden"
-            style={{
-              fontFamily: localConfig.fontFamily || defaultConfig.fontFamily,
-              fontSize: '11px',
-              lineHeight: `${localConfig.lineHeight || defaultConfig.lineHeight}px`,
-            }}
-          >
-            {previewLines.map((line, i) => (
-              <div key={i} className="truncate">
-                {line || '\u00A0'}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <span className="text-xs text-gray-400 dark:text-gray-500">Empty note</span>
-          </div>
-        )}
+      <div className="h-full overflow-hidden p-1">
+        {renderLinedNotepad(11)}
       </div>
     );
   };
@@ -319,14 +288,14 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
     return (
       <div className="flex h-full flex-col">
         {/* Top toolbar */}
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 px-4 py-2 widget-drag-handle cursor-move">
+        <div className="flex items-center justify-between border-b border-border px-4 py-2 widget-drag-handle cursor-move">
           <div className="flex items-center gap-2">
             <FileText size={18} className="text-amber-500 dark:text-amber-400" />
-            <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+            <h2 className="text-sm font-semibold text-foreground truncate">
               {localConfig.title || 'Notes'}
             </h2>
           </div>
-          <div className="flex items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <Type size={12} />
               {words} {words === 1 ? 'word' : 'words'}
@@ -340,13 +309,15 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
               {lines} {lines === 1 ? 'line' : 'lines'}
             </span>
             {!readOnly && (
-              <button
-                className="ml-1 rounded-md p-1 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ml-1 h-6 w-6"
                 onClick={() => setShowSettings(true)}
                 aria-label="Notes settings"
               >
                 <Settings size={14} />
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -357,7 +328,7 @@ const NotesWidget: React.FC<NotesWidgetProps> = ({ width = 2, height = 2, config
         </div>
 
         {/* Bottom status bar */}
-        <div className="flex items-center justify-between border-t border-gray-200 dark:border-slate-700 px-4 py-1.5 text-[10px] text-gray-400 dark:text-gray-500">
+        <div className="flex items-center justify-between border-t border-border px-4 py-1.5 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-3">
             <span>Font: {fontFamilyLabel}</span>
             <span>{localConfig.fontSize || defaultConfig.fontSize}px</span>

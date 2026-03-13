@@ -292,15 +292,15 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
       return (
         <div className="flex flex-col space-y-1 mt-1 px-0.5 text-xs font-medium">
           {localConfig.showDaysLeft && (
-            <div className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full transition-colors duration-200 text-center">
-              <span className="text-gray-900 dark:text-gray-100 font-semibold">{daysLeft}</span>
-              <span className="text-gray-500 dark:text-gray-400 ml-1">days left</span>
+            <div className="bg-muted px-2 py-0.5 rounded-full transition-colors duration-200 text-center">
+              <span className="text-foreground font-semibold">{daysLeft}</span>
+              <span className="text-muted-foreground ml-1">days left</span>
             </div>
           )}
           {localConfig.showPercentage && (
-            <div className="bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full transition-colors duration-200 text-center">
-              <span className="text-gray-900 dark:text-gray-100 font-semibold">{percentage}%</span>
-              <span className="text-gray-500 dark:text-gray-400 ml-1">complete</span>
+            <div className="bg-muted px-2 py-0.5 rounded-full transition-colors duration-200 text-center">
+              <span className="text-foreground font-semibold">{percentage}%</span>
+              <span className="text-muted-foreground ml-1">complete</span>
             </div>
           )}
         </div>
@@ -311,15 +311,15 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
     return (
       <div className="flex justify-between items-center mt-1.5 px-0.5 text-xs font-medium">
         {localConfig.showDaysLeft && (
-          <div className="bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full transition-colors duration-200">
-            <span className="text-gray-900 dark:text-gray-100 font-semibold">{daysLeft}</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-1">days left</span>
+          <div className="bg-muted px-2.5 py-1 rounded-full transition-colors duration-200">
+            <span className="text-foreground font-semibold">{daysLeft}</span>
+            <span className="text-muted-foreground ml-1">days left</span>
           </div>
         )}
         {localConfig.showPercentage && (
-          <div className="bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full transition-colors duration-200">
-            <span className="text-gray-900 dark:text-gray-100 font-semibold">{percentage}%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-1">complete</span>
+          <div className="bg-muted px-2.5 py-1 rounded-full transition-colors duration-200">
+            <span className="text-foreground font-semibold">{percentage}%</span>
+            <span className="text-muted-foreground ml-1">complete</span>
           </div>
         )}
       </div>
@@ -366,10 +366,10 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
 
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1.5 text-center">
-        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
+        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-foreground">
           {primaryValue}
         </div>
-        <div className="text-[10px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
           {secondaryValue}
         </div>
       </div>
@@ -386,24 +386,24 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
         {/* Percentage badge */}
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="flex flex-col items-center rounded-lg bg-blue-50 dark:bg-blue-900/20 px-2.5 py-0.5">
-            <span className="text-lg font-bold leading-tight text-gray-900 dark:text-gray-100">{percentage}%</span>
-            <span className="text-[9px] text-gray-500 dark:text-gray-400">done</span>
+            <span className="text-lg font-bold leading-tight text-foreground">{percentage}%</span>
+            <span className="text-[9px] text-muted-foreground">done</span>
           </div>
         </div>
 
         {/* Inline progress bar filling available width */}
         <div className="flex flex-1 flex-col gap-1 min-w-0">
-          <div className="flex items-center justify-between text-[10px] text-gray-500 dark:text-gray-400">
-            <span className="font-medium text-gray-700 dark:text-gray-300">{progress.year}</span>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+            <span className="font-medium text-foreground">{progress.year}</span>
             <span>{daysLeft}d left</span>
           </div>
-          <div className="h-2.5 w-full rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
+          <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden">
             <div
               className="h-full rounded-full bg-blue-500 transition-all duration-500"
               style={{ width: `${Math.min(100, percentage)}%` }}
             />
           </div>
-          <div className="flex items-center justify-between text-[9px] text-gray-400 dark:text-gray-500">
+          <div className="flex items-center justify-between text-[9px] text-muted-foreground">
             <span>Day {progress.passed}</span>
             <span>Day {progress.total}</span>
           </div>
@@ -517,14 +517,14 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
+              <span className="text-xl font-bold text-foreground">
                 {Math.round(pct)}%
               </span>
             </div>
           </div>
           <div className="text-center">
-            <div className="text-sm font-semibold text-gray-800 dark:text-gray-200">{label}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{sublabel}</div>
+            <div className="text-sm font-semibold text-foreground">{label}</div>
+            <div className="text-xs text-muted-foreground">{sublabel}</div>
           </div>
         </div>
       );
@@ -536,16 +536,16 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
     }) => (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</span>
-          <span className="text-sm font-bold text-gray-900 dark:text-gray-100">{Math.round(pct)}%</span>
+          <span className="text-sm font-medium text-foreground">{label}</span>
+          <span className="text-sm font-bold text-foreground">{Math.round(pct)}%</span>
         </div>
-        <div className="h-2.5 w-full rounded-full bg-gray-200 dark:bg-slate-700 overflow-hidden">
+        <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(100, pct)}%`, backgroundColor: color }}
           />
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{elapsed} of {total} elapsed</span>
           <span>{remaining} remaining</span>
         </div>
@@ -557,24 +557,25 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
         {/* App header */}
         <div className="flex items-center justify-between px-5 pt-4 pb-2">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            <h2 className="text-lg font-bold text-foreground">
               Year Progress {progress.year}
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Week {ep.weekNumber} &middot; Q{ep.quarter.number} &middot; {ep.month.name}
             </p>
           </div>
           {!readOnly && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleSettingsOpen}
-              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               aria-label="Open settings"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-500 dark:text-gray-400">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
-            </button>
+            </Button>
           )}
         </div>
 
@@ -593,29 +594,29 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 p-3 text-center min-w-[90px]">
                 <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{daysLeft}</div>
-                <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Days Left</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Days Left</div>
               </div>
               <div className="rounded-xl bg-purple-50 dark:bg-purple-900/20 p-3 text-center min-w-[90px]">
                 <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">Q{ep.quarter.number}</div>
-                <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Quarter</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Quarter</div>
               </div>
               <div className="rounded-xl bg-green-50 dark:bg-green-900/20 p-3 text-center min-w-[90px]">
                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">W{ep.weekNumber}</div>
-                <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Week</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Week</div>
               </div>
               <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 p-3 text-center min-w-[90px]">
                 <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">{Math.round(yearPct)}%</div>
-                <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Complete</div>
+                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Complete</div>
               </div>
             </div>
           </div>
 
           {/* Divider */}
-          <div className="border-t border-gray-200 dark:border-slate-700" />
+          <div className="border-t border-border" />
 
           {/* Period progress bars */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Period Progress</h3>
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Period Progress</h3>
 
             <ProgressBar
               label={`Q${ep.quarter.number} Quarter`}
@@ -655,11 +656,11 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
           </div>
 
           {/* Divider */}
-          <div className="border-t border-gray-200 dark:border-slate-700" />
+          <div className="border-t border-border" />
 
           {/* Year dot grid (smaller in app view) */}
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Day-by-Day</h3>
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Day-by-Day</h3>
             <div ref={svgContainerRef} className="flex items-center justify-center">
               <svg
                 ref={svgRef}

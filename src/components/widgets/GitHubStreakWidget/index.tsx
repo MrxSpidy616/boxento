@@ -355,7 +355,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     if (count >= 4) return 'bg-green-500 dark:bg-green-500';
     if (count >= 2) return 'bg-green-300 dark:bg-green-400';
     if (count >= 1) return 'bg-green-100 dark:bg-green-300';
-    return 'bg-gray-100 dark:bg-gray-800';
+    return 'bg-muted';
   };
 
   const renderContributionCell = (day: ContributionDay, index: number, size: 'sm' | 'md' | 'lg' = 'sm') => {
@@ -374,7 +374,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     if (githubData.currentStreak >= 30) return 'text-orange-500';
     if (githubData.currentStreak >= 7) return 'text-yellow-500';
     if (githubData.currentStreak >= 1) return 'text-green-500';
-    return 'text-gray-400 dark:text-gray-500';
+    return 'text-muted-foreground';
   }, [githubData.currentStreak]);
 
   // Weekly aggregation for charts
@@ -475,7 +475,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     if (needsSetup) {
       return (
         <div className="flex-1 flex items-center justify-center">
-          <Flame className="h-5 w-5 text-gray-400" />
+          <Flame className="h-5 w-5 text-muted-foreground" />
         </div>
       );
     }
@@ -508,7 +508,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     if (needsSetup || githubData.error) {
       return (
         <div className="flex-1 flex items-center gap-2 overflow-x-auto px-1">
-          <Flame className="h-4 w-4 shrink-0 text-gray-400" />
+          <Flame className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="text-xs text-muted-foreground shrink-0">
             {needsSetup ? 'Not configured' : 'Error'}
           </span>
@@ -826,7 +826,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
               </div>
               <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
                 <span>Less</span>
-                <div className="w-2.5 h-2.5 rounded-sm bg-gray-100 dark:bg-gray-800" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-muted" />
                 <div className="w-2.5 h-2.5 rounded-sm bg-green-100 dark:bg-green-300" />
                 <div className="w-2.5 h-2.5 rounded-sm bg-green-300 dark:bg-green-400" />
                 <div className="w-2.5 h-2.5 rounded-sm bg-green-500" />

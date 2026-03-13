@@ -390,7 +390,7 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
             <button
               key={account.account}
               onClick={() => openFava()}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 text-foreground transition-colors hover:bg-accent"
             >
               <span className="max-w-[6rem] truncate">{name}</span>
               <span className="font-mono text-[11px] text-muted-foreground">{formatCurrency(total, true)}</span>

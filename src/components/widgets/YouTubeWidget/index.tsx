@@ -219,13 +219,15 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium">{videoTitle || localConfig.title || 'YouTube Video'}</p>
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
-          className="shrink-0 text-muted-foreground hover:text-foreground"
+          className="shrink-0 h-auto p-0 text-muted-foreground hover:text-foreground"
           title="Open on YouTube"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </div>
     );
   };
@@ -318,12 +320,14 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
         </button>
         <div className="mt-1.5 min-w-0">
           <p className="text-sm font-medium truncate">{videoTitle || localConfig.title || 'YouTube Video'}</p>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
-            className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
+            className="h-auto p-0 text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
           >
             <ExternalLink className="h-3 w-3" /> Open on YouTube
-          </button>
+          </Button>
         </div>
       </div>
     );
