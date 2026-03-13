@@ -80,6 +80,21 @@ const mergeConfig = (config?: KumaWidgetConfig): KumaWidgetConfig => ({
   ...config,
 });
 
+const sanitizeUrl = (url: string | null | undefined): string | null => {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
 const formatRelative = (value: string | null) => {
   if (!value) return 'Never';
   const date = new Date(value);
@@ -214,7 +229,7 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
   }, [data?.monitors]);
 
   const attentionCount = summary.down + summary.pending + summary.maintenance + summary.unknown;
-  const openUrl = localConfig.dashboardUrl || data?.dashboardUrl;
+  const openUrl = sanitizeUrl(localConfig.dashboardUrl || data?.dashboardUrl);
 
   const saveSettings = () => {
     config?.onUpdate?.(localConfig);
