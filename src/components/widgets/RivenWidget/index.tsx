@@ -11,6 +11,7 @@ import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
 import WidgetHeader from '../common/WidgetHeader';
 import { RivenWidgetConfig, RivenWidgetProps, TMDBResult, RivenItem, RivenStats } from './types';
+import { cn } from '@/lib/utils';
 import {
   Film,
   Search,
@@ -288,7 +289,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
 
   if (needsSetup && !isTiny && !isShort) {
     return (
-      <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+      <div className="widget-container h-full flex flex-col p-2 md:p-3">
         <WidgetHeader
           title={localConfig.title}
           onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
@@ -1103,7 +1104,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
   }
 
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title}

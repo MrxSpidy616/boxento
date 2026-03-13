@@ -26,6 +26,7 @@ import { Switch } from '../../ui/switch';
 import { Label } from '../../ui/label';
 import WidgetHeader from '../common/WidgetHeader';
 import { TodoistWidgetConfig, TodoistWidgetProps, TodoistTask, TodoistProject } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '../../ui/button';
 
 const defaultConfig: TodoistWidgetConfig = {
@@ -429,7 +430,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
   if (!localConfig?.apiToken) {
     if (isTiny) {
       return (
-        <div className="w-full h-full flex flex-col bg-card rounded-lg widget-drag-handle">
+        <div className="widget-container h-full flex flex-col widget-drag-handle">
           <div className="flex-1 flex items-center justify-center p-1" onClick={() => !readOnly && setShowSettings(true)}>
             <CheckSquare className="w-5 h-5 text-gray-400" />
           </div>
@@ -439,7 +440,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
     }
 
     return (
-      <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+      <div className="widget-container h-full flex flex-col p-2 md:p-3">
         <WidgetHeader
           title={localConfig.title || defaultConfig.title}
           onSettingsClick={readOnly ? undefined : () => handleSettingsOpen()}
@@ -1045,7 +1046,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
   }
 
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || defaultConfig.title}

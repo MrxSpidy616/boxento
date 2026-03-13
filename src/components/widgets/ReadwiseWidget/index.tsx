@@ -19,6 +19,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { ReadwiseHighlight, ReadwiseBook, ReadwiseWidgetConfig, ReadwiseWidgetProps } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
@@ -281,7 +282,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
   if (!localConfig.apiToken) {
     if (isTiny) {
       return (
-        <div className="w-full h-full flex flex-col bg-card rounded-lg p-1">
+        <div className="widget-container h-full flex flex-col widget-drag-handle p-1">
           <WidgetHeader
             title={undefined}
             onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
@@ -296,7 +297,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
     }
 
     return (
-      <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+      <div className="widget-container h-full flex flex-col p-2 md:p-3">
         <WidgetHeader
           title={localConfig.title}
           onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
@@ -955,7 +956,7 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
   }
 
   return (
-    <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       <WidgetHeader
         title={isTiny ? undefined : localConfig.title}
         onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}

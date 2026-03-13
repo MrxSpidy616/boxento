@@ -11,6 +11,7 @@ import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
 import WidgetHeader from '../common/WidgetHeader';
 import { FavaWidgetConfig, FavaWidgetProps, FavaAccountNode, FavaBalance } from './types';
+import { cn } from '@/lib/utils';
 import {
   BookOpen,
   TrendingUp,
@@ -226,7 +227,7 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
       );
     }
     return (
-      <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+      <div className="widget-container h-full flex flex-col p-2 md:p-3">
         <WidgetHeader title={localConfig.title} onSettingsClick={readOnly ? undefined : () => setShowSettings(true)} compact={isShort} />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -245,7 +246,7 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
       );
     }
     return (
-      <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+      <div className="widget-container h-full flex flex-col p-2 md:p-3">
         <WidgetHeader title={localConfig.title} onSettingsClick={readOnly ? undefined : () => setShowSettings(true)} compact={isShort} />
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center p-4">
           <AlertCircle className="w-8 h-8 text-red-500" />
@@ -262,7 +263,7 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
   // Setup prompt if no URL configured
   if (!localConfig.baseUrl) {
     return (
-      <div className="w-full h-full flex flex-col bg-card rounded-lg p-2 md:p-3">
+      <div className="widget-container h-full flex flex-col p-2 md:p-3">
         <WidgetHeader title={localConfig.title} onSettingsClick={readOnly ? undefined : () => setShowSettings(true)} />
         <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground">
           <Settings className="h-8 w-8" />
@@ -966,7 +967,7 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
 
   // --- Main render ---
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title}

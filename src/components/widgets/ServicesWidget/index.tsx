@@ -1209,7 +1209,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     <div
       ref={containerRef}
       className={cn(
-        'h-full flex flex-col bg-card rounded-lg',
+        'widget-container h-full flex flex-col',
         isTiny ? 'widget-drag-handle' : '',
         isTiny ? 'p-1' : isShort ? 'p-1.5' : 'p-2 md:p-3'
       )}

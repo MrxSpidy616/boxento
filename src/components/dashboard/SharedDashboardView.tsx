@@ -249,7 +249,7 @@ export function SharedDashboardView() {
 
       {/* CSS to hide interactive elements in read-only mode */}
       <style>{`
-        .read-only-dashboard .widget-drag-handle,
+        .read-only-dashboard .widget-drag-handle:not(.widget-container),
         .read-only-dashboard .settings-button,
         .read-only-dashboard .widget-settings-trigger,
         .read-only-dashboard [data-add-button],

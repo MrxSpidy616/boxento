@@ -16,6 +16,7 @@ import { Calendar } from '../../ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '../../ui/popover';
 import WidgetHeader from '../common/WidgetHeader';
 import type { CountdownWidgetProps, CountdownWidgetConfig, CountdownEvent, TimeRemaining } from './types';
+import { cn } from '@/lib/utils';
 
 // ---------- helpers ----------
 
@@ -1072,7 +1073,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
   // =======================================================
 
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || 'Countdown'}

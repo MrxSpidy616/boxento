@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import WidgetHeader from '../common/WidgetHeader';
 import { YouTubeWidgetConfig, YouTubeWidgetProps } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -537,7 +538,7 @@ const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) 
   }, [localConfig.videoId]);
 
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || defaultConfig.title}
