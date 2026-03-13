@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -13,6 +14,7 @@ import { Switch } from '../../ui/switch';
 import WidgetHeader from '../common/WidgetHeader';
 import { WidgetProps } from '@/types';
 import { ServicesWidgetConfig, Service } from './types';
+import { cn } from '@/lib/utils';
 import {
   Globe,
   Server,
@@ -106,20 +108,84 @@ const DEFAULT_SERVICES: Service[] = [
   }
 ];
 
+const DEFAULT_CONFIG: ServicesWidgetConfig = {
+  title: 'Services',
+  services: DEFAULT_SERVICES,
+  showStatus: true,
+  checkInterval: 60
+};
+
+const mergeConfigWithDefaults = (config?: ServicesWidgetConfig): ServicesWidgetConfig => ({
+  ...DEFAULT_CONFIG,
+  ...config,
+  services: config?.services ?? DEFAULT_SERVICES
+});
+
+const getIcon = (iconName?: string): LucideIcon => {
+  if (!iconName) return Globe;
+  return ICONS[iconName] || Globe;
+};
+
+const getStatusColor = (status?: 'online' | 'offline' | 'checking') => {
+  switch (status) {
+    case 'online':
+      return 'bg-green-500';
+    case 'offline':
+      return 'bg-red-500';
+    case 'checking':
+      return 'bg-yellow-500 animate-pulse';
+    default:
+      return 'bg-gray-400';
+  }
+};
+
+const getStatusLabel = (status?: 'online' | 'offline' | 'checking') => {
+  switch (status) {
+    case 'online':
+      return 'Online';
+    case 'offline':
+      return 'Offline';
+    case 'checking':
+      return 'Checking';
+    default:
+      return 'Unknown';
+  }
+};
+
+const getStatusIcon = (status?: 'online' | 'offline' | 'checking') => {
+  switch (status) {
+    case 'online':
+      return Wifi;
+    case 'offline':
+      return WifiOff;
+    default:
+      return Activity;
+  }
+};
+
+const getServiceHost = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').split('/')[0];
+  }
+};
+
+const getServicePathLabel = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}${parsed.hash}` || '/';
+  } catch {
+    return '/';
+  }
+};
+
 const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }) => {
   const isTiny = width === 1 && height === 1;
-  const defaultConfig: ServicesWidgetConfig = {
-    title: 'Services',
-    services: DEFAULT_SERVICES,
-    showStatus: true,
-    checkInterval: 60
-  };
+  const mergedConfig = useMemo(() => mergeConfigWithDefaults(config), [config]);
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [localConfig, setLocalConfig] = useState<ServicesWidgetConfig>({
-    ...defaultConfig,
-    ...config
-  });
+  const [localConfig, setLocalConfig] = useState<ServicesWidgetConfig>(() => mergedConfig);
   const [serviceStatus, setServiceStatus] = useState<Record<string, 'online' | 'offline' | 'checking'>>({});
   // const [editingService, setEditingService] = useState<Service | null>(null);
   const [showAddService, setShowAddService] = useState<boolean>(false);
@@ -129,8 +195,8 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
 
   // Update local config when props change
   useEffect(() => {
-    setLocalConfig(prev => ({ ...prev, ...config }));
-  }, [config]);
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
 
   // Check service status
   const checkServiceStatus = useCallback(async (service: Service) => {
@@ -191,26 +257,10 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     return () => observer.disconnect();
   }, []);
 
-  // Get Lucide icon component
-  const getIcon = (iconName?: string): LucideIcon => {
-    if (!iconName) return Globe;
-    return ICONS[iconName] || Globe;
-  };
-
-  // Get status color
-  const getStatusColor = (status?: 'online' | 'offline' | 'checking') => {
-    switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'offline': return 'bg-red-500';
-      case 'checking': return 'bg-yellow-500 animate-pulse';
-      default: return 'bg-gray-400';
-    }
-  };
-
   // Open service in new tab
-  const openService = (url: string) => {
+  const openService = useCallback((url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  }, []);
 
   const getCompactGridCols = () => {
     if (width >= 4) return 'grid-cols-4';
@@ -232,37 +282,113 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     return 1;
   };
 
-  const getStatusLabel = (status?: 'online' | 'offline' | 'checking') => {
-    switch (status) {
-      case 'online':
-        return 'Online';
-      case 'offline':
-        return 'Offline';
-      case 'checking':
-        return 'Checking';
-      default:
-        return 'Unknown';
-    }
-  };
+  // Delete service handler
+  const handleDeleteService = useCallback((serviceId: string) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      services: prev.services.filter(s => s.id !== serviceId)
+    }));
+  }, []);
 
-  const getStatusIcon = (status?: 'online' | 'offline' | 'checking') => {
-    switch (status) {
-      case 'online':
-        return Wifi;
-      case 'offline':
-        return WifiOff;
-      default:
-        return Activity;
-    }
-  };
+  const { categoryCount, onlineCount, offlineCount } = useMemo(() => {
+    const stats = localConfig.services.reduce(
+      (acc, service) => {
+        if (service.category) {
+          acc.categories.add(service.category);
+        }
 
-  const getServiceHost = (url: string) => {
-    try {
-      return new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-      return url.replace(/^https?:\/\//, '').split('/')[0];
-    }
-  };
+        const status = serviceStatus[service.id];
+        if (status === 'online') {
+          acc.online += 1;
+        } else if (status === 'offline') {
+          acc.offline += 1;
+        }
+
+        return acc;
+      },
+      {
+        categories: new Set<string>(),
+        online: 0,
+        offline: 0,
+      }
+    );
+
+    return {
+      categoryCount: stats.categories.size,
+      onlineCount: stats.online,
+      offlineCount: stats.offline,
+    };
+  }, [localConfig.services, serviceStatus]);
+
+  const renderServiceSettingsCard = useCallback((service: Service) => {
+    const Icon = getIcon(service.icon);
+    const status = serviceStatus[service.id];
+    const StatusIcon = getStatusIcon(status);
+
+    return (
+      <div
+        key={service.id}
+        className="grid min-w-[760px] grid-cols-[minmax(0,1.1fr)_minmax(0,1.7fr)_minmax(0,0.85fr)_auto] gap-3 px-3 py-2.5"
+      >
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="mt-0.5 flex size-7 flex-shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+            <Icon className="size-3.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium text-foreground">{service.name}</div>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+              {service.description || 'No description'}
+            </div>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <div className="truncate font-mono text-[11px] text-foreground" title={service.url}>
+            {service.url}
+          </div>
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+            {getServiceHost(service.url)} · {getServicePathLabel(service.url)}
+          </div>
+        </div>
+
+        <div className="min-w-0 text-[11px] text-muted-foreground">
+          <div className="truncate">{service.category || 'Uncategorized'}</div>
+          {localConfig.showStatus && (
+            <div
+              className={cn(
+                'mt-1 inline-flex items-center gap-1 font-medium',
+                status === 'online' && 'text-emerald-700 dark:text-emerald-300',
+                status === 'offline' && 'text-rose-700 dark:text-rose-300'
+              )}
+            >
+              <div className={cn('size-1.5 rounded-full', getStatusColor(status))} />
+              <StatusIcon className="size-3" />
+              <span>{getStatusLabel(status)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-start gap-1 justify-self-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openService(service.url)}
+            aria-label={`Open ${service.name}`}
+          >
+            <ArrowUpRight />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDeleteService(service.id)}
+            aria-label={`Delete ${service.name}`}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      </div>
+    );
+  }, [handleDeleteService, localConfig.showStatus, openService, serviceStatus]);
 
   // Render service card
   const renderServiceCard = (service: Service, compact: boolean = false) => {
@@ -467,7 +593,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   };
 
   // Add service handler
-  const handleAddService = () => {
+  const handleAddService = useCallback(() => {
     if (!newService.name || !newService.url) return;
 
     const service: Service = {
@@ -485,102 +611,122 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     }));
     setNewService({});
     setShowAddService(false);
-  };
+  }, [newService]);
 
-  // Delete service handler
-  const handleDeleteService = (serviceId: string) => {
-    setLocalConfig(prev => ({
-      ...prev,
-      services: prev.services.filter(s => s.id !== serviceId)
-    }));
-  };
+  const resetSettingsDraft = useCallback(() => {
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
+
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetSettingsDraft();
+    } else {
+      setLocalConfig(mergedConfig);
+    }
+    setShowSettings(nextOpen);
+  }, [mergedConfig, resetSettingsDraft]);
+
+  const handleCancelSettings = useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
 
   // Save settings
-  const saveSettings = () => {
+  const saveSettings = useCallback(() => {
     if (config?.onUpdate) {
       config.onUpdate(localConfig);
     }
     setShowSettings(false);
-  };
+  }, [config, localConfig]);
 
   // Settings dialog
   const renderSettings = () => (
-    <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+    <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:max-w-[980px]">
+        <DialogHeader className="gap-2 px-6 pt-6">
           <DialogTitle>Services Settings</DialogTitle>
+          <DialogDescription>
+            Tune the widget and manage the service catalog from one dense editor view.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="title-input">Widget Title</Label>
-            <Input
-              id="title-input"
-              type="text"
-              value={localConfig.title || ''}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setLocalConfig({...localConfig, title: e.target.value})
-              }
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="status-toggle"
-              checked={Boolean(localConfig.showStatus)}
-              onCheckedChange={(checked: boolean) =>
-                setLocalConfig({...localConfig, showStatus: checked})
-              }
-            />
-            <Label htmlFor="status-toggle">Show Status Indicators</Label>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>Services ({localConfig.services.length})</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddService(true)}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </Button>
+        <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-6">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="title-input">Widget title</Label>
+              <Input
+                id="title-input"
+                type="text"
+                value={localConfig.title || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setLocalConfig({ ...localConfig, title: e.target.value })
+                }
+              />
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {localConfig.services.map(service => {
-                const Icon = getIcon(service.icon);
-                return (
-                  <div key={service.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <div className="flex-grow min-w-0">
-                      <div className="text-sm font-medium truncate">{service.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{service.url}</div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteService(service.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border/70 px-3 py-2 md:min-w-[280px]">
+              <div className="min-w-0">
+                <Label htmlFor="status-toggle" className="text-sm font-medium">
+                  Show status indicators
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Surface online and offline state in the service list.
+                </p>
+              </div>
+              <Switch
+                id="status-toggle"
+                checked={Boolean(localConfig.showStatus)}
+                onCheckedChange={(checked: boolean) =>
+                  setLocalConfig({ ...localConfig, showStatus: checked })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Services</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {localConfig.services.length} total · {categoryCount} categories
+                {localConfig.showStatus ? ` · ${onlineCount} online · ${offlineCount} offline` : ' · status hidden'}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowAddService(true)}>
+              <Plus />
+              Add service
+            </Button>
+          </div>
+
+          <div className="overflow-hidden rounded-md border border-border/70">
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[760px] grid-cols-[minmax(0,1.1fr)_minmax(0,1.7fr)_minmax(0,0.85fr)_auto] gap-3 border-b border-border/70 bg-muted/20 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <span>Service</span>
+                <span>URL</span>
+                <span>Meta</span>
+                <span className="justify-self-end">Actions</span>
+              </div>
+
+              <div className="max-h-[min(54vh,520px)] divide-y divide-border/70 overflow-y-auto">
+                {localConfig.services.map((service) => renderServiceSettingsCard(service))}
+              </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <div className="flex justify-between w-full">
+        <DialogFooter className="flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
             {config?.onDelete && (
               <Button variant="destructive" onClick={config.onDelete}>
                 Delete Widget
               </Button>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCancelSettings}>
+              Cancel
+            </Button>
             <Button variant="default" onClick={saveSettings}>
-              Save
+              Save changes
             </Button>
           </div>
         </DialogFooter>
@@ -673,7 +819,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     >
       {!isTiny && (
         <WidgetHeader
-          title={localConfig.title || defaultConfig.title}
+          title={localConfig.title || DEFAULT_CONFIG.title}
           onSettingsClick={() => setShowSettings(true)}
           compact={width === 1 || height === 1}
         />
