@@ -1024,7 +1024,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
 
   // --- Main render ---
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || defaultConfig.title}

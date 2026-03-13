@@ -1072,7 +1072,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
   // =======================================================
 
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || 'Countdown'}

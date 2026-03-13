@@ -1056,7 +1056,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
 
   // --- Main render ---
   return (
-    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : isApp ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : isApp ? '' : 'p-2 md:p-3'}`}>
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || 'Habits'}

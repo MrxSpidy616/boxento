@@ -1327,7 +1327,7 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
   // --- Main render ---
   return (
     <div
-      className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}
+      className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}
     >
       {!isTiny && (
         <WidgetHeader
