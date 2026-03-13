@@ -30,13 +30,24 @@ const defaultConfig: IframeWidgetConfig = {
   alignment: 'top',
 };
 
-// Validate URL
+// Validate URL (http/https only)
 const isValidUrl = (urlString: string): boolean => {
   try {
     const urlObj = new URL(urlString);
     return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
   } catch {
     return false;
+  }
+};
+
+// Sanitize URL — returns empty string for non-http(s) protocols
+const sanitizeUrl = (urlString: string): string => {
+  try {
+    const urlObj = new URL(urlString);
+    if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') return urlObj.href;
+    return '';
+  } catch {
+    return '';
   }
 };
 
@@ -204,7 +215,7 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
       return (
         <div className={`h-full w-full flex items-center justify-center ${extraClass || ''}`}>
           <img
-            src={url}
+            src={sanitizeUrl(url)}
             alt={title || 'Embedded image'}
             className="max-w-full max-h-full object-contain"
             loading="lazy"
@@ -218,7 +229,7 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
         <iframe
           ref={iframeRef}
           key={iframeKey}
-          src={url}
+          src={sanitizeUrl(url)}
           className="w-full h-full border-0"
           style={iframeStyle}
           sandbox="allow-scripts allow-same-origin allow-popups"

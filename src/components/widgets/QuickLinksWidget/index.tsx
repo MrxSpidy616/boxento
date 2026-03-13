@@ -15,6 +15,17 @@ import { Label } from '../../ui/label'
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
+// Sanitize URLs to prevent javascript: and data: protocol injection
+const sanitizeUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    return '#';
+  } catch {
+    return '#';
+  }
+};
+
 /**
  * Fetches metadata from a URL including title and favicon
  * @param url The URL to fetch metadata from
@@ -748,7 +759,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">URL</label>
                     <a
-                      href={rightPanelLink.url}
+                      href={sanitizeUrl(rightPanelLink.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
@@ -758,7 +769,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                   </div>
                   <div className="flex gap-2 pt-2">
                     <a
-                      href={rightPanelLink.url}
+                      href={sanitizeUrl(rightPanelLink.url)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700"
@@ -834,7 +845,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
     if (isTiny && firstLink) {
       return (
         <a
-          href={firstLink.url}
+          href={sanitizeUrl(firstLink.url)}
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-full flex-col items-center justify-center gap-1 text-center text-gray-800 dark:text-gray-100"
@@ -855,7 +866,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
           {previewLinks.map(link => (
             <a
               key={link.id}
-              href={link.url}
+              href={sanitizeUrl(link.url)}
               target="_blank"
               rel="noopener noreferrer"
               className={`flex shrink-0 items-center gap-2 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10 ${
@@ -882,7 +893,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
               {links.map(link => (
                 <a 
                   key={link.id}
-                  href={link.url} 
+                  href={sanitizeUrl(link.url)} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className={`flex items-center p-1 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group ${
@@ -939,7 +950,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
               {links.map(link => (
                 <a 
                   key={link.id}
-                  href={link.url} 
+                  href={sanitizeUrl(link.url)} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className={`flex items-center p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group ${
