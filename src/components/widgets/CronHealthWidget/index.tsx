@@ -494,7 +494,7 @@ const CronHealthWidget: React.FC<CronHealthWidgetProps> = ({ width, height, conf
         {/* Master list */}
         <div className="w-1/3 border-r border-border/50 flex flex-col overflow-hidden">
           {/* Search */}
-          <div className="p-2 border-b border-border/50">
+          <div className="p-2 border-b border-border/50 widget-drag-handle cursor-move">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input

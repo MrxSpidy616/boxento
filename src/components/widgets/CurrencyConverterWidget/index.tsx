@@ -576,6 +576,10 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
 
     return (
       <div className="flex h-full flex-col gap-3 p-3 overflow-y-auto">
+        {/* Drag handle header */}
+        <div className="flex items-center widget-drag-handle cursor-move">
+          <h2 className="text-base font-semibold text-foreground">{localConfig.title || 'Currency Converter'}</h2>
+        </div>
         {/* Amount input + base currency selector */}
         <div className="flex gap-2">
           <div className="flex flex-1 border rounded-md overflow-hidden">

@@ -555,7 +555,7 @@ const YearProgressWidget: React.FC<YearProgressProps> = React.memo(({ width, hei
     return (
       <div className="h-full flex flex-col overflow-hidden">
         {/* App header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 widget-drag-handle cursor-move">
           <div>
             <h2 className="text-lg font-bold text-foreground">
               Year Progress {progress.year}

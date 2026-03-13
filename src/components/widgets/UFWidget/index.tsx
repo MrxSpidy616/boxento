@@ -437,7 +437,7 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
         {/* Left panel: converter + stats */}
         <div className="w-1/3 border-r flex flex-col overflow-y-auto p-3">
           {/* Current value */}
-          <div className="mb-4">
+          <div className="mb-4 widget-drag-handle cursor-move">
             <div className="text-xs text-muted-foreground">Valor actual UF</div>
             <div className="text-4xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               ${formatUfValue(ufData.valor)}

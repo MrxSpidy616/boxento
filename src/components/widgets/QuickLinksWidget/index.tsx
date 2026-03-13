@@ -473,7 +473,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
     return (
       <div className="flex h-full flex-col">
         {/* Top bar */}
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3 widget-drag-handle cursor-move">
           <h2 className="text-lg font-semibold text-foreground">
             {customTitle}
           </h2>

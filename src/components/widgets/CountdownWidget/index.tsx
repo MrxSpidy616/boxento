@@ -411,11 +411,11 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
           )}
         </div>
 
-        <div className="text-xs text-muted-foreground/70 mt-3">
+        <div className="text-xs text-muted-foreground/70 mt-3 truncate max-w-full px-2">
           {new Date(localConfig.targetDate!).toLocaleDateString(undefined, {
-            weekday: 'long',
+            weekday: width >= 4 ? 'long' : 'short',
             year: 'numeric',
-            month: 'long',
+            month: width >= 4 ? 'long' : 'short',
             day: 'numeric',
           })}
         </div>
@@ -527,7 +527,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
       <div className="flex h-full">
         {/* Master list */}
         <div className="w-1/3 border-r overflow-y-auto">
-          <div className="p-2 border-b flex items-center justify-between">
+          <div className="p-2 border-b flex items-center justify-between widget-drag-handle cursor-move">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               {allEvents.length} countdown{allEvents.length !== 1 ? 's' : ''}
             </span>
