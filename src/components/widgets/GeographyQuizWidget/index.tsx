@@ -529,9 +529,10 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
       {/* Tab bar */}
       <div className="flex border-b border-border px-2">
         {(['quiz', 'history', 'stats'] as const).map(tab => (
-          <button
+          <Button
             key={tab}
-            className={`px-3 py-2 text-sm capitalize transition-colors ${
+            variant="ghost"
+            className={`px-3 py-2 text-sm capitalize rounded-none transition-colors ${
               appTab === tab
                 ? 'border-b-2 border-primary font-medium text-foreground'
                 : 'text-muted-foreground hover:text-foreground'
@@ -539,7 +540,7 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
             onClick={() => setAppTab(tab)}
           >
             {tab}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -568,17 +569,19 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
             {!readOnly && (
               <div className="flex flex-wrap justify-center gap-2">
                 {[QuestionType.MIXED, QuestionType.CAPITALS, QuestionType.FLAGS, QuestionType.BORDERS, QuestionType.LANDMARKS].map(type => (
-                  <button
+                  <Button
                     key={type}
+                    variant="outline"
+                    size="sm"
                     onClick={() => updateConfig({ questionType: type })}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                       localConfig.questionType === type
-                        ? 'border-primary bg-primary/10 text-primary'
+                        ? 'border-primary bg-primary/10 text-primary hover:bg-primary/20'
                         : 'border-border text-muted-foreground hover:bg-accent'
                     }`}
                   >
                     {getCategoryLabel(type)}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}

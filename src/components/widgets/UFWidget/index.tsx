@@ -13,6 +13,7 @@ import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
 import { Switch } from '../../ui/switch';
+import { Skeleton } from '../../ui/skeleton';
 import {
   RefreshCw,
   TrendingUp,
@@ -165,7 +166,7 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
     ? 'text-green-600 dark:text-green-400'
     : dailyChange?.direction === 'down'
     ? 'text-red-600 dark:text-red-400'
-    : 'text-gray-500 dark:text-gray-400';
+    : 'text-muted-foreground';
 
   // Conversion helper
   const convertedValue = useMemo(() => {
@@ -210,8 +211,9 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
 
   // --- Loading / error states ---
   const renderLoading = () => (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="animate-pulse text-sm text-muted-foreground">Cargando...</div>
+    <div className="flex-1 flex flex-col items-center justify-center gap-2">
+      <Skeleton className="h-8 w-32" />
+      <Skeleton className="h-4 w-20" />
     </div>
   );
 
@@ -227,7 +229,7 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
   // --- Size-specific renderers ---
 
   const renderTiny = () => {
-    if (loading) return <div className="flex-1 flex items-center justify-center"><div className="animate-pulse text-[10px] text-muted-foreground">...</div></div>;
+    if (loading) return <div className="flex-1 flex items-center justify-center"><Skeleton className="h-5 w-10" /></div>;
     if (error || !ufData) return <div className="flex-1 flex items-center justify-center text-[10px] text-muted-foreground">--</div>;
 
     return (
@@ -314,13 +316,15 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
             )}
           </div>
           {!readOnly && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={fetchUfData}
-              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
+              className="h-7 w-7"
               title="Actualizar"
             >
               <RefreshCw className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
         </div>
 
@@ -392,13 +396,15 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
               Historial
             </div>
             {!readOnly && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={fetchUfData}
-                className="p-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
+                className="h-6 w-6"
                 title="Actualizar"
               >
                 <RefreshCw className="h-3 w-3" />
-              </button>
+              </Button>
             )}
           </div>
           <div className="space-y-1">
@@ -470,13 +476,15 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
                 />
               </div>
               <div className="flex justify-center">
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setConverterDirection(d => d === 'uf-to-clp' ? 'clp-to-uf' : 'uf-to-clp')}
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
+                  className="h-7 w-7"
                   title="Invertir"
                 >
                   <ArrowRightLeft className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
               <div>
                 <Label className="text-[10px] text-muted-foreground">

@@ -230,13 +230,13 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
       case 'en-route':
         return 'text-blue-600 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400';
       case 'scheduled':
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300';
+        return 'text-muted-foreground bg-muted';
       case 'cancelled':
         return 'text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
       case 'delayed':
         return 'text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400';
       default:
-        return 'text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300';
+        return 'text-muted-foreground bg-muted';
     }
   };
 
@@ -248,13 +248,13 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
       case 'en-route':
         return 'bg-blue-500 animate-pulse';
       case 'scheduled':
-        return 'bg-gray-400';
+        return 'bg-muted-foreground';
       case 'cancelled':
         return 'bg-red-500';
       case 'delayed':
         return 'bg-orange-500';
       default:
-        return 'bg-gray-400';
+        return 'bg-muted-foreground';
     }
   };
 
@@ -639,13 +639,15 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
         {/* Airline + refresh */}
         <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
           <span>{primaryData.airline_name}</span>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => primaryFlight && fetchFlight(primaryFlight)}
-            className="flex items-center gap-1 hover:text-foreground transition-colors"
+            className="h-auto p-0 flex items-center gap-1 hover:text-foreground transition-colors text-xs text-muted-foreground"
           >
             <RefreshCw size={12} />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {/* Other tracked flights summary */}
@@ -828,13 +830,15 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
                 Route map
               </div>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => fetchFlight(selectedFlight)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="h-auto p-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <RefreshCw size={12} />
                 Refresh
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
@@ -905,15 +909,17 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
           {/* Flight list with summary stats */}
           <div className="p-2 border-b border-border/30 flex items-center justify-between text-xs text-muted-foreground">
             <span>{trackedFlights.length} flights</span>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() =>
                 trackedFlights.forEach((f) => fetchFlight(f))
               }
-              className="flex items-center gap-1 hover:text-foreground transition-colors"
+              className="h-auto p-0 flex items-center gap-1 hover:text-foreground transition-colors text-xs text-muted-foreground"
             >
               <RefreshCw className="h-3 w-3" />
               Refresh all
-            </button>
+            </Button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -1138,13 +1144,15 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
                 Route map placeholder
               </div>
 
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => fetchFlight(selectedFlight)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="h-auto p-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <RefreshCw size={12} />
                 Refresh flight data
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

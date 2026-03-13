@@ -309,12 +309,14 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
           {title !== 'Embed' ? title : getHostname(url)}
         </span>
         {!readOnly && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleOpenExternal}
-            className="shrink-0 ml-auto p-0.5 hover:bg-accent rounded"
+            className="shrink-0 ml-auto h-5 w-5"
           >
             <ExternalLink className="h-3 w-3 text-muted-foreground" />
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -351,31 +353,37 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
         {/* URL bar and controls */}
         <div className="flex items-center gap-1 px-2 py-1.5 border-b bg-muted/30">
           {/* Navigation controls */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => {
               try { iframeRef.current?.contentWindow?.history.back(); } catch { /* cross-origin */ }
             }}
-            className="p-1 hover:bg-accent rounded text-muted-foreground"
+            className="h-7 w-7"
             title="Back"
           >
             <ArrowLeft className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => {
               try { iframeRef.current?.contentWindow?.history.forward(); } catch { /* cross-origin */ }
             }}
-            className="p-1 hover:bg-accent rounded text-muted-foreground"
+            className="h-7 w-7"
             title="Forward"
           >
             <ArrowRight className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleRefresh}
-            className="p-1 hover:bg-accent rounded text-muted-foreground"
+            className="h-7 w-7"
             title="Refresh"
           >
             <RefreshCw className="h-4 w-4" />
-          </button>
+          </Button>
 
           {/* URL display */}
           <div className="flex-1 flex items-center gap-1.5 px-2 py-1 bg-background rounded border text-xs text-muted-foreground overflow-hidden mx-1">
@@ -390,41 +398,49 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
           </div>
 
           {/* Zoom controls */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleZoomOut}
-            className="p-1 hover:bg-accent rounded text-muted-foreground"
+            className="h-7 w-7"
             title="Zoom out"
           >
             <ZoomOut className="h-4 w-4" />
-          </button>
+          </Button>
           <span className="text-[10px] text-muted-foreground min-w-[3ch] text-center">
             {Math.round(zoomLevel * 100)}%
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleZoomIn}
-            className="p-1 hover:bg-accent rounded text-muted-foreground"
+            className="h-7 w-7"
             title="Zoom in"
           >
             <ZoomIn className="h-4 w-4" />
-          </button>
+          </Button>
           {zoomLevel !== 1 && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleZoomReset}
-              className="p-1 hover:bg-accent rounded text-muted-foreground"
+              className="h-7 w-7"
               title="Reset zoom"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
 
           {/* External link */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleOpenExternal}
-            className="p-1 hover:bg-accent rounded text-muted-foreground"
+            className="h-7 w-7"
             title="Open in new tab"
           >
             <ExternalLink className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {/* Iframe content */}
@@ -539,7 +555,7 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
                   onChange={(e) =>
                     setLocalConfig(prev => ({ ...prev, scale: parseFloat(e.target.value) }))
                   }
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
+                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Adjust to fit content within widget
@@ -550,20 +566,17 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
                 <Label>Vertical Alignment</Label>
                 <div className="flex gap-2 mt-1">
                   {(['top', 'center', 'bottom'] as const).map((align) => (
-                    <button
+                    <Button
                       key={align}
                       type="button"
+                      variant={(localConfig.alignment || 'top') === align ? 'default' : 'outline'}
+                      className="flex-1"
                       onClick={() =>
                         setLocalConfig(prev => ({ ...prev, alignment: align }))
                       }
-                      className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${
-                        (localConfig.alignment || 'top') === align
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background border-border hover:bg-accent'
-                      }`}
                     >
                       {align.charAt(0).toUpperCase() + align.slice(1)}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

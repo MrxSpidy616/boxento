@@ -372,14 +372,14 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
 
     return (
       <div className="flex-1 flex items-center gap-2 overflow-x-auto px-1 text-xs">
-        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-foreground dark:bg-white/[0.06]">
+        <span className="shrink-0 rounded-full bg-muted px-2 py-1 font-medium text-foreground">
           {highlightCount || highlights.length} highlights
         </span>
         {previewHighlights.map(h => (
           <button
             key={h.id}
             onClick={() => openHighlightInReadwise(h.id)}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-foreground transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:hover:bg-white/[0.05]"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 text-foreground transition-colors hover:bg-accent"
             title={h.text}
           >
             <Quote className="h-3 w-3 shrink-0 text-muted-foreground" />
@@ -414,13 +414,15 @@ const ReadwiseWidget: React.FC<ReadwiseWidgetProps> = ({ width, height, config }
           </div>
         )}
         {!readOnly && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={shuffleHighlight}
-            className="mt-1 self-end text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-0.5"
+            className="mt-1 self-end h-5 px-1 text-[10px]"
           >
-            <RefreshCw className="h-2.5 w-2.5" />
+            <RefreshCw className="h-2.5 w-2.5 mr-0.5" />
             shuffle
-          </button>
+          </Button>
         )}
       </div>
     );

@@ -84,7 +84,7 @@ const ProgressRing: React.FC<{
           fill="none"
           stroke="currentColor"
           strokeWidth={stroke}
-          className="text-gray-200 dark:text-gray-700"
+          className="text-secondary"
         />
         <circle
           cx={radius}
@@ -290,10 +290,10 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
                 className="h-1.5 w-1.5 shrink-0 rounded-full"
                 style={{ backgroundColor: ev.color || DEFAULT_COLORS[0] }}
               />
-              <span className="max-w-[100px] truncate text-xs font-medium text-gray-700 dark:text-gray-300">
+              <span className="max-w-[100px] truncate text-xs font-medium text-foreground">
                 {ev.name}
               </span>
-              <span className="text-xs font-bold text-gray-900 dark:text-gray-100">
+              <span className="text-xs font-bold text-foreground">
                 {evTr.isPast ? 'Now!' : `${evTr.days}d`}
               </span>
               {!evTr.isPast && ev.showTime && (
@@ -368,7 +368,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
     return (
       <div className="flex-1 flex flex-col items-center justify-center">
         {localConfig.eventName && (
-          <div className="text-sm text-gray-600 dark:text-gray-300 mb-3 text-center px-2">
+          <div className="text-sm text-muted-foreground mb-3 text-center px-2">
             {localConfig.eventName}
           </div>
         )}
@@ -386,14 +386,14 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
           {localConfig.showTime && (
             <>
               <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold text-gray-700 dark:text-gray-300">
+                <div className="text-3xl font-bold text-foreground">
                   {String(tr.hours).padStart(2, '0')}
                 </div>
                 <div className="text-xs text-muted-foreground">hrs</div>
               </div>
 
               <div className="flex flex-col items-center">
-                <div className="text-3xl font-bold text-gray-700 dark:text-gray-300">
+                <div className="text-3xl font-bold text-foreground">
                   {String(tr.minutes).padStart(2, '0')}
                 </div>
                 <div className="text-xs text-muted-foreground">min</div>
@@ -401,7 +401,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
 
               {width >= 3 && (
                 <div className="flex flex-col items-center">
-                  <div className="text-3xl font-bold text-gray-700 dark:text-gray-300">
+                  <div className="text-3xl font-bold text-foreground">
                     {String(tr.seconds).padStart(2, '0')}
                   </div>
                   <div className="text-xs text-muted-foreground">sec</div>
@@ -641,7 +641,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
                     { value: selectedTr.seconds, label: 'seconds' },
                   ].map(({ value, label }) => (
                     <div key={label}>
-                      <div className="text-2xl font-bold text-gray-700 dark:text-gray-300">
+                      <div className="text-2xl font-bold text-foreground">
                         {String(value).padStart(2, '0')}
                       </div>
                       <div className="text-xs text-muted-foreground">{label}</div>
@@ -683,7 +683,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
                         <div className="w-24 text-xs truncate text-right text-muted-foreground">
                           {ev.name}
                         </div>
-                        <div className="flex-1 h-4 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500"
                             style={{
@@ -814,7 +814,7 @@ const CountdownWidget: React.FC<CountdownWidgetProps> = ({ width, height, config
                     key={color}
                     className={`h-6 w-6 rounded-full border-2 transition-all ${
                       editingEvent.color === color
-                        ? 'border-gray-900 dark:border-gray-100 scale-110'
+                        ? 'border-foreground scale-110'
                         : 'border-transparent'
                     }`}
                     style={{ backgroundColor: color }}

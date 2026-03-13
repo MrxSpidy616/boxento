@@ -52,12 +52,12 @@ const STATE_LABELS: Record<string, { label: string; color: string; icon: typeof 
   Scraping: { label: 'Scraping', color: 'text-blue-600 dark:text-blue-400', icon: Download },
   Requested: { label: 'Requested', color: 'text-yellow-600 dark:text-yellow-400', icon: Clock },
   Indexed: { label: 'Indexed', color: 'text-purple-600 dark:text-purple-400', icon: Library },
-  Unknown: { label: 'Unknown', color: 'text-gray-500 dark:text-gray-400', icon: AlertCircle },
+  Unknown: { label: 'Unknown', color: 'text-muted-foreground', icon: AlertCircle },
   Failed: { label: 'Failed', color: 'text-red-600 dark:text-red-400', icon: XCircle },
 };
 
 const getStateInfo = (state: string) =>
-  STATE_LABELS[state] || { label: state, color: 'text-gray-500 dark:text-gray-400', icon: AlertCircle };
+  STATE_LABELS[state] || { label: state, color: 'text-muted-foreground', icon: AlertCircle };
 
 const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
   // --- Size detection (icon -> widget -> app spectrum) ---
@@ -319,7 +319,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
           key={item.id}
           className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
         >
-          <div className="w-7 h-10 flex-shrink-0 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+          <div className="w-7 h-10 flex-shrink-0 bg-secondary rounded overflow-hidden">
             {item.poster_path ? (
               <img
                 src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
@@ -328,7 +328,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center">
-                <Film className="w-3 h-3 text-gray-400" />
+                <Film className="w-3 h-3 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -362,7 +362,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
         key={item.id}
         className="flex items-center gap-3 p-2 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
       >
-        <div className="w-10 h-14 flex-shrink-0 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden">
+        <div className="w-10 h-14 flex-shrink-0 bg-secondary rounded overflow-hidden">
           {item.poster_path ? (
             <img
               src={`https://image.tmdb.org/t/p/w92${item.poster_path}`}
@@ -371,7 +371,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Film className="w-5 h-5 text-gray-400" />
+              <Film className="w-5 h-5 text-muted-foreground" />
             </div>
           )}
         </div>
@@ -477,7 +477,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
         </div>
         <div className="flex gap-1.5">
           <div className="relative flex-grow">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               type="text"
               placeholder={`Search ${mediaType === 'movie' ? 'movies' : 'TV shows'}...`}
@@ -510,30 +510,32 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
   const renderTiny = () => (
     <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
       <Film className="w-4 h-4 text-purple-500" />
-      <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
+      <div className="text-lg font-semibold leading-none text-foreground">
         {totalItems || 0}
       </div>
-      <div className="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">media</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">media</div>
     </div>
   );
 
   // Nx1 RIBBON: status + recent items
   const renderShort = () => (
     <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={openRiven}
-        className="shrink-0 flex items-center gap-1.5 rounded-full bg-purple-500/10 px-2.5 py-1 font-medium text-purple-700 dark:text-purple-300"
+        className="shrink-0 h-auto flex items-center gap-1.5 rounded-full bg-purple-500/10 px-2.5 py-1 font-medium text-purple-700 dark:text-purple-300"
       >
         <Film className="w-3 h-3" />
         {totalItems} items
-      </button>
+      </Button>
       {totalMovies > 0 && (
-        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 text-foreground dark:bg-white/[0.06]">
           {totalMovies} movies
         </span>
       )}
       {totalShows > 0 && (
-        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 text-foreground dark:bg-white/[0.06]">
           {totalShows} shows
         </span>
       )}
@@ -555,9 +557,10 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
   // 2x2 COMPACT: quick search + link
   const renderCompact = () => (
     <div className="flex-1 flex flex-col overflow-hidden gap-1">
-      <button
+      <Button
+        variant="ghost"
         onClick={openRiven}
-        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-black/[0.02] dark:hover:bg-white/[0.03] transition-colors"
+        className="h-auto flex items-center gap-2 p-1.5 rounded-lg hover:bg-accent transition-colors"
       >
         <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center flex-shrink-0">
           <Film className="w-4 h-4 text-purple-500" />
@@ -569,7 +572,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
           </div>
         </div>
         <ExternalLink className="w-3 h-3 text-muted-foreground ml-auto flex-shrink-0" />
-      </button>
+      </Button>
       {!readOnly && (
         <div className="flex-1 overflow-hidden">
           {renderSearchForm(true)}
@@ -698,9 +701,10 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
             { key: 'stats' as const, label: 'Stats', icon: TrendingUp },
           ] as const
         ).map((tab) => (
-          <button
+          <Button
             key={tab.key}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm border-b-2 transition-colors ${
+            variant="ghost"
+            className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-none border-b-2 transition-colors ${
               activeTab === tab.key
                 ? 'border-primary font-medium text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -709,7 +713,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
           >
             <tab.icon className="w-3.5 h-3.5" />
             {tab.label}
-          </button>
+          </Button>
         ))}
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={openRiven} className="h-7">
@@ -744,7 +748,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
             {searchResults.length > 0 && searchResults[0] ? (
               <div className="space-y-3">
                 <div className="flex gap-4">
-                  <div className="w-24 h-36 flex-shrink-0 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                  <div className="w-24 h-36 flex-shrink-0 bg-secondary rounded-lg overflow-hidden">
                     {searchResults[0].poster_path ? (
                       <img
                         src={`https://image.tmdb.org/t/p/w185${searchResults[0].poster_path}`}
@@ -753,7 +757,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Film className="w-8 h-8 text-gray-400" />
+                        <Film className="w-8 h-8 text-muted-foreground" />
                       </div>
                     )}
                   </div>
@@ -808,7 +812,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
           <div className="w-1/3 flex flex-col border-r border-border/50 overflow-hidden">
             <div className="p-2 border-b border-border/50 space-y-1.5">
               <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Filter library..."
                   value={librarySearch}
@@ -817,31 +821,35 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
                 />
               </div>
               <div className="flex flex-wrap gap-1">
-                <button
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-auto px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
                     libraryFilter === 'all'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-black/[0.04] text-gray-600 dark:bg-white/[0.06] dark:text-gray-300 hover:bg-black/[0.08] dark:hover:bg-white/[0.1]'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-muted-foreground hover:bg-accent'
                   }`}
                   onClick={() => setLibraryFilter('all')}
                 >
                   All ({items.length})
-                </button>
+                </Button>
                 {availableStates.map((state) => {
                   const info = getStateInfo(state);
                   const count = items.filter((i) => i.state === state).length;
                   return (
-                    <button
+                    <Button
                       key={state}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                      variant="ghost"
+                      size="sm"
+                      className={`h-auto px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
                         libraryFilter === state
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-black/[0.04] text-gray-600 dark:bg-white/[0.06] dark:text-gray-300 hover:bg-black/[0.08] dark:hover:bg-white/[0.1]'
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          : 'bg-muted text-muted-foreground hover:bg-accent'
                       }`}
                       onClick={() => setLibraryFilter(state)}
                     >
                       {info.label} ({count})
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -983,7 +991,7 @@ const RivenWidget: React.FC<RivenWidgetProps> = ({ width, height, config }) => {
                               </div>
                               <span className="text-sm font-semibold">{count}</span>
                             </div>
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                            <div className="w-full bg-secondary rounded-full h-1.5">
                               <div
                                 className="bg-current rounded-full h-1.5 transition-all"
                                 style={{ width: `${Math.max(pct, 2)}%` }}

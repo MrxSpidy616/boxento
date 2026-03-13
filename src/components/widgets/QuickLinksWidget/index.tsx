@@ -473,43 +473,46 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
     return (
       <div className="flex h-full flex-col">
         {/* Top bar */}
-        <div className="flex items-center gap-3 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+          <h2 className="text-lg font-semibold text-foreground">
             {customTitle}
           </h2>
           <div className="relative flex-grow max-w-md">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
               type="text"
               value={appSearchQuery}
               onChange={e => setAppSearchQuery(e.target.value)}
               placeholder="Search links..."
-              className="w-full rounded-md border border-gray-200 bg-white py-1.5 pl-8 pr-8 text-sm text-gray-700 placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder:text-gray-500"
+              className="pl-8 pr-8"
             />
             {appSearchQuery && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setAppSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
               >
                 <X size={14} />
-              </button>
+              </Button>
             )}
           </div>
-          <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+          <span className="shrink-0 text-xs text-muted-foreground">
             {filteredLinks.length} / {links.length} links
           </span>
           {!readOnly && (
-            <button
+            <Button
+              size="sm"
               onClick={() => {
                 setAppEditingLink({ id: 0, title: '', url: '', favicon: '', category: '' });
                 setShowAppAddForm(true);
                 setSelectedLinkId(null);
               }}
-              className="ml-auto flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700"
+              className="ml-auto"
             >
-              <Plus size={14} />
+              <Plus size={14} className="mr-1" />
               Add Link
-            </button>
+            </Button>
           )}
         </div>
 
@@ -518,7 +521,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
           {/* Left: link grid */}
           <div className="flex-1 overflow-y-auto p-4">
             {filteredLinks.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+              <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
                 <Globe size={32} className="mb-2 opacity-60" />
                 <p className="text-sm">
                   {appSearchQuery ? 'No links match your search' : 'No links yet. Add your first bookmark!'}
@@ -537,35 +540,39 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     className={`group relative flex cursor-pointer flex-col rounded-lg border p-3 transition-all hover:shadow-md ${
                       selectedLinkId === link.id
                         ? 'border-blue-400 bg-blue-50 shadow-sm dark:border-blue-500 dark:bg-blue-900/20'
-                        : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'
+                        : 'border-border bg-card hover:border-border'
                     }`}
                   >
                     {/* Hover actions */}
                     {!readOnly && (
                       <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
                           onClick={e => {
                             e.stopPropagation();
                             setAppEditingLink({ ...link });
                             setShowAppAddForm(false);
                             setSelectedLinkId(link.id);
                           }}
-                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
                           aria-label={`Edit ${link.title}`}
                         >
                           <Pencil size={12} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-red-500"
                           onClick={e => {
                             e.stopPropagation();
                             removeLink(link.id);
                             if (selectedLinkId === link.id) setSelectedLinkId(null);
                           }}
-                          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                           aria-label={`Delete ${link.title}`}
                         >
                           <Trash2 size={12} />
-                        </button>
+                        </Button>
                       </div>
                     )}
 
@@ -578,15 +585,15 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                           loading="lazy"
                         />
                       )}
-                      <span className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                      <span className="truncate text-sm font-medium text-foreground">
                         {link.title}
                       </span>
                     </div>
-                    <p className="mt-1.5 truncate text-xs text-gray-400 dark:text-gray-500">
+                    <p className="mt-1.5 truncate text-xs text-muted-foreground">
                       {link.url}
                     </p>
                     {link.category && (
-                      <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                      <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         <FolderOpen size={10} />
                         {link.category}
                       </span>
@@ -598,44 +605,41 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
           </div>
 
           {/* Right: detail / add form panel */}
-          <div className="w-72 shrink-0 border-l border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-900/30 overflow-y-auto">
+          <div className="w-72 shrink-0 border-l border-border bg-muted/50 overflow-y-auto">
             {showAppAddForm && appEditingLink && !appEditingLink.id ? (
               /* Add new link form */
               <div className="p-4">
-                <h3 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <h3 className="mb-4 text-sm font-semibold text-foreground">
                   Add New Link
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">URL</label>
-                    <input
+                    <Label className="mb-1 block text-xs">URL</Label>
+                    <Input
                       type="url"
                       value={appEditingLink.url}
                       onChange={e => setAppEditingLink({ ...appEditingLink, url: e.target.value })}
                       placeholder="https://example.com"
-                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Title</label>
-                    <input
+                    <Label className="mb-1 block text-xs">Title</Label>
+                    <Input
                       type="text"
                       value={appEditingLink.title}
                       onChange={e => setAppEditingLink({ ...appEditingLink, title: e.target.value })}
                       placeholder="Auto-detected from URL"
-                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Category</label>
-                    <input
+                    <Label className="mb-1 block text-xs">Category</Label>
+                    <Input
                       type="text"
                       value={appEditingLink.category || ''}
                       onChange={e => setAppEditingLink({ ...appEditingLink, category: e.target.value })}
                       placeholder="e.g. Work, Social, News"
                       list="app-link-categories"
-                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     />
                     {categories.length > 0 && (
                       <datalist id="app-link-categories">
@@ -646,60 +650,60 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     )}
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setShowAppAddForm(false);
                         setAppEditingLink(null);
                       }}
-                      className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                      className="flex-1"
                     >
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
                       onClick={handleAppAddLink}
                       disabled={!appEditingLink.url.trim()}
-                      className="flex-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                      className="flex-1"
                     >
                       Add Link
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
             ) : appEditingLink && appEditingLink.id ? (
               /* Edit existing link form */
               <div className="p-4">
-                <h3 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <h3 className="mb-4 text-sm font-semibold text-foreground">
                   Edit Link
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">URL</label>
-                    <input
+                    <Label className="mb-1 block text-xs">URL</Label>
+                    <Input
                       type="url"
                       value={appEditingLink.url}
                       onChange={e => setAppEditingLink({ ...appEditingLink, url: e.target.value })}
-                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                       autoFocus
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Title</label>
-                    <input
+                    <Label className="mb-1 block text-xs">Title</Label>
+                    <Input
                       type="text"
                       value={appEditingLink.title}
                       onChange={e => setAppEditingLink({ ...appEditingLink, title: e.target.value })}
-                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Category</label>
-                    <input
+                    <Label className="mb-1 block text-xs">Category</Label>
+                    <Input
                       type="text"
                       value={appEditingLink.category || ''}
                       onChange={e => setAppEditingLink({ ...appEditingLink, category: e.target.value })}
                       placeholder="e.g. Work, Social, News"
                       list="app-link-categories-edit"
-                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                     />
                     {categories.length > 0 && (
                       <datalist id="app-link-categories-edit">
@@ -710,28 +714,31 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     )}
                   </div>
                   <div className="flex gap-2 pt-2">
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setAppEditingLink(null);
                       }}
-                      className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                      className="flex-1"
                     >
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      size="sm"
                       onClick={handleAppAddLink}
                       disabled={!appEditingLink.url.trim()}
-                      className="flex-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                      className="flex-1"
                     >
                       Save
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
             ) : rightPanelLink ? (
               /* Preview selected link */
               <div className="p-4">
-                <h3 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                <h3 className="mb-4 text-sm font-semibold text-foreground">
                   Link Details
                 </h3>
                 <div className="space-y-4">
@@ -745,11 +752,11 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                      <p className="truncate text-sm font-medium text-foreground">
                         {rightPanelLink.title}
                       </p>
                       {rightPanelLink.category && (
-                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                           <FolderOpen size={10} />
                           {rightPanelLink.category}
                         </span>
@@ -757,7 +764,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">URL</label>
+                    <Label className="mb-1 block text-xs">URL</Label>
                     <a
                       href={sanitizeUrl(rightPanelLink.url)}
                       target="_blank"
@@ -778,23 +785,25 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                       Open
                     </a>
                     {!readOnly && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => {
                           setAppEditingLink({ ...rightPanelLink });
                           setShowAppAddForm(false);
                         }}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        className="flex-1"
                       >
-                        <Pencil size={12} />
+                        <Pencil size={12} className="mr-1" />
                         Edit
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
               </div>
             ) : (
               /* Empty state */
-              <div className="flex h-full flex-col items-center justify-center p-4 text-center text-gray-400 dark:text-gray-500">
+              <div className="flex h-full flex-col items-center justify-center p-4 text-center text-muted-foreground">
                 <Globe size={24} className="mb-2 opacity-50" />
                 <p className="text-xs">Select a link to preview details</p>
               </div>
@@ -821,22 +830,24 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
       if (isTiny) {
         return (
           <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-            <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">0</div>
-            <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">links</div>
+            <div className="text-lg font-semibold leading-none text-foreground">0</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">links</div>
           </div>
         );
       }
 
       return (
-        <div className="flex h-full flex-col items-center justify-center text-center text-gray-500 dark:text-gray-400">
+        <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
           <p className="text-xs">No links yet</p>
           {!isTiny && (
-            <button
+            <Button
+              variant="link"
+              size="sm"
               onClick={() => startEdit(null)}
-              className="mt-2 text-xs text-blue-500 hover:underline"
+              className="mt-2 text-xs"
             >
               Add link
-            </button>
+            </Button>
           )}
         </div>
       );
@@ -848,11 +859,11 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
           href={sanitizeUrl(firstLink.url)}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex h-full flex-col items-center justify-center gap-1 text-center text-gray-800 dark:text-gray-100"
+          className="flex h-full flex-col items-center justify-center gap-1 text-center text-foreground"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           <div className="text-lg font-semibold leading-none">{links.length}</div>
-          <div className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-gray-400">links</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">links</div>
         </a>
       );
     }
@@ -860,7 +871,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
     if (isShort) {
       return (
         <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
-          <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+          <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-foreground dark:bg-white/[0.06]">
             {links.length} links
           </span>
           {previewLinks.map(link => (
@@ -869,7 +880,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
               href={sanitizeUrl(link.url)}
               target="_blank"
               rel="noopener noreferrer"
-              className={`flex shrink-0 items-center gap-2 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10 ${
+              className={`flex shrink-0 items-center gap-2 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-foreground ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:ring-white/10 ${
                 loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
               }`}
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -896,7 +907,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                   href={sanitizeUrl(link.url)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`flex items-center p-1 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group ${
+                  className={`flex items-center p-1 rounded-md hover:bg-accent transition-all relative text-foreground group ${
                     loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
                   }`}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -916,30 +927,34 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     {loadingLinkIds.includes(link.id) ? 'Loading...' : link.title}
                   </span>
                   <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                    <button 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         startEdit(link);
                       }}
-                      className="p-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                       aria-label={`Edit ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Edit size={10} />
-                    </button>
-                    <button 
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         removeLink(link.id);
                       }}
-                      className="p-0.5 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
                       aria-label={`Remove ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Trash size={10} />
-                    </button>
+                    </Button>
                   </div>
                 </a>
               ))}
@@ -948,19 +963,19 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
             // Regular view - standard list with normal spacing
             <div className="space-y-2 pr-1">
               {links.map(link => (
-                <a 
+                <a
                   key={link.id}
-                  href={sanitizeUrl(link.url)} 
-                  target="_blank" 
+                  href={sanitizeUrl(link.url)}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group ${
+                  className={`flex items-center p-2.5 rounded-lg hover:bg-accent transition-all relative text-foreground group ${
                     loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
                   }`}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   aria-label={`Visit ${link.title} at ${link.url}`}
                 >
                   {showFavicons && (
-                    <img 
+                    <img
                       src={link.favicon}
                       alt=""
                       className={`w-4 h-4 mr-2.5 ${
@@ -973,31 +988,35 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     {loadingLinkIds.includes(link.id) ? 'Loading...' : link.title}
                   </span>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         startEdit(link);
                       }}
-                      className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                       aria-label={`Edit ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Edit size={14} />
-                    </button>
-                    <button 
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         removeLink(link.id);
                       }}
-                      className="p-1 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
                       aria-label={`Remove ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Trash size={14} />
-                    </button>
-                    <ExternalLink size={14} className="text-gray-400" />
+                    </Button>
+                    <ExternalLink size={14} className="text-muted-foreground" />
                   </div>
                 </a>
               ))}
@@ -1007,15 +1026,17 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
 
         {/* Integrated add link form - hidden on small sizes */}
         {isCompactLayout ? (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => startEdit(null)}
-            className="mt-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center justify-center gap-1"
+            className="mt-2 text-xs"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3 h-3 mr-1" />
             Add Link
-          </button>
+          </Button>
         ) : (
-          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+          <div className="mt-3 pt-3 border-t border-border">
             <form
               onSubmit={handleQuickAdd}
               className="flex items-center gap-2"
@@ -1029,14 +1050,15 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                 className="flex-grow"
                 disabled={isLoading}
               />
-              <button
+              <Button
                 type="submit"
-                className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+                variant="ghost"
+                size="icon"
                 disabled={!newLinkUrl.trim() || isLoading}
                 aria-label="Add link"
               >
                 <Plus size={20} />
-              </button>
+              </Button>
             </form>
           </div>
         )}

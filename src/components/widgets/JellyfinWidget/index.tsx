@@ -375,7 +375,7 @@ const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }
 
         {/* Now playing chip */}
         {nowPlaying && (
-          <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 dark:border-white/10 dark:bg-black/20 dark:text-gray-200">
+          <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 text-foreground">
             {nowPlaying.PlayState?.IsPaused ? (
               <Pause className="h-3 w-3 text-purple-500" />
             ) : (
@@ -389,7 +389,7 @@ const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }
 
         {/* Recent count */}
         {recentItems.length > 0 && (
-          <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">
+          <span className="shrink-0 rounded-full bg-muted px-2 py-1 text-muted-foreground">
             {recentItems.length} recent
           </span>
         )}
@@ -398,7 +398,7 @@ const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }
         {activeSessions.slice(1, Math.max(2, width - 1)).map(session => (
           <div
             key={session.Id}
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 dark:border-white/10 dark:bg-black/20 dark:text-gray-200"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 text-foreground"
           >
             {session.PlayState?.IsPaused ? (
               <Pause className="h-3 w-3 text-purple-500" />
@@ -446,7 +446,7 @@ const JellyfinWidget: React.FC<JellyfinWidgetProps> = ({ width, height, config }
           )}
         </div>
         {progress !== null && (
-          <div className={`${compact ? 'w-8' : 'w-12'} h-1 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0`}>
+          <div className={`${compact ? 'w-8' : 'w-12'} h-1 rounded-full bg-secondary flex-shrink-0`}>
             <div
               className="h-full rounded-full bg-purple-500"
               style={{ width: `${progress}%` }}

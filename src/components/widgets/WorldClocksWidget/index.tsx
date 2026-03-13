@@ -479,13 +479,13 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
+        <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-foreground">
           {timeString}
         </div>
-        <div className="max-w-[5.25rem] truncate whitespace-nowrap text-[11px] font-medium leading-none text-gray-700 dark:text-gray-300">
+        <div className="max-w-[5.25rem] truncate whitespace-nowrap text-[11px] font-medium leading-none text-foreground">
           {label}
         </div>
-        <div className="text-[10px] uppercase tracking-[0.22em] text-gray-400 dark:text-gray-500">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           {period}
         </div>
       </div>
@@ -507,17 +507,17 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     return (
       <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
         {/* Primary timezone */}
-        <span className="shrink-0 font-semibold text-sm text-gray-900 dark:text-gray-100">
+        <span className="shrink-0 font-semibold text-sm text-foreground">
           {mainTime}
-          <span className="ml-0.5 text-[10px] font-normal text-gray-500 dark:text-gray-400 uppercase">{mainPeriod}</span>
+          <span className="ml-0.5 text-[10px] font-normal text-muted-foreground uppercase">{mainPeriod}</span>
         </span>
-        <span className="shrink-0 truncate text-[11px] font-medium text-gray-600 dark:text-gray-300">
+        <span className="shrink-0 truncate text-[11px] font-medium text-muted-foreground">
           {mainTz.name.split(',')[0]}
         </span>
 
         {/* Divider */}
         {chipTimezones.length > 0 && (
-          <span className="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+          <span className="h-4 w-px shrink-0 bg-border" />
         )}
 
         {/* Other timezone chips */}
@@ -528,11 +528,11 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
           return (
             <span
               key={tz.id}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1 text-gray-700 ring-1 ring-black/5 dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1 text-foreground ring-1 ring-black/5 dark:border-white/10 dark:bg-black/20 dark:ring-white/10"
             >
               <span className="max-w-[6rem] truncate">{city}</span>
               <span className="font-medium">{t}</span>
-              <span className="text-[10px] uppercase text-gray-400 dark:text-gray-500">{p}</span>
+              <span className="text-[10px] uppercase text-muted-foreground">{p}</span>
             </span>
           );
         })}
@@ -555,14 +555,15 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       <div className="flex h-full flex-col overflow-hidden">
         {/* Title bar for app view */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">World Clocks</h2>
+          <h2 className="text-base font-semibold text-foreground">World Clocks</h2>
           {!readOnly && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowSettings(true)}
-              className="rounded-md px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
             >
               Edit
-            </button>
+            </Button>
           )}
         </div>
 
@@ -586,10 +587,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             return (
               <div
                 key={tz.id}
-                className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50/60 p-4 dark:border-gray-800 dark:bg-gray-800/40 transition-all duration-300"
+                className="flex flex-col items-center justify-center rounded-xl border border-border bg-muted/60 p-4 transition-all duration-300"
               >
                 {/* City name */}
-                <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-gray-200 truncate w-full text-center">
+                <div className="mb-2 text-sm font-semibold text-foreground truncate w-full text-center">
                   {tz.name}
                 </div>
 
@@ -601,19 +602,19 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                 {/* Digital time */}
                 <div className="text-2xl font-light tracking-tighter leading-none">
                   {timeParts}
-                  <span className="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">{period}</span>
+                  <span className="ml-1 text-sm font-normal text-muted-foreground">{period}</span>
                 </div>
 
                 {/* Date line */}
-                <div className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+                <div className="mt-1.5 text-xs text-muted-foreground tracking-wide">
                   {dateLine}
                 </div>
 
                 {/* Day/night + time diff */}
-                <div className="mt-1 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                   <DayNightIcon className="h-3.5 w-3.5" />
                   <span>{day ? 'Day' : 'Night'}</span>
-                  <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
+                  <span className="h-3 w-px bg-border" />
                   <span>{diff}</span>
                 </div>
               </div>
@@ -637,14 +638,14 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
           {timezones.map(tz => (
             <div key={tz.id} className="flex justify-between items-center h-full transition-all duration-300">
               <div className="flex flex-col">
-                <div className="font-medium text-sm tracking-tight text-gray-800 dark:text-gray-200">{tz.name}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">{getTimeDiff(tz.timezone)}</div>
+                <div className="font-medium text-sm tracking-tight text-foreground">{tz.name}</div>
+                <div className="text-xs text-muted-foreground tracking-wide">{getTimeDiff(tz.timezone)}</div>
               </div>
               <div className="flex flex-col items-end">
                 <div className="text-2xl font-light tracking-tighter leading-tight">
                   {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 leading-none tracking-wide">
+                <div className="text-xs text-muted-foreground leading-none tracking-wide">
                   {formatTime(currentTime, tz.timezone).split(' ')[1]}
                 </div>
               </div>
@@ -660,12 +661,12 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         {timezones.map(tz => (
           <div key={tz.id} className="flex justify-between items-center py-1 transition-all duration-300">
             <div className="flex flex-col min-w-0">
-              <div className="font-medium text-xs tracking-tight text-gray-800 dark:text-gray-200 truncate">{tz.name}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">{getTimeDiff(tz.timezone)}</div>
+              <div className="font-medium text-xs tracking-tight text-foreground truncate">{tz.name}</div>
+              <div className="text-xs text-muted-foreground tracking-wide">{getTimeDiff(tz.timezone)}</div>
             </div>
             <div className="text-base font-light tracking-tighter whitespace-nowrap ml-1">
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              <span className="text-xs ml-0.5 text-gray-500 dark:text-gray-400 font-normal tracking-normal">
+              <span className="text-xs ml-0.5 text-muted-foreground font-normal tracking-normal">
                 {formatTime(currentTime, tz.timezone).split(' ')[1]}
               </span>
             </div>
@@ -684,12 +685,12 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     return (
       <div className="grid grid-cols-2 gap-1 p-1 h-full overflow-y-auto">
         {timezones.map(tz => (
-          <div key={tz.id} className="flex flex-col items-center justify-center p-1.5 bg-gray-50 dark:bg-slate-700 dark:bg-opacity-50 rounded">
+          <div key={tz.id} className="flex flex-col items-center justify-center p-1.5 bg-muted dark:bg-opacity-50 rounded">
             <div className="text-base font-bold">
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
             </div>
             <div className="text-xs font-medium truncate w-full text-center">{tz.name}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{getTimeDiff(tz.timezone)}</div>
+            <div className="text-xs text-muted-foreground">{getTimeDiff(tz.timezone)}</div>
           </div>
         ))}
       </div>
@@ -710,7 +711,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         <div className="grid grid-cols-3 gap-3 h-full transition-all duration-300">
           {timezones.map(tz => (
             <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-xs font-medium tracking-tight text-gray-800 dark:text-gray-200 mb-1 truncate w-full text-center">
+              <div className="text-xs font-medium tracking-tight text-foreground mb-1 truncate w-full text-center">
                 {tz.name}
               </div>
               <div className="mb-0.5">
@@ -734,10 +735,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               <div className="text-lg font-light tracking-tighter leading-none">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
               </div>
-              <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
+              <div className="text-xs font-medium tracking-tight text-foreground truncate w-full text-center mt-0.5">
                 {tz.name}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+              <div className="text-xs text-muted-foreground tracking-wide">
                 {getTimeDiff(tz.timezone)}
               </div>
             </div>
@@ -754,10 +755,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             <div className="text-base font-light tracking-tighter leading-none">
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
             </div>
-            <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
+            <div className="text-xs font-medium tracking-tight text-foreground truncate w-full text-center mt-0.5">
               {tz.name}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+            <div className="text-xs text-muted-foreground tracking-wide">
               {getTimeDiff(tz.timezone)}
             </div>
           </div>
@@ -780,16 +781,16 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         <div className="grid grid-cols-2 gap-2 h-full transition-all duration-300">
           {timezones.map(tz => (
             <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-xs font-medium mb-0.5 truncate w-full text-center text-gray-800 dark:text-gray-200">
+              <div className="text-xs font-medium mb-0.5 truncate w-full text-center text-foreground">
                 {tz.name}
               </div>
               <div className="mb-0.5">
                 {renderClock(tz.timezone, 50, isDarkMode)}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
+              <div className="text-xs text-muted-foreground">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
               </div>
-              <div className="text-xs text-gray-400 dark:text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 {getTimeDiff(tz.timezone)}
               </div>
             </div>
@@ -807,11 +808,11 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               {renderClock(tz.timezone, 30, isDarkMode)}
             </div>
             <div className="flex flex-col min-w-0 flex-1">
-              <div className="text-xs font-medium truncate text-gray-800 dark:text-gray-200">{tz.name}</div>
+              <div className="text-xs font-medium truncate text-foreground">{tz.name}</div>
               <div className="text-xs font-bold">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{getTimeDiff(tz.timezone)}</div>
+              <div className="text-xs text-muted-foreground">{getTimeDiff(tz.timezone)}</div>
             </div>
           </div>
         ))}
@@ -831,20 +832,20 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       <div className="grid grid-cols-3 gap-3 h-full overflow-y-auto transition-all duration-300">
         {timezones.map(tz => (
           <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-            <div className="text-sm font-medium mb-1 text-gray-800 dark:text-gray-200 truncate w-full text-center">{tz.name}</div>
+            <div className="text-sm font-medium mb-1 text-foreground truncate w-full text-center">{tz.name}</div>
             <div className="mb-2">
               {renderClock(tz.timezone, 70, isDarkMode)}
             </div>
             <div className="text-lg font-light tracking-tighter">
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
+              <span className="text-sm font-normal text-muted-foreground ml-1">
                 {formatTime(currentTime, tz.timezone).split(' ')[1]}
               </span>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 tracking-wide">
+            <div className="text-xs text-muted-foreground mt-1 tracking-wide">
               {getRelativeDate(currentTime, tz.timezone)}
             </div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 tracking-wide">
+            <div className="text-xs text-muted-foreground tracking-wide">
               {getTimeDiff(tz.timezone)}
             </div>
           </div>
@@ -867,7 +868,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         <div className="grid grid-cols-6 gap-3 h-full transition-all duration-300">
           {timezones.map(tz => (
             <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-sm font-medium tracking-tight text-gray-800 dark:text-gray-200 mb-1 truncate w-full text-center">
+              <div className="text-sm font-medium tracking-tight text-foreground mb-1 truncate w-full text-center">
                 {tz.name}
               </div>
               <div className="relative mb-1">
@@ -875,11 +876,11 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               </div>
               <div className="font-light text-xl tracking-tighter leading-none">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-                <span className="text-xs ml-1 text-gray-500 dark:text-gray-400 font-normal tracking-normal">
+                <span className="text-xs ml-1 text-muted-foreground font-normal tracking-normal">
                   {formatTime(currentTime, tz.timezone).split(' ')[1]}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide mt-0.5">
+              <div className="text-xs text-muted-foreground tracking-wide mt-0.5">
                 {getTimeDiff(tz.timezone)}
               </div>
             </div>
@@ -897,10 +898,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               <div className="font-light text-lg tracking-tighter leading-none">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
               </div>
-              <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
+              <div className="text-xs font-medium tracking-tight text-foreground truncate w-full text-center mt-0.5">
                 {tz.name}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+              <div className="text-xs text-muted-foreground tracking-wide">
                 {getTimeDiff(tz.timezone)}
               </div>
             </div>
@@ -917,10 +918,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             <div className="font-light text-lg tracking-tighter leading-none">
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
             </div>
-            <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
+            <div className="text-xs font-medium tracking-tight text-foreground truncate w-full text-center mt-0.5">
               {tz.name}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+            <div className="text-xs text-muted-foreground tracking-wide">
               {getTimeDiff(tz.timezone)}
             </div>
           </div>
@@ -941,7 +942,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       <div className="grid grid-cols-2 gap-4 h-full transition-all duration-300">
         {timezones.map(tz => (
           <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-            <div className="text-sm font-medium tracking-tight text-gray-800 dark:text-gray-200 mb-1 truncate w-full text-center">
+            <div className="text-sm font-medium tracking-tight text-foreground mb-1 truncate w-full text-center">
               {tz.name}
             </div>
             <div className="relative mb-1">
@@ -951,11 +952,11 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
             </div>
             <div className="flex items-center justify-center space-x-2 mt-1">
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+              <div className="text-xs text-muted-foreground tracking-wide">
                 {getTimeDiff(tz.timezone)}
               </div>
-              <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 leading-none tracking-wide">
+              <div className="w-1 h-1 bg-border rounded-full"></div>
+              <div className="text-xs text-muted-foreground leading-none tracking-wide">
                 {formatTime(currentTime, tz.timezone).split(' ')[1]}
               </div>
             </div>
@@ -974,14 +975,14 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     if (timezones.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No timezones added</p>
+          <p className="text-sm text-muted-foreground mb-2">No timezones added</p>
           {!readOnly && (
-            <button
+            <Button
+              size="sm"
               onClick={() => setShowSettings(true)}
-              className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
             >
               Add Timezone
-            </button>
+            </Button>
           )}
         </div>
       );
@@ -1195,22 +1196,22 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               </div>
 
               {searchResults.length > 0 && (
-                <div className="mt-1 border rounded-md overflow-hidden max-h-60 overflow-y-auto bg-white dark:bg-gray-800">
+                <div className="mt-1 border rounded-md overflow-hidden max-h-60 overflow-y-auto bg-card">
                   {searchResults.map((result, index) => (
                     <div
                       key={index}
-                      className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-0"
+                      className="px-3 py-2 hover:bg-accent cursor-pointer border-b border-border last:border-0"
                       onClick={() => selectCity(result)}
                     >
                       <div className="font-medium">{result.city}, {result.country}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{result.timezone}</div>
+                      <div className="text-xs text-muted-foreground">{result.timezone}</div>
                     </div>
                   ))}
                 </div>
               )}
 
               {citySearchInput && searchResults.length === 0 && !isSearching && (
-                <div className="text-sm text-gray-500 mt-1 px-1">
+                <div className="text-sm text-muted-foreground mt-1 px-1">
                   No cities found. Try a different search term.
                 </div>
               )}
@@ -1223,7 +1224,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span>Current Timezones</span>
-                <div className="text-xs text-gray-500 font-normal">Drag to reorder</div>
+                <div className="text-xs text-muted-foreground font-normal">Drag to reorder</div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -1232,10 +1233,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   key={tz.id}
                   className={`flex justify-between items-center p-2 rounded-lg border ${
                     draggedItemIndex === index
-                      ? 'bg-gray-100 dark:bg-gray-700 border-blue-300 dark:border-blue-500 opacity-50'
+                      ? 'bg-muted border-blue-300 dark:border-blue-500 opacity-50'
                       : dragOverItemIndex === index
-                        ? 'bg-gray-50 dark:bg-gray-800 border-blue-200 dark:border-blue-700'
-                        : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                        ? 'bg-muted border-blue-200 dark:border-blue-700'
+                        : 'bg-muted border-border'
                   } transition-colors duration-150`}
                   draggable
                   onDragStart={() => handleDragStart(index)}
@@ -1244,19 +1245,19 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   onDragEnd={handleDragEnd}
                 >
                   <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                    <div className="cursor-move flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <div className="cursor-move flex items-center justify-center text-muted-foreground hover:text-foreground">
                       <GripVertical size={16} />
                     </div>
                     <div className="overflow-hidden">
                       <div className="font-medium truncate">{tz.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{tz.timezone}</div>
+                      <div className="text-xs text-muted-foreground truncate">{tz.timezone}</div>
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removeTimezone(tz.id)}
-                    className="text-gray-500 hover:text-red-500 ml-2 shrink-0"
+                    className="text-muted-foreground hover:text-red-500 ml-2 shrink-0"
                   >
                     <Trash size={16} />
                   </Button>

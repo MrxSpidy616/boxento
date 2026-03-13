@@ -41,7 +41,7 @@ const getPriorityColor = (priority: number) => {
     case 4: return 'text-red-500';
     case 3: return 'text-orange-500';
     case 2: return 'text-blue-500';
-    default: return 'text-gray-400';
+    default: return 'text-muted-foreground';
   }
 };
 
@@ -50,7 +50,7 @@ const getPriorityBorder = (priority: number) => {
     case 4: return 'border-red-500 hover:border-red-600';
     case 3: return 'border-orange-500 hover:border-orange-600';
     case 2: return 'border-blue-500 hover:border-blue-600';
-    default: return 'border-gray-400 dark:border-gray-500 hover:border-[#db4c3f] dark:hover:border-[#db4c3f]';
+    default: return 'border-border hover:border-[#db4c3f]';
   }
 };
 
@@ -112,7 +112,7 @@ const TaskContent = memo(({ content, completed, className }: { content: string; 
   }, [content]);
 
   return (
-    <span className={`flex-grow ${completed ? 'line-through text-gray-500' : ''} ${className || ''}`}>
+    <span className={`flex-grow ${completed ? 'line-through text-muted-foreground' : ''} ${className || ''}`}>
       {formattedContent}
     </span>
   );
@@ -135,7 +135,7 @@ const Task = memo(({
   compact?: boolean;
 }) => {
   return (
-    <div className={`flex items-center ${compact ? 'gap-2 py-1 px-1' : 'gap-3 p-2'} hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg group`}>
+    <div className={`flex items-center ${compact ? 'gap-2 py-1 px-1' : 'gap-3 p-2'} hover:bg-accent rounded-lg group`}>
       {!readOnly && (
         <button
           onClick={() => onToggle(task.id, !task.completed)}
@@ -176,14 +176,14 @@ const Task = memo(({
             href={task.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
             aria-label="Open in Todoist"
           >
             <ExternalLink className={`${compact ? 'w-3 h-3' : 'w-4 h-4'}`} />
           </a>
         </div>
         {task.due && !compact && (
-          <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
             <CalendarIcon className="w-3 h-3" />
             <span>{task.due.string}</span>
           </div>
@@ -432,7 +432,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
       return (
         <div className="widget-container h-full flex flex-col widget-drag-handle">
           <div className="flex-1 flex items-center justify-center p-1" onClick={() => !readOnly && setShowSettings(true)}>
-            <CheckSquare className="w-5 h-5 text-gray-400" />
+            <CheckSquare className="w-5 h-5 text-muted-foreground" />
           </div>
           {renderSettingsDialog()}
         </div>
@@ -481,7 +481,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
 
   function renderEmptyState() {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400 gap-2">
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
         <CheckSquare className="w-6 h-6" />
         <span className="text-sm">No tasks found</span>
       </div>
@@ -492,10 +492,10 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
   function renderTiny() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-        <div className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
+        <div className="text-lg font-semibold leading-none text-foreground">
           {pendingCount}
         </div>
-        <div className="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
           tasks
         </div>
       </div>
@@ -510,7 +510,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
     const previewTasks = filteredTasks.filter(t => !t.completed).slice(0, Math.max(2, width));
     return (
       <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
-        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+        <span className="shrink-0 rounded-full bg-muted px-2 py-1 font-medium text-foreground">
           {pendingCount} tasks
         </span>
         {previewTasks.map(task => (
@@ -519,7 +519,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
             href={task.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-gray-700 ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10 max-w-[10rem] truncate"
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1.5 text-foreground transition-colors hover:bg-accent max-w-[10rem] truncate"
           >
             {task.priority >= 3 && <Flag className={`w-3 h-3 flex-shrink-0 ${getPriorityColor(task.priority)}`} />}
             <span className="truncate">{task.content}</span>
@@ -593,7 +593,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
         {/* Summary bar */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="rounded-full bg-black/[0.04] px-2.5 py-1 font-medium text-foreground dark:bg-white/[0.06]">
+            <span className="rounded-full bg-muted px-2.5 py-1 font-medium text-foreground">
               {pending.length} pending
             </span>
             {completed.length > 0 && (
@@ -770,7 +770,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
                         className={`cursor-pointer ${selectedTaskId === task.id ? 'bg-accent/50' : ''}`}
                         onClick={() => setSelectedTaskId(task.id === selectedTaskId ? null : task.id)}
                       >
-                        <div className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg group">
+                        <div className="flex items-center gap-3 px-3 py-2 hover:bg-accent rounded-lg group">
                           {!readOnly ? (
                             <button
                               onClick={(e) => {
@@ -817,7 +817,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </a>
