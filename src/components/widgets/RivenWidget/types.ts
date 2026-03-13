@@ -13,6 +13,35 @@ export interface TMDBResult {
   first_air_date?: string;
   overview: string;
   vote_average: number;
+  genre_ids?: number[];
+  popularity?: number;
+}
+
+/**
+ * Riven media item from the API
+ */
+export interface RivenItem {
+  _id: string;
+  title: string;
+  type: 'movie' | 'show';
+  imdb_id?: string;
+  tvdb_id?: number;
+  tmdb_id?: string;
+  state: string;
+  scraped_at?: string;
+  updated_at?: string;
+  requested_at?: string;
+  requested_by?: string;
+}
+
+/**
+ * Riven stats from the API
+ */
+export interface RivenStats {
+  total_items: number;
+  total_movies: number;
+  total_shows: number;
+  states: Record<string, number>;
 }
 
 /**
@@ -27,6 +56,7 @@ export interface RivenWidgetConfig {
   tmdbToken?: string; // Optional custom TMDB token (defaults to Riven's public token)
   onUpdate?: (config: RivenWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

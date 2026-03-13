@@ -95,6 +95,11 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'github-streak',
   'flight-tracker',
   'geography-quiz',
+  'jellyfin',
+  'reader',
+  'paisa',
+  'fava',
+  'riven',
 ]);
 
 // Widget registry with enhanced metadata

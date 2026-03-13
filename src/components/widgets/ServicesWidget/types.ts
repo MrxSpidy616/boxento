@@ -24,6 +24,7 @@ export interface ServicesWidgetConfig {
   checkInterval?: number; // Status check interval in seconds (default: 60)
   onUpdate?: (config: ServicesWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

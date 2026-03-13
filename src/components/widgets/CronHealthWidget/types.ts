@@ -31,6 +31,7 @@ export interface CronHealthWidgetConfig {
   refreshInterval?: number; // Refresh interval in seconds (default: 60)
   onUpdate?: (config: CronHealthWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 
