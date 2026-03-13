@@ -31,6 +31,8 @@ const JellyfinWidget = React.lazy(() => import('./JellyfinWidget/index'));
 const FavaWidget = React.lazy(() => import('./FavaWidget/index'));
 const RivenWidget = React.lazy(() => import('./RivenWidget/index'));
 const CronHealthWidget = React.lazy(() => import('./CronHealthWidget/index'));
+const KumaWidget = React.lazy(() => import('./KumaWidget/index'));
+const HealthchecksWidget = React.lazy(() => import('./HealthchecksWidget/index'));
 
 // Export widget types
 export * from './CalendarWidget/types';
@@ -62,6 +64,8 @@ export * from './JellyfinWidget/types';
 export * from './FavaWidget/types';
 export * from './RivenWidget/types';
 export * from './CronHealthWidget/types';
+export * from './KumaWidget/types';
+export * from './HealthchecksWidget/types';
 
 // Enhanced Widget Config
 export interface EnhancedWidgetConfig extends WidgetConfig {
@@ -100,6 +104,8 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'paisa',
   'fava',
   'riven',
+  'kuma',
+  'healthchecks',
 ]);
 
 // Widget registry with enhanced metadata
@@ -413,6 +419,28 @@ const BASE_WIDGET_REGISTRY: EnhancedWidgetConfig[] = [
     description: 'Quick access to Riven media automation'
   },
   {
+    type: 'kuma',
+    name: 'Uptime Kuma',
+    icon: 'Activity',
+    minWidth: 2,
+    minHeight: 2,
+    defaultWidth: 3,
+    defaultHeight: 4,
+    category: 'Self-hosted',
+    description: 'Display service monitors from an Uptime Kuma status feed'
+  },
+  {
+    type: 'healthchecks',
+    name: 'Healthchecks',
+    icon: 'Clock',
+    minWidth: 2,
+    minHeight: 2,
+    defaultWidth: 3,
+    defaultHeight: 4,
+    category: 'Self-hosted',
+    description: 'Display cron and dead-man-switch checks from Healthchecks'
+  },
+  {
     type: 'cron-health',
     name: 'System Health',
     icon: 'Activity',
@@ -481,6 +509,8 @@ const WIDGET_COMPONENTS: Record<string, LazyWidgetComponent> = {
   'jellyfin': JellyfinWidget as unknown as LazyWidgetComponent,
   'fava': FavaWidget as unknown as LazyWidgetComponent,
   'riven': RivenWidget as unknown as LazyWidgetComponent,
+  'kuma': KumaWidget as unknown as LazyWidgetComponent,
+  'healthchecks': HealthchecksWidget as unknown as LazyWidgetComponent,
   'cron-health': CronHealthWidget as unknown as LazyWidgetComponent,
 };
 

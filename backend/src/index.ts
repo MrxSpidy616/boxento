@@ -47,7 +47,72 @@ interface WidgetInput {
   type: string;
 }
 
+interface KumaStatusPageConfig {
+  slug: string;
+  title: string;
+}
+
+interface KumaStatusPageMonitor {
+  id: number;
+  name: string;
+  type: string;
+}
+
+interface KumaStatusPageGroup {
+  id: number;
+  name: string;
+  monitorList: KumaStatusPageMonitor[];
+}
+
+interface KumaStatusPageResponse {
+  config: KumaStatusPageConfig;
+  publicGroupList: KumaStatusPageGroup[];
+}
+
+interface KumaHeartbeat {
+  status: number;
+  time: string;
+  msg: string;
+  ping: number | null;
+}
+
+interface KumaHeartbeatResponse {
+  heartbeatList: Record<string, KumaHeartbeat[]>;
+  uptimeList: Record<string, number>;
+}
+
+interface HealthchecksApiCheck {
+  name: string;
+  slug: string;
+  tags: string;
+  desc: string;
+  status: string;
+  started: boolean;
+  last_ping: string | null;
+  next_ping: string | null;
+  last_duration?: number;
+  grace: number;
+  timeout: number;
+}
+
+interface HealthchecksApiResponse {
+  checks: HealthchecksApiCheck[];
+}
+
 const app = new Hono();
+
+const fetchJson = async <T>(url: string, init?: RequestInit): Promise<T> => {
+  const response = await fetch(url, {
+    ...init,
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Fetch failed for ${url}: HTTP ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+};
 
 // Middleware
 app.use('*', logger());
@@ -63,6 +128,127 @@ const db = getDatabase();
 // Health check
 app.get('/api/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/monitoring/kuma', async (c) => {
+  const baseUrl = process.env.UPTIME_KUMA_BASE_URL;
+  const slug = process.env.UPTIME_KUMA_STATUS_PAGE_SLUG;
+
+  if (!baseUrl || !slug) {
+    return c.json({ error: 'Kuma monitoring is not configured' }, 503);
+  }
+
+  try {
+    const normalizedBase = baseUrl.replace(/\/$/, '');
+    const [statusPage, heartbeats] = await Promise.all([
+      fetchJson<KumaStatusPageResponse>(`${normalizedBase}/api/status-page/${slug}`),
+      fetchJson<KumaHeartbeatResponse>(`${normalizedBase}/api/status-page/heartbeat/${slug}`),
+    ]);
+
+    const monitors = statusPage.publicGroupList.flatMap((group) =>
+      group.monitorList.map((monitor) => {
+        const history = heartbeats.heartbeatList[String(monitor.id)] ?? [];
+        const latest = history.at(-1) ?? null;
+        const status = latest?.status === 1
+          ? 'up'
+          : latest?.status === 0
+            ? 'down'
+            : latest?.status === 2
+              ? 'pending'
+              : latest?.status === 3
+                ? 'maintenance'
+                : 'unknown';
+
+        return {
+          id: monitor.id,
+          name: monitor.name,
+          group: group.name,
+          type: monitor.type,
+          status,
+          ping: latest?.ping ?? null,
+          message: latest?.msg || null,
+          lastChecked: latest?.time ? new Date(latest.time.replace(' ', 'T') + 'Z').toISOString() : null,
+          uptime24: heartbeats.uptimeList[`${monitor.id}_24`] ?? null,
+        };
+      }),
+    );
+
+    const summary = monitors.reduce(
+      (acc, monitor) => {
+        acc.total += 1;
+        if (monitor.status === 'up') acc.up += 1;
+        if (monitor.status === 'down') acc.down += 1;
+        if (monitor.status === 'pending') acc.pending += 1;
+        if (monitor.status === 'maintenance') acc.maintenance += 1;
+        return acc;
+      },
+      { total: 0, up: 0, down: 0, pending: 0, maintenance: 0 },
+    );
+
+    return c.json({
+      dashboardUrl: `${normalizedBase}/status/${slug}`,
+      monitors,
+      summary,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch Kuma data' }, 502);
+  }
+});
+
+app.get('/api/monitoring/healthchecks', async (c) => {
+  const baseUrl = process.env.HEALTHCHECKS_BASE_URL;
+  const apiKey = process.env.HEALTHCHECKS_READONLY_API_KEY;
+
+  if (!baseUrl || !apiKey) {
+    return c.json({ error: 'Healthchecks monitoring is not configured' }, 503);
+  }
+
+  try {
+    const normalizedBase = baseUrl.replace(/\/$/, '');
+    const payload = await fetchJson<HealthchecksApiResponse>(`${normalizedBase}/api/v3/checks/`, {
+      headers: {
+        'X-Api-Key': apiKey,
+      },
+    });
+
+    const checks = payload.checks.map((check) => ({
+      name: check.name,
+      slug: check.slug,
+      tags: check.tags,
+      description: check.desc,
+      status: check.status,
+      started: check.started,
+      lastPing: check.last_ping,
+      nextPing: check.next_ping,
+      lastDuration: check.last_duration ?? null,
+      graceSeconds: check.grace,
+      timeoutSeconds: check.timeout,
+    }));
+
+    const summary = checks.reduce(
+      (acc, check) => {
+        acc.total += 1;
+        if (check.status === 'up') acc.up += 1;
+        if (check.status === 'down') acc.down += 1;
+        if (check.status === 'grace') acc.grace += 1;
+        if (check.status === 'late') acc.late += 1;
+        if (check.status === 'new') acc.new += 1;
+        if (check.status === 'paused') acc.paused += 1;
+        return acc;
+      },
+      { total: 0, up: 0, down: 0, grace: 0, late: 0, new: 0, paused: 0 },
+    );
+
+    return c.json({
+      dashboardUrl: normalizedBase,
+      checks,
+      summary,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : 'Failed to fetch Healthchecks data' }, 502);
+  }
 });
 
 // ============ Dashboard Routes ============
