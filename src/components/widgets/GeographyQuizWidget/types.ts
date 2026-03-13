@@ -33,14 +33,19 @@ export interface QuizQuestion {
 }
 
 /**
+ * A single completed quiz round result for history/leaderboard
+ */
+export interface QuizRound {
+  id: string;
+  score: number;
+  total: number;
+  date: string;
+  difficulty: QuizDifficulty;
+  category: QuestionType;
+}
+
+/**
  * Configuration options for the Geography Quiz widget
- * 
- * @interface GeographyQuizWidgetConfig
- * @property {string} [id] - Unique identifier for the widget instance
- * @property {string} [title] - Title to display in the widget header
- * @property {QuizDifficulty} [difficulty] - Quiz difficulty level
- * @property {QuestionType} [questionType] - Type of geography questions to show
- * @property {number} [questionsPerRound] - Number of questions per quiz round
  */
 export interface GeographyQuizWidgetConfig {
   id?: string;
@@ -48,14 +53,14 @@ export interface GeographyQuizWidgetConfig {
   difficulty?: QuizDifficulty;
   questionType?: QuestionType;
   questionsPerRound?: number;
+  history?: QuizRound[];
   onUpdate?: (config: GeographyQuizWidgetConfig) => void;
   onDelete?: () => void;
-  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
+  readOnly?: boolean;
+  [key: string]: unknown;
 }
 
 /**
  * Props for the Geography Quiz widget component
- * 
- * @type GeographyQuizWidgetProps
  */
-export type GeographyQuizWidgetProps = WidgetProps<GeographyQuizWidgetConfig>; 
+export type GeographyQuizWidgetProps = WidgetProps<GeographyQuizWidgetConfig>;

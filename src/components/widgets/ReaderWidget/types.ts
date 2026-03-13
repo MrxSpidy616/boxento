@@ -23,6 +23,7 @@ export interface ReaderDocument {
 }
 
 export interface ReaderWidgetConfig {
+  id?: string;
   title?: string;
   apiToken?: string;
   refreshInterval?: number;
@@ -31,6 +32,7 @@ export interface ReaderWidgetConfig {
   showImage?: boolean;
   showSummary?: boolean;
   showProgress?: boolean;
+  readOnly?: boolean;
   onDelete?: () => void;
   onUpdate?: (config: ReaderWidgetConfig) => void;
   [key: string]: unknown;

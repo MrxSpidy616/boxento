@@ -58,11 +58,14 @@ export interface CalendarWidgetConfig {
   id?: string;
   events?: CalendarEvent[];
   defaultView?: 'day' | 'week' | 'month';
+  viewMode?: 'month' | 'week' | 'day';
   startDay?: 'sunday' | 'monday';
   showWeekNumbers?: boolean;
   googleCalendarConnected?: boolean;
   calendars?: CalendarSource[];
   onUpdate?: (config: CalendarWidgetConfig) => void;
+  onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
 }
 

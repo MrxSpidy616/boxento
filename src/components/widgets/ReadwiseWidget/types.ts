@@ -50,6 +50,16 @@ export interface ReadwiseHighlight {
  * @property {function} [onUpdate] - Callback for updating widget configuration
  * @property {function} [onDelete] - Callback for deleting the widget
  */
+export interface ReadwiseBook {
+  id: number;
+  title: string;
+  author: string;
+  category: string;
+  num_highlights: number;
+  cover_image_url?: string;
+  source_url?: string;
+}
+
 export interface ReadwiseWidgetConfig {
   id?: string;
   title?: string;
@@ -59,7 +69,8 @@ export interface ReadwiseWidgetConfig {
   showTags?: boolean;
   onUpdate?: (config: ReadwiseWidgetConfig) => void;
   onDelete?: () => void;
-  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
+  readOnly?: boolean;
+  [key: string]: unknown;
 }
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useVisibilityRefresh } from '../../../lib/useVisibilityRefresh';
 import {
   Dialog,
@@ -12,90 +12,53 @@ import { GitHubStreakWidgetProps, GitHubStreakWidgetConfig } from './types';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
-import { Checkbox } from '../../ui/checkbox';
-import { AlertCircle, Github, Shield } from 'lucide-react';
+import { Switch } from '../../ui/switch';
+import {
+  AlertCircle,
+  Flame,
+  Github,
+  Shield,
+  Trophy,
+  Calendar,
+  GitCommit,
+  TrendingUp,
+} from 'lucide-react';
 import { Skeleton } from '../../ui/skeleton';
 
-/**
- * Size categories for widget content rendering
- * This enum provides clear naming for different widget dimensions
- */
-enum WidgetSizeCategory {
-  SMALL = 'small',         // 2x2
-  WIDE_SMALL = 'wideSmall', // 3x2 
-  TALL_SMALL = 'tallSmall', // 2x3
-  MEDIUM = 'medium',       // 3x3
-  WIDE_MEDIUM = 'wideMedium', // 4x3
-  TALL_MEDIUM = 'tallMedium', // 3x4
-  LARGE = 'large'          // 4x4
+interface ContributionDay {
+  date: string;
+  count: number;
 }
 
-/**
- * GitHub contribution data interface
- */
-interface GitHubContributionData {
-  username: string;
-  currentStreak: number;
-  longestStreak: number;
-  totalContributions: number;
-  contributionsByDay: {
-    date: string;
-    count: number;
-  }[];
-  loading: boolean;
-  error: string | null;
-}
-
-/**
- * GitHub contribution day interface
- */
 interface GitHubContributionDay {
   contributionCount: number;
   date: string;
 }
 
-/**
- * GitHub contribution week interface
- */
 interface GitHubContributionWeek {
   contributionDays: GitHubContributionDay[];
 }
 
-/**
- * GitHub contribution calendar interface
- */
 interface GitHubContributionCalendar {
   totalContributions: number;
   weeks: GitHubContributionWeek[];
 }
 
-/**
- * GitHub contributions collection interface
- */
 interface GitHubContributionsCollection {
   contributionCalendar: GitHubContributionCalendar;
 }
 
-/**
- * GitHub user interface
- */
 interface GitHubUser {
   name: string;
   contributionsCollection: GitHubContributionsCollection;
 }
 
-/**
- * GitHub API error interface
- */
 interface GitHubAPIError {
   message: string;
   type?: string;
   path?: string[];
 }
 
-/**
- * GitHub API response interface
- */
 interface GitHubAPIResponse {
   data?: {
     user?: GitHubUser;
@@ -103,73 +66,100 @@ interface GitHubAPIResponse {
   errors?: GitHubAPIError[];
 }
 
-/**
- * GitHubStreakWidget Component
- * 
- * A widget that displays a user's GitHub contribution streak and contribution graph
- * 
- * @param {GitHubStreakWidgetProps} props - Component props
- * @returns {JSX.Element} Widget component
- */
-const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, config }) => {
-  // Default configuration
-  const defaultConfig: GitHubStreakWidgetConfig = {
-    title: 'GitHub Streak',
-    username: '',
-    showContributionGraph: true,
-    daysToShow: 30,
-    personalAccessToken: '' // Default to no token
-  };
+interface GitHubData {
+  username: string;
+  currentStreak: number;
+  longestStreak: number;
+  totalContributions: number;
+  contributionsByDay: ContributionDay[];
+  todayContributions: number;
+  loading: boolean;
+  error: string | null;
+}
 
-  // Component state
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+const defaultConfig: GitHubStreakWidgetConfig = {
+  title: 'GitHub Streak',
+  username: '',
+  showContributionGraph: true,
+  daysToShow: 30,
+  personalAccessToken: '',
+};
+
+const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, config }) => {
+  // --- Size detection (icon -> widget -> app spectrum) ---
+  const isTiny = width === 1 && height === 1;
+  const isShort = height === 1 && width > 1;
+  const isCompact = width <= 2 || height <= 2;
+  const isWide = width >= 4;
+  const isTall = height >= 4;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
+
+  const [showSettings, setShowSettings] = useState(false);
   const [localConfig, setLocalConfig] = useState<GitHubStreakWidgetConfig>({
     ...defaultConfig,
-    ...config
+    ...config,
   });
-  
-  const [githubData, setGithubData] = useState<GitHubContributionData>({
+
+  const [githubData, setGithubData] = useState<GitHubData>({
     username: '',
     currentStreak: 0,
     longestStreak: 0,
     totalContributions: 0,
     contributionsByDay: [],
+    todayContributions: 0,
     loading: false,
-    error: null
+    error: null,
   });
-  
-  // Ref for the widget container
-  const widgetRef = useRef<HTMLDivElement | null>(null);
-  
-  // Update local config when props config changes
-  useEffect(() => {
-    setLocalConfig((prevConfig: GitHubStreakWidgetConfig) => ({
-      ...prevConfig,
-      ...config
-    }));
-  }, [config]);
-  
-  // Ref to track abort controller for cleanup
+
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Sync with external config changes
+  useEffect(() => {
+    setLocalConfig(prev => ({ ...prev, ...config }));
+  }, [config]);
+
+  // Snapshot/revert for settings modal
+  const configSnapshotRef = useRef<GitHubStreakWidgetConfig>(localConfig);
+
+  const handleSettingsOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        configSnapshotRef.current = { ...localConfig };
+      } else {
+        setLocalConfig(configSnapshotRef.current);
+      }
+      setShowSettings(nextOpen);
+    },
+    [localConfig]
+  );
+
+  const saveSettings = useCallback(() => {
+    configSnapshotRef.current = { ...localConfig };
+    if (config?.onUpdate) {
+      config.onUpdate(localConfig);
+    }
+    setShowSettings(false);
+  }, [config, localConfig]);
+
+  const handleCancelSettings = useCallback(() => {
+    setLocalConfig(configSnapshotRef.current);
+    setShowSettings(false);
+  }, []);
 
   // Fetch GitHub contribution data
   const fetchGitHubData = useCallback(async () => {
-    // Skip if no username is provided
-    if (!localConfig.username) {
-      return;
-    }
+    if (!localConfig.username) return;
 
-    // Skip if no token is provided
     if (!localConfig.personalAccessToken) {
       setGithubData(prev => ({
         ...prev,
         loading: false,
-        error: 'GitHub API requires a Personal Access Token. Please add one in widget settings.'
+        error: 'GitHub API requires a Personal Access Token. Please add one in widget settings.',
       }));
       return;
     }
 
-    // Abort any in-flight request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -179,11 +169,7 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     setGithubData(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      // GitHub contributions API using GitHub's GraphQL API
       const username = localConfig.username;
-
-      // Fetch contribution data for the last 365 days
-      // Using GitHub GraphQL API
       const query = `
         query {
           user(login: "${username}") {
@@ -203,31 +189,28 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
         }
       `;
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': `bearer ${localConfig.personalAccessToken}`
-      };
-
       const response = await fetch('https://api.github.com/graphql', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `bearer ${localConfig.personalAccessToken}`,
+        },
         body: JSON.stringify({ query }),
-        signal
+        signal,
       });
 
       if (!response.ok) {
         if (response.status === 403) {
-          throw new Error('GitHub API access forbidden. This could be due to rate limiting or an invalid token.');
+          throw new Error('GitHub API access forbidden. Could be rate limiting or an invalid token.');
         } else if (response.status === 401) {
-          throw new Error('Invalid GitHub Personal Access Token. Please update it in widget settings.');
+          throw new Error('Invalid GitHub Personal Access Token.');
         } else {
           throw new Error(`GitHub API error: ${response.status}`);
         }
       }
 
-      const result = await response.json() as GitHubAPIResponse;
+      const result = (await response.json()) as GitHubAPIResponse;
 
-      // Check for errors in the response
       if (result.errors && result.errors.length > 0) {
         throw new Error(result.errors[0].message || 'Error fetching GitHub data');
       }
@@ -236,69 +219,55 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
         throw new Error(`GitHub user "${username}" not found`);
       }
 
-      const userData = result.data.user;
-      const contributionData = userData.contributionsCollection.contributionCalendar;
+      const contributionData = result.data.user.contributionsCollection.contributionCalendar;
 
-      // Extract contribution days from weeks
-      const contributionDays: { date: string; count: number }[] = [];
+      const contributionDays: ContributionDay[] = [];
       contributionData.weeks.forEach((week: GitHubContributionWeek) => {
         week.contributionDays.forEach((day: GitHubContributionDay) => {
-          contributionDays.push({
-            date: day.date,
-            count: day.contributionCount
-          });
+          contributionDays.push({ date: day.date, count: day.contributionCount });
         });
       });
 
-      // Sort by date
       contributionDays.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // Calculate current streak
-      let currentStreak = 0;
+      // Calculate streaks
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-
-      // Get yesterday's date for checking if the streak is still active
+      const todayStr = today.toISOString().split('T')[0];
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-      // Check if yesterday had contributions to maintain streak
+      const todayData = contributionDays.find(d => d.date === todayStr);
+      const todayContributions = todayData?.count ?? 0;
+
       const hasYesterdayContribution = contributionDays.some(
-        day => day.date === yesterdayStr && day.count > 0
+        d => d.date === yesterdayStr && d.count > 0
       );
 
-      // If no contribution yesterday, streak is broken
-      if (!hasYesterdayContribution) {
-        // Check if there was a contribution today to start a new streak
-        const todayStr = today.toISOString().split('T')[0];
-        const hasTodayContribution = contributionDays.some(
-          day => day.date === todayStr && day.count > 0
-        );
+      let currentStreak = 0;
 
-        currentStreak = hasTodayContribution ? 1 : 0;
+      if (!hasYesterdayContribution) {
+        currentStreak = todayContributions > 0 ? 1 : 0;
       } else {
-        // Count consecutive days with contributions
-        // Start from the most recent day (excluding today)
         for (let i = contributionDays.length - 1; i >= 0; i--) {
           const dayData = contributionDays[i];
           const dayDate = new Date(dayData.date);
 
-          // Skip future days and today
           if (dayDate > yesterday) continue;
 
-          // If this day doesn't match the expected next day in streak, break
           if (i < contributionDays.length - 1) {
             const prevDate = new Date(contributionDays[i + 1].date);
             const expectedDate = new Date(prevDate);
             expectedDate.setDate(expectedDate.getDate() - 1);
-
-            if (dayDate.toISOString().split('T')[0] !== expectedDate.toISOString().split('T')[0]) {
+            if (
+              dayDate.toISOString().split('T')[0] !==
+              expectedDate.toISOString().split('T')[0]
+            ) {
               break;
             }
           }
 
-          // Add to streak if there were contributions
           if (dayData.count > 0) {
             currentStreak++;
           } else {
@@ -306,18 +275,11 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
           }
         }
 
-        // Add today if there was a contribution
-        const todayStr = today.toISOString().split('T')[0];
-        const hasTodayContribution = contributionDays.some(
-          day => day.date === todayStr && day.count > 0
-        );
-
-        if (hasTodayContribution) {
+        if (todayContributions > 0) {
           currentStreak++;
         }
       }
 
-      // Calculate longest streak
       let longestStreak = 0;
       let currentLongestStreak = 0;
 
@@ -326,14 +288,11 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
           currentLongestStreak++;
 
           if (i > 0) {
-            // Check if this day is consecutive to the previous one
             const currentDate = new Date(contributionDays[i].date);
             const prevDate = new Date(contributionDays[i - 1].date);
-
-            const diffTime = Math.abs(currentDate.getTime() - prevDate.getTime());
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            // If days are not consecutive, reset streak
+            const diffDays = Math.ceil(
+              Math.abs(currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24)
+            );
             if (diffDays !== 1) {
               currentLongestStreak = 1;
             }
@@ -345,7 +304,6 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
         }
       }
 
-      // Set the contribution data only if not aborted
       if (!signal.aborted) {
         setGithubData({
           username,
@@ -353,29 +311,28 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
           longestStreak,
           totalContributions: contributionData.totalContributions,
           contributionsByDay: contributionDays,
+          todayContributions,
           loading: false,
-          error: null
+          error: null,
         });
       }
-
     } catch (error) {
-      // Only update state if not aborted
       if (!signal.aborted) {
         console.error('Failed to fetch GitHub data:', error);
         setGithubData(prev => ({
           ...prev,
           loading: false,
-          error: error instanceof Error ? error.message : 'Failed to fetch GitHub data. Please check the username and try again.'
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Failed to fetch GitHub data.',
         }));
       }
     }
   }, [localConfig.username, localConfig.personalAccessToken]);
 
-  // Fetch data on mount and when config changes
   useEffect(() => {
     fetchGitHubData();
-
-    // Cleanup function to abort fetch on unmount
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -383,510 +340,377 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     };
   }, [fetchGitHubData]);
 
-  // Auto-refresh when tab becomes visible or every 5 minutes
   useVisibilityRefresh({
     onRefresh: fetchGitHubData,
-    minHiddenTime: 60000, // Refresh if hidden for 1+ minute
-    refreshInterval: 300000, // Also refresh every 5 minutes
-    enabled: !!localConfig.username && !!localConfig.personalAccessToken
+    minHiddenTime: 60000,
+    refreshInterval: 300000,
+    enabled: !!localConfig.username && !!localConfig.personalAccessToken,
   });
-  
-  /**
-   * Determines the appropriate size category based on width and height
-   * 
-   * @param width - Widget width in grid units
-   * @param height - Widget height in grid units
-   * @returns The corresponding WidgetSizeCategory
-   */
-  const getWidgetSizeCategory = (width: number, height: number): WidgetSizeCategory => {
-    if (width >= 4 && height >= 4) {
-      return WidgetSizeCategory.LARGE;
-    } else if (width >= 4 && height >= 3) {
-      return WidgetSizeCategory.WIDE_MEDIUM;
-    } else if (width >= 3 && height >= 4) {
-      return WidgetSizeCategory.TALL_MEDIUM;
-    } else if (width >= 3 && height >= 3) {
-      return WidgetSizeCategory.MEDIUM;
-    } else if (width >= 3 && height >= 2) {
-      return WidgetSizeCategory.WIDE_SMALL;
-    } else if (width >= 2 && height >= 3) {
-      return WidgetSizeCategory.TALL_SMALL;
-    } else {
-      return WidgetSizeCategory.SMALL;
-    }
+
+  // --- Helpers ---
+
+  const getContributionColor = (count: number) => {
+    if (count >= 6) return 'bg-green-700 dark:bg-green-600';
+    if (count >= 4) return 'bg-green-500 dark:bg-green-500';
+    if (count >= 2) return 'bg-green-300 dark:bg-green-400';
+    if (count >= 1) return 'bg-green-100 dark:bg-green-300';
+    return 'bg-gray-100 dark:bg-gray-800';
   };
-  
-  // Render content based on widget size
-  const renderContent = () => {
-    const sizeCategory = getWidgetSizeCategory(width, height);
-    
-    switch (sizeCategory) {
-      case WidgetSizeCategory.WIDE_SMALL:
-        return renderWideSmallView();
-      case WidgetSizeCategory.TALL_SMALL:
-        return renderTallSmallView();
-      case WidgetSizeCategory.MEDIUM:
-        return renderMediumView();
-      case WidgetSizeCategory.WIDE_MEDIUM:
-        return renderWideMediumView();
-      case WidgetSizeCategory.TALL_MEDIUM:
-        return renderTallMediumView();
-      case WidgetSizeCategory.LARGE:
-        return renderLargeView();
-      case WidgetSizeCategory.SMALL:
-      default:
-        return renderSmallView();
-    }
-  };
-  
-  /**
-   * Render a contribution cell for the GitHub graph
-   */
-  const renderContributionCell = (count: number, date: string, index: number) => {
-    // Color based on contribution count
-    let bgColor = 'bg-gray-100 dark:bg-gray-800';
-    
-    if (count > 0) {
-      if (count >= 6) {
-        bgColor = 'bg-green-700 dark:bg-green-600';
-      } else if (count >= 4) {
-        bgColor = 'bg-green-500 dark:bg-green-500';
-      } else if (count >= 2) {
-        bgColor = 'bg-green-300 dark:bg-green-400';
-      } else {
-        bgColor = 'bg-green-100 dark:bg-green-300';
-      }
-    }
-    
+
+  const renderContributionCell = (day: ContributionDay, index: number, size: 'sm' | 'md' | 'lg' = 'sm') => {
+    const sizeClass = size === 'lg' ? 'w-3.5 h-3.5' : size === 'md' ? 'w-3 h-3' : 'w-2.5 h-2.5';
     return (
       <div
         key={index}
-        className={`${bgColor} w-3 h-3 rounded-sm transition-colors`}
-        title={`${count} contributions on ${date}`}
+        className={`${getContributionColor(day.count)} ${sizeClass} rounded-sm transition-colors`}
+        title={`${day.count} contributions on ${day.date}`}
       />
     );
   };
-  
-  // Small view (2x2) - Basic streak info
-  const renderSmallView = () => {
-    if (!localConfig.username) {
+
+  // Streak flame color based on count
+  const streakFlameColor = useMemo(() => {
+    if (githubData.currentStreak >= 30) return 'text-orange-500';
+    if (githubData.currentStreak >= 7) return 'text-yellow-500';
+    if (githubData.currentStreak >= 1) return 'text-green-500';
+    return 'text-gray-400 dark:text-gray-500';
+  }, [githubData.currentStreak]);
+
+  // Weekly aggregation for charts
+  const weeklyData = useMemo(() => {
+    const days = githubData.contributionsByDay;
+    const weeks: { weekLabel: string; total: number; days: ContributionDay[] }[] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      const weekDays = days.slice(i, i + 7);
+      const total = weekDays.reduce((s, d) => s + d.count, 0);
+      const startDate = weekDays[0]?.date ?? '';
+      weeks.push({ weekLabel: startDate, total, days: weekDays });
+    }
+    return weeks;
+  }, [githubData.contributionsByDay]);
+
+  // Monthly aggregation for app view
+  const monthlyData = useMemo(() => {
+    const months: Record<string, { month: string; total: number; days: number }> = {};
+    githubData.contributionsByDay.forEach(d => {
+      const monthKey = d.date.substring(0, 7); // YYYY-MM
+      if (!months[monthKey]) {
+        months[monthKey] = { month: monthKey, total: 0, days: 0 };
+      }
+      months[monthKey].total += d.count;
+      if (d.count > 0) months[monthKey].days++;
+    });
+    return Object.values(months);
+  }, [githubData.contributionsByDay]);
+
+  // Best day
+  const bestDay = useMemo(() => {
+    let best: ContributionDay = { date: '', count: 0 };
+    githubData.contributionsByDay.forEach(d => {
+      if (d.count > best.count) best = d;
+    });
+    return best;
+  }, [githubData.contributionsByDay]);
+
+  // Average daily contributions
+  const avgDaily = useMemo(() => {
+    const days = githubData.contributionsByDay.filter(d => d.count > 0);
+    if (days.length === 0) return 0;
+    return Math.round(githubData.totalContributions / githubData.contributionsByDay.length * 10) / 10;
+  }, [githubData.contributionsByDay, githubData.totalContributions]);
+
+  // --- Setup prompt (no username or no token) ---
+  const needsSetup = !localConfig.username || !localConfig.personalAccessToken;
+
+  const renderSetup = () => (
+    <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+      {!localConfig.username ? (
+        <>
+          <Github className="h-8 w-8" />
+          <p className="text-sm">Configure your GitHub username</p>
+        </>
+      ) : (
+        <>
+          <Shield className="h-8 w-8" />
+          <p className="text-sm text-center">Add a Personal Access Token</p>
+        </>
+      )}
+      {!readOnly && (
+        <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+          Open Settings
+        </Button>
+      )}
+    </div>
+  );
+
+  const renderError = () => (
+    <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center">
+      <AlertCircle className="h-6 w-6 text-red-500" />
+      <p className="text-xs text-red-500 dark:text-red-400">{githubData.error}</p>
+      {!readOnly && (
+        <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+          Check Settings
+        </Button>
+      )}
+    </div>
+  );
+
+  const renderLoading = () => (
+    <div className="flex-1 flex flex-col justify-center space-y-3 p-2">
+      <div className="flex items-center justify-center">
+        <Skeleton className="h-10 w-20" />
+      </div>
+      <div className="space-y-1">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-3 w-3/4" />
+      </div>
+    </div>
+  );
+
+  // --- Size-specific renderers ---
+
+  // 1x1 ICON: streak count + flame
+  const renderTiny = () => {
+    if (needsSetup) {
       return (
-        <div className="h-full flex flex-col items-center justify-center text-center">
-          {/* Use Github icon from Lucide with consistent styling */}
-          <Github size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
-          {/* Consistent text styling */}
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-            Add your GitHub username in settings.
-          </p>
-          {/* Consistent button styling */}
-          <Button
-            size="sm"
-            onClick={() => setShowSettings(true)}
-            variant="outline"
-          >
-            Configure Username
-          </Button>
+        <div className="flex-1 flex items-center justify-center">
+          <Flame className="h-5 w-5 text-gray-400" />
         </div>
       );
     }
-
-    if (!localConfig.personalAccessToken) {
-      return (
-        <div className="h-full flex flex-col items-center justify-center text-center p-4">
-          {/* Use Shield icon from Lucide with consistent styling (gray color) */}
-          <Shield size={40} className="text-gray-400 mb-3" strokeWidth={1.5} />
-          {/* Consistent text styling */}
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-            GitHub API requires a Personal Access Token.
-          </p>
-          {/* Consistent button styling */}
-          <Button
-            size="sm"
-            onClick={() => setShowSettings(true)}
-            variant="outline"
-          >
-            Add Token
-          </Button>
-        </div>
-      );
-    }
-
     if (githubData.loading) {
       return (
-        <div className="h-full flex flex-col p-4 space-y-3">
-          {/* Streak number skeleton */}
-          <div className="flex items-center justify-center">
-            <Skeleton className="h-12 w-24" />
-          </div>
-          {/* Contribution graph skeleton */}
-          <div className="flex-1 flex flex-col justify-center space-y-1">
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-3/4" />
-          </div>
-          {/* Stats skeleton */}
-          <div className="flex justify-between">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-4 w-16" />
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Skeleton className="h-5 w-8" />
         </div>
       );
     }
-    
     if (githubData.error) {
       return (
-        <div className="h-full flex flex-col items-center justify-center text-center p-4">
-          {/* Use AlertCircle icon for errors */}
-          <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
-          {/* Consistent error text styling */}
-          <p className="text-sm text-red-500 dark:text-red-400 mb-3">
-            {githubData.error}
-          </p>
-          {/* Consistent button styling */}
-          <Button
-            size="sm"
-            onClick={() => setShowSettings(true)}
-            variant="outline"
-          >
-            Check Settings
-          </Button>
+        <div className="flex-1 flex items-center justify-center">
+          <Flame className="h-5 w-5 text-red-400" />
         </div>
       );
     }
-    
+
     return (
-      <div className="h-full flex flex-col justify-between">
-        <div className="text-center mb-2">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-          <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-            {githubData.currentStreak} days
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 text-center">
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Longest</div>
-            <div className="text-lg font-semibold">{githubData.longestStreak}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
-            <div className="text-lg font-semibold">{githubData.totalContributions}</div>
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col items-center justify-center gap-0.5">
+        <Flame className={`h-4 w-4 ${streakFlameColor}`} />
+        <span className="text-lg font-bold leading-none">{githubData.currentStreak}</span>
+        <span className="text-[9px] text-muted-foreground leading-none">days</span>
       </div>
     );
   };
-  
-  // Wide small view (3x2)
-  const renderWideSmallView = () => {
-    if (!localConfig.username || githubData.loading || githubData.error) {
-      return renderSmallView();
+
+  // Nx1 RIBBON: streak + today's commits as horizontal chips
+  const renderShort = () => {
+    if (needsSetup || githubData.error) {
+      return (
+        <div className="flex-1 flex items-center gap-2 overflow-x-auto px-1">
+          <Flame className="h-4 w-4 shrink-0 text-gray-400" />
+          <span className="text-xs text-muted-foreground shrink-0">
+            {needsSetup ? 'Not configured' : 'Error'}
+          </span>
+        </div>
+      );
     }
-    
-    const recentDays = githubData.contributionsByDay.slice(-14);
-    
+    if (githubData.loading) {
+      return (
+        <div className="flex-1 flex items-center gap-2 px-1">
+          <Skeleton className="h-5 w-16" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+      );
+    }
+
+    const recentDays = githubData.contributionsByDay.slice(-Math.min(width * 3, 14));
+
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center mb-3">
-          <div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {githubData.currentStreak} days
-            </div>
+      <div className="flex-1 flex items-center gap-2 overflow-x-auto px-1 text-xs">
+        <span className="shrink-0 flex items-center gap-1 rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2 py-1 font-medium">
+          <Flame className={`h-3 w-3 ${streakFlameColor}`} />
+          {githubData.currentStreak}d streak
+        </span>
+        <span className="shrink-0 rounded-full bg-green-500/10 px-2 py-1 text-green-700 dark:text-green-300">
+          {githubData.todayContributions} today
+        </span>
+        {width >= 3 && (
+          <span className="shrink-0 rounded-full bg-black/[0.04] dark:bg-white/[0.06] px-2 py-1 text-muted-foreground">
+            {githubData.totalContributions} total
+          </span>
+        )}
+        {width >= 4 && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            {recentDays.map((day, i) => renderContributionCell(day, i, 'sm'))}
           </div>
-          
+        )}
+      </div>
+    );
+  };
+
+  // 2x2 COMPACT: streak + basic stats
+  const renderCompact = () => {
+    if (needsSetup) return renderSetup();
+    if (githubData.loading) return renderLoading();
+    if (githubData.error) return renderError();
+
+    const recentDays = githubData.contributionsByDay.slice(-14);
+
+    return (
+      <div className="flex-1 flex flex-col justify-between overflow-hidden">
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1">
+            <Flame className={`h-4 w-4 ${streakFlameColor}`} />
+            <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {githubData.currentStreak}
+            </span>
+          </div>
+          <div className="text-[10px] text-muted-foreground">day streak</div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1 text-center text-[10px]">
+          <div>
+            <div className="text-muted-foreground">Longest</div>
+            <div className="text-sm font-semibold">{githubData.longestStreak}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Today</div>
+            <div className="text-sm font-semibold">{githubData.todayContributions}</div>
+          </div>
+        </div>
+
+        {localConfig.showContributionGraph && (
+          <div className="flex gap-0.5 justify-center flex-wrap mt-1">
+            {recentDays.map((day, i) => renderContributionCell(day, i, 'sm'))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 3x3 DEFAULT: balanced streak + contribution graph
+  const renderDefault = () => {
+    if (needsSetup) return renderSetup();
+    if (githubData.loading) return renderLoading();
+    if (githubData.error) return renderError();
+
+    const daysToShow = Math.min(localConfig.daysToShow || 28, githubData.contributionsByDay.length);
+    const recentDays = githubData.contributionsByDay.slice(-daysToShow);
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <Flame className={`h-5 w-5 ${streakFlameColor}`} />
+              <span className="text-3xl font-bold text-green-600 dark:text-green-400">
+                {githubData.currentStreak}
+              </span>
+            </div>
+            <div className="text-xs text-muted-foreground">day streak</div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3 text-center">
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Longest</div>
+              <div className="text-[10px] text-muted-foreground">Longest</div>
               <div className="text-lg font-semibold">{githubData.longestStreak}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
+              <div className="text-[10px] text-muted-foreground">Total</div>
               <div className="text-lg font-semibold">{githubData.totalContributions}</div>
             </div>
           </div>
         </div>
-        
+
+        <div className="text-xs text-muted-foreground mb-1">
+          @{githubData.username} &middot; {githubData.todayContributions} today
+        </div>
+
         {localConfig.showContributionGraph && (
           <div className="mt-auto">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last 14 days</div>
-            <div className="flex gap-1 justify-between">
-              {recentDays.map((day, index) => 
-                renderContributionCell(day.count, day.date, index)
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-  
-  // Tall small view (2x3)
-  const renderTallSmallView = () => {
-    if (!localConfig.username || githubData.loading || githubData.error) {
-      return renderSmallView();
-    }
-    
-    const recentDays = githubData.contributionsByDay.slice(-14);
-    
-    return (
-      <div className="h-full flex flex-col">
-        <div className="text-center mb-3">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-          <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-            {githubData.currentStreak} days
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 text-center mb-3">
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Longest</div>
-            <div className="text-lg font-semibold">{githubData.longestStreak}</div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
-            <div className="text-lg font-semibold">{githubData.totalContributions}</div>
-          </div>
-        </div>
-        
-        {localConfig.showContributionGraph && (
-          <div className="mt-auto">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last 14 days</div>
+            <div className="text-[10px] text-muted-foreground mb-1">Last {daysToShow} days</div>
             <div className="grid grid-cols-7 gap-1">
-              {recentDays.map((day, index) => 
-                renderContributionCell(day.count, day.date, index)
-              )}
+              {recentDays.map((day, i) => renderContributionCell(day, i, 'md'))}
             </div>
           </div>
         )}
       </div>
     );
   };
-  
-  // Medium view (3x3)
-  const renderMediumView = () => {
-    if (!localConfig.username || githubData.loading || githubData.error) {
-      return renderSmallView();
-    }
-    
-    const recentDays = githubData.contributionsByDay.slice(-28);
-    
+
+  // 4x4-5x5 PANEL: split view with weekly breakdown + daily grid
+  const renderPanel = () => {
+    if (needsSetup) return renderSetup();
+    if (githubData.loading) return renderLoading();
+    if (githubData.error) return renderError();
+
+    const daysToShow = Math.min(localConfig.daysToShow || 60, githubData.contributionsByDay.length);
+    const recentDays = githubData.contributionsByDay.slice(-daysToShow);
+    const recentWeeks = weeklyData.slice(-8);
+    const maxWeekly = Math.max(...recentWeeks.map(w => w.total), 1);
+
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-              {githubData.currentStreak} days
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Stats row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Flame className={`h-6 w-6 ${streakFlameColor}`} />
+              <div>
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400 leading-none">
+                  {githubData.currentStreak}
+                </div>
+                <div className="text-xs text-muted-foreground">day streak</div>
+              </div>
             </div>
           </div>
-          
-          <div className="grid grid-cols-2 gap-4 text-center">
+
+          <div className="flex items-center gap-4 text-center">
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Longest</div>
+              <div className="text-xs text-muted-foreground">Longest</div>
               <div className="text-xl font-semibold">{githubData.longestStreak}</div>
             </div>
             <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
+              <div className="text-xs text-muted-foreground">Total</div>
               <div className="text-xl font-semibold">{githubData.totalContributions}</div>
             </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Today</div>
+              <div className="text-xl font-semibold">{githubData.todayContributions}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Avg/day</div>
+              <div className="text-xl font-semibold">{avgDaily}</div>
+            </div>
           </div>
         </div>
-        
+
+        <div className="text-sm text-muted-foreground mb-3">@{githubData.username}</div>
+
         {localConfig.showContributionGraph && (
-          <div className="mt-auto">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last 28 days</div>
-            <div className="grid grid-cols-7 gap-1">
-              {recentDays.map((day, index) => 
-                renderContributionCell(day.count, day.date, index)
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-  
-  // Wide medium view (4x3)
-  const renderWideMediumView = () => {
-    if (!localConfig.username || githubData.loading || githubData.error) {
-      return renderSmallView();
-    }
-    
-    const daysToShow = Math.min(localConfig.daysToShow || 30, githubData.contributionsByDay.length);
-    const recentDays = githubData.contributionsByDay.slice(-daysToShow);
-    
-    return (
-      <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            <div className="mr-6">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-              <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-                {githubData.currentStreak} days
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Longest</div>
-                <div className="text-xl font-semibold">{githubData.longestStreak}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
-                <div className="text-xl font-semibold">{githubData.totalContributions}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            @{githubData.username}
-          </div>
-        </div>
-        
-        {localConfig.showContributionGraph && (
-          <div className="mt-auto">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-              Last {daysToShow} days
-            </div>
-            <div className="grid grid-cols-10 gap-1">
-              {recentDays.map((day, index) => 
-                renderContributionCell(day.count, day.date, index)
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-  
-  // Tall medium view (3x4)
-  const renderTallMediumView = () => {
-    if (!localConfig.username || githubData.loading || githubData.error) {
-      return renderSmallView();
-    }
-    
-    const daysToShow = Math.min(localConfig.daysToShow || 30, githubData.contributionsByDay.length);
-    const recentDays = githubData.contributionsByDay.slice(-daysToShow);
-    
-    return (
-      <div className="h-full flex flex-col">
-        <div className="text-center mb-4">
-          <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-          <div className="text-4xl font-bold text-green-600 dark:text-green-400">
-            {githubData.currentStreak} days
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 text-center gap-4 mb-4">
-          <div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Longest Streak</div>
-            <div className="text-2xl font-semibold">{githubData.longestStreak}</div>
-          </div>
-          <div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">Total Contributions</div>
-            <div className="text-2xl font-semibold">{githubData.totalContributions}</div>
-          </div>
-        </div>
-        
-        <div className="text-sm text-center text-gray-500 dark:text-gray-400 mb-2">
-          @{githubData.username}
-        </div>
-        
-        {localConfig.showContributionGraph && (
-          <div className="mt-auto">
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-              Last {daysToShow} days
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {recentDays.map((day, index) => 
-                renderContributionCell(day.count, day.date, index)
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-  
-  // Large view (4x4 or larger)
-  const renderLargeView = () => {
-    if (!localConfig.username || githubData.loading || githubData.error) {
-      return renderSmallView();
-    }
-    
-    const daysToShow = Math.min(localConfig.daysToShow || 60, githubData.contributionsByDay.length);
-    const recentDays = githubData.contributionsByDay.slice(-daysToShow);
-    
-    // Calculate streak data
-    const weeklyContributions = Array(Math.ceil(daysToShow / 7)).fill(0);
-    recentDays.forEach((day, index) => {
-      const weekIndex = Math.floor(index / 7);
-      if (weekIndex < weeklyContributions.length) {
-        weeklyContributions[weekIndex] += day.count;
-      }
-    });
-    
-    return (
-      <div className="h-full flex flex-col">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center">
-            <div className="mr-6">
-              <div className="text-sm text-gray-500 dark:text-gray-400">Current Streak</div>
-              <div className="text-4xl font-bold text-green-600 dark:text-green-400">
-                {githubData.currentStreak} days
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-6 text-center">
-              <div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Longest Streak</div>
-                <div className="text-2xl font-semibold">{githubData.longestStreak}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Total Contributions</div>
-                <div className="text-2xl font-semibold">{githubData.totalContributions}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="text-lg text-gray-500 dark:text-gray-400">
-            @{githubData.username}
-          </div>
-        </div>
-        
-        {localConfig.showContributionGraph && (
-          <div className="flex-grow">
-            <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Contribution History (Last {daysToShow} days)
-            </div>
-            
-            <div className="flex flex-col h-full">
-              {/* Weekly breakdown */}
-              <div className="grid grid-cols-8 gap-2 mb-4">
-                {weeklyContributions.map((count, index) => (
-                  <div key={index} className="text-center">
-                    <div className={`mx-auto w-full h-16 rounded-md bg-gradient-to-t ${
-                      count > 20 ? 'from-green-700 to-green-500' : 
-                      count > 10 ? 'from-green-500 to-green-300' : 
-                      count > 0 ? 'from-green-300 to-green-100' : 
-                      'from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800'
-                    }`} style={{ 
-                      height: `${Math.min(Math.max(count * 3, 10), 64)}px` 
-                    }}></div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">W{index+1}</div>
-                  </div>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {/* Weekly bar chart */}
+            <div className="mb-3">
+              <div className="text-xs text-muted-foreground mb-1.5">Weekly activity</div>
+              <div className="flex items-end gap-1 h-16">
+                {recentWeeks.map((week, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t bg-green-500/80 dark:bg-green-500/60 transition-all"
+                    style={{ height: `${Math.max((week.total / maxWeekly) * 100, 4)}%` }}
+                    title={`Week of ${week.weekLabel}: ${week.total} contributions`}
+                  />
                 ))}
               </div>
-              
-              {/* Daily contribution cells */}
-              <div className="mt-auto">
-                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Daily contributions</div>
-                <div className="grid grid-cols-14 gap-1">
-                  {recentDays.map((day, index) => 
-                    renderContributionCell(day.count, day.date, index)
-                  )}
-                </div>
+            </div>
+
+            {/* Daily contribution grid */}
+            <div className="mt-auto">
+              <div className="text-[10px] text-muted-foreground mb-1">
+                Last {daysToShow} days
+              </div>
+              <div className="grid grid-cols-14 gap-1">
+                {recentDays.map((day, i) => renderContributionCell(day, i, 'md'))}
               </div>
             </div>
           </div>
@@ -894,118 +718,303 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
       </div>
     );
   };
-  
-  // Save settings
-  const saveSettings = () => {
-    if (config?.onUpdate) {
-      config.onUpdate(localConfig);
-    }
-    setShowSettings(false);
-  };
-  
-  // Settings modal
-  const renderSettings = () => {
+
+  // 6x6+ APP: full contribution graph, stats dashboard, commit history
+  const renderApp = () => {
+    if (needsSetup) return renderSetup();
+    if (githubData.loading) return renderLoading();
+    if (githubData.error) return renderError();
+
+    const allDays = githubData.contributionsByDay;
+    const recentWeeks = weeklyData.slice(-12);
+    const maxWeekly = Math.max(...recentWeeks.map(w => w.total), 1);
+
+    // Last 90 days for the large contribution graph
+    const last90 = allDays.slice(-90);
+
+    // Recent activity log (last 14 days with contributions)
+    const recentActivity = allDays
+      .filter(d => d.count > 0)
+      .slice(-20)
+      .reverse();
+
     return (
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-[425px]">
+      <div className="flex h-full overflow-hidden">
+        {/* Left panel: stats + contribution graph */}
+        <div className="flex-1 flex flex-col overflow-y-auto pr-3 border-r border-border/50">
+          {/* Hero stats */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <Flame className={`h-8 w-8 ${streakFlameColor}`} />
+              <div>
+                <div className="text-4xl font-bold text-green-600 dark:text-green-400 leading-none">
+                  {githubData.currentStreak}
+                </div>
+                <div className="text-sm text-muted-foreground">day streak</div>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground ml-auto">
+              @{githubData.username}
+            </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            <div className="rounded-lg border border-border/50 p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <Trophy className="h-3 w-3" />
+                Longest
+              </div>
+              <div className="text-2xl font-semibold">{githubData.longestStreak}d</div>
+            </div>
+            <div className="rounded-lg border border-border/50 p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <GitCommit className="h-3 w-3" />
+                Total
+              </div>
+              <div className="text-2xl font-semibold">{githubData.totalContributions}</div>
+            </div>
+            <div className="rounded-lg border border-border/50 p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <Calendar className="h-3 w-3" />
+                Today
+              </div>
+              <div className="text-2xl font-semibold">{githubData.todayContributions}</div>
+            </div>
+            <div className="rounded-lg border border-border/50 p-3">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                <TrendingUp className="h-3 w-3" />
+                Avg/day
+              </div>
+              <div className="text-2xl font-semibold">{avgDaily}</div>
+            </div>
+          </div>
+
+          {/* Best day */}
+          {bestDay.count > 0 && (
+            <div className="text-xs text-muted-foreground mb-4">
+              Best day: <span className="font-medium text-foreground">{bestDay.count} contributions</span> on {bestDay.date}
+            </div>
+          )}
+
+          {/* Weekly activity chart */}
+          <div className="mb-4">
+            <div className="text-sm font-medium mb-2">Weekly activity</div>
+            <div className="flex items-end gap-1.5 h-24">
+              {recentWeeks.map((week, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className="w-full rounded-t bg-green-500/80 dark:bg-green-500/60 transition-all"
+                    style={{ height: `${Math.max((week.total / maxWeekly) * 100, 4)}%` }}
+                    title={`Week of ${week.weekLabel}: ${week.total} contributions`}
+                  />
+                  <span className="text-[9px] text-muted-foreground">
+                    {week.weekLabel.substring(5)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Full contribution graph */}
+          {localConfig.showContributionGraph && (
+            <div>
+              <div className="text-sm font-medium mb-2">Contribution graph (90 days)</div>
+              <div className="grid grid-cols-18 gap-1">
+                {last90.map((day, i) => renderContributionCell(day, i, 'lg'))}
+              </div>
+              <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
+                <span>Less</span>
+                <div className="w-2.5 h-2.5 rounded-sm bg-gray-100 dark:bg-gray-800" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-green-100 dark:bg-green-300" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-green-300 dark:bg-green-400" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-green-500" />
+                <div className="w-2.5 h-2.5 rounded-sm bg-green-700 dark:bg-green-600" />
+                <span>More</span>
+              </div>
+            </div>
+          )}
+
+          {/* Monthly summary */}
+          <div className="mt-4">
+            <div className="text-sm font-medium mb-2">Monthly summary</div>
+            <div className="grid grid-cols-3 gap-2">
+              {monthlyData.slice(-6).map(m => (
+                <div
+                  key={m.month}
+                  className="rounded-lg border border-border/50 p-2 text-center"
+                >
+                  <div className="text-[10px] text-muted-foreground">
+                    {new Date(m.month + '-01').toLocaleDateString('en-US', {
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </div>
+                  <div className="text-sm font-semibold">{m.total}</div>
+                  <div className="text-[10px] text-muted-foreground">{m.days} active days</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right panel: recent activity log */}
+        <div className="w-2/5 flex flex-col overflow-hidden pl-3">
+          <div className="text-sm font-medium mb-2">Recent activity</div>
+          <div className="flex-1 overflow-y-auto space-y-1">
+            {recentActivity.length === 0 ? (
+              <div className="text-xs text-muted-foreground text-center py-4">
+                No recent contributions
+              </div>
+            ) : (
+              recentActivity.map((day, i) => {
+                const dayDate = new Date(day.date);
+                const isToday =
+                  day.date === new Date().toISOString().split('T')[0];
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent/50"
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full shrink-0 ${getContributionColor(day.count)}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium">
+                        {day.count} contribution{day.count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      {isToday
+                        ? 'Today'
+                        : dayDate.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --- Settings modal ---
+  const renderSettings = () => {
+    if (readOnly) return null;
+
+    return (
+      <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>GitHub Streak Widget Settings</DialogTitle>
+            <DialogTitle>{localConfig.title || 'GitHub Streak'} Settings</DialogTitle>
           </DialogHeader>
-          
-          {/* Change layout from grid to space-y-4 */}
-          <div className="space-y-4 py-4">
-            {/* Title Setting */}
-            <div className="space-y-2">
-              <Label htmlFor="title" className="text-sm font-medium">
-                Title
-              </Label>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="gh-title">Title</Label>
               <Input
-                id="title"
+                id="gh-title"
                 value={localConfig.title || ''}
-                className="h-10" // Ensure consistent height
-                onChange={e => setLocalConfig(prev => ({ ...prev, title: e.target.value }))}
+                onChange={e =>
+                  setLocalConfig(prev => ({ ...prev, title: e.target.value }))
+                }
               />
             </div>
-          
-            {/* GitHub Username Setting */}
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-sm font-medium">
-                GitHub Username
-              </Label>
+
+            <div>
+              <Label htmlFor="gh-username">GitHub Username</Label>
               <Input
-                id="username"
+                id="gh-username"
                 value={localConfig.username || ''}
-                className="h-10" // Ensure consistent height
-                onChange={e => setLocalConfig(prev => ({ ...prev, username: e.target.value }))}
+                onChange={e =>
+                  setLocalConfig(prev => ({ ...prev, username: e.target.value }))
+                }
+                placeholder="e.g. octocat"
               />
             </div>
-          
-            {/* Personal Access Token Setting */}
-            <div className="space-y-2">
-              <Label htmlFor="pat" className="text-sm font-medium">
+
+            <div>
+              <Label htmlFor="gh-pat">
                 Personal Access Token
                 <span className="text-red-500 ml-0.5">*</span>
               </Label>
               <Input
-                id="pat"
+                id="gh-pat"
                 type="password"
                 value={localConfig.personalAccessToken || ''}
-                className="w-full h-10" // Ensure consistent height
-                onChange={e => setLocalConfig(prev => ({ ...prev, personalAccessToken: e.target.value }))}
+                onChange={e =>
+                  setLocalConfig(prev => ({
+                    ...prev,
+                    personalAccessToken: e.target.value,
+                  }))
+                }
                 placeholder="Required for GitHub API access"
               />
-              <div className="text-xs text-gray-500 mt-1">
-                <p>Create a token at <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">github.com/settings/tokens</a></p>
-                <p>Only needs <span className="font-medium">read-only</span> access to public repositories</p>
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <p>
+                  Create at{' '}
+                  <a
+                    href="https://github.com/settings/tokens"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    github.com/settings/tokens
+                  </a>
+                </p>
+                <p>Only needs read-only access to public repositories</p>
               </div>
             </div>
-          
-            {/* Days to Show Setting */}
-            <div className="space-y-2">
-              <Label htmlFor="daysToShow" className="text-sm font-medium">
-                Days to Show in Graph
-              </Label>
+
+            <div>
+              <Label htmlFor="gh-days">Days to show</Label>
               <Input
-                id="daysToShow"
+                id="gh-days"
                 type="number"
                 min="7"
                 max="365"
                 value={localConfig.daysToShow || 30}
-                className="h-10" // Ensure consistent height
-                onChange={e => setLocalConfig(prev => ({ ...prev, daysToShow: parseInt(e.target.value, 10) }))}
+                onChange={e =>
+                  setLocalConfig(prev => ({
+                    ...prev,
+                    daysToShow: parseInt(e.target.value, 10),
+                  }))
+                }
               />
             </div>
-          
-            {/* Show Graph Setting */}
-            {/* Use flex layout for checkbox and label */}
-            <div className="flex items-center space-x-2 pt-2">
-              <Checkbox
-                id="showGraph"
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="gh-graph">Show contribution graph</Label>
+              <Switch
+                id="gh-graph"
                 checked={!!localConfig.showContributionGraph}
-                onCheckedChange={checked => setLocalConfig(prev => ({ ...prev, showContributionGraph: Boolean(checked) }))}
+                onCheckedChange={checked =>
+                  setLocalConfig(prev => ({
+                    ...prev,
+                    showContributionGraph: Boolean(checked),
+                  }))
+                }
               />
-              <Label htmlFor="showGraph" className="text-sm font-medium">
-                Show Contribution Graph
-              </Label>
             </div>
           </div>
-          
+
           <DialogFooter>
             <div className="flex justify-between w-full">
               {config?.onDelete && (
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (config.onDelete) {
-                      config.onDelete();
-                    }
-                  }}
-                  aria-label="Delete this widget"
-                >
-                  Delete
+                <Button variant="destructive" onClick={config.onDelete}>
+                  Delete Widget
                 </Button>
               )}
-              <Button onClick={saveSettings}>Save</Button>
+              <div className="flex items-center gap-2 ml-auto">
+                <Button variant="outline" onClick={handleCancelSettings}>
+                  Cancel
+                </Button>
+                <Button onClick={saveSettings}>Save</Button>
+              </div>
             </div>
           </DialogFooter>
         </DialogContent>
@@ -1013,21 +1022,34 @@ const GitHubStreakWidget: React.FC<GitHubStreakWidgetProps> = ({ width, height, 
     );
   };
 
-  // Main render
+  // --- Main render ---
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col relative">
-      <WidgetHeader 
-        title={localConfig.title || defaultConfig.title} 
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      
-      <div className="flex-grow p-4 overflow-hidden">
-        {renderContent()}
+    <div className={`w-full h-full flex flex-col bg-card rounded-lg ${isTiny ? '' : 'p-2 md:p-3'} ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && (
+        <WidgetHeader
+          title={localConfig.title || defaultConfig.title}
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isShort}
+        />
+      )}
+
+      <div className={isTiny ? 'flex-1 flex flex-col p-1' : 'flex-1 overflow-hidden'}>
+        {isTiny
+          ? renderTiny()
+          : isShort
+            ? renderShort()
+            : isApp
+              ? renderApp()
+              : isWide && isTall
+                ? renderPanel()
+                : isCompact
+                  ? renderCompact()
+                  : renderDefault()}
       </div>
-      
+
       {renderSettings()}
     </div>
   );
 };
 
-export default GitHubStreakWidget; 
+export default GitHubStreakWidget;

@@ -40,6 +40,7 @@ export interface PaisaWidgetConfig {
   currency?: string; // Display currency symbol
   onUpdate?: (config: PaisaWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

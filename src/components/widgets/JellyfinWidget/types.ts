@@ -40,6 +40,16 @@ export interface JellyfinSession {
 }
 
 /**
+ * Jellyfin library / virtual folder
+ */
+export interface JellyfinLibrary {
+  Name: string;
+  CollectionType?: string;
+  ItemId: string;
+  Locations?: string[];
+}
+
+/**
  * Configuration options for the Jellyfin widget
  */
 export interface JellyfinWidgetConfig {
@@ -51,6 +61,7 @@ export interface JellyfinWidgetConfig {
   refreshInterval?: number; // Refresh interval in seconds
   onUpdate?: (config: JellyfinWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

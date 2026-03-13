@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Trash, GripVertical } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Trash, GripVertical, Sun, Moon } from 'lucide-react'
 import WidgetHeader from '../../widgets/common/WidgetHeader'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -21,17 +22,23 @@ import {
 
 /**
  * World Clocks Widget Component
- * 
+ *
  * Displays the current time in multiple timezones.
  * Allows adding, editing, and removing timezones.
  * Supports different layouts based on widget dimensions (minimum size 2x2).
- * 
+ *
  * @component
  * @param {WorldClocksWidgetProps} props - Component props
  * @returns {JSX.Element} World Clocks widget component
  */
 const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, config }) => {
-  const isTiny = width === 1 && height === 1
+  // ── Size detection ──────────────────────────────────────────────
+  const isTiny    = width === 1 && height === 1
+  const isShort   = height === 1 && width > 1          // Nx1 ribbon
+  const isCompact = !isTiny && !isShort && (width <= 2 || height <= 2)
+  const isApp     = width >= 6 && height >= 6           // 6x6+ full dashboard
+  const readOnly  = Boolean(config?.readOnly)
+
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [timezones, setTimezones] = useState<TimezoneItem[]>(config?.timezones || [
     { id: 1, name: 'New York, USA', timezone: 'America/New_York' },
@@ -45,19 +52,21 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null)
   const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(null)
+  // Snapshot of timezones when settings opens – used for cancel/reset
+  const [savedTimezones, setSavedTimezones] = useState<TimezoneItem[]>(timezones)
   const widgetRef = useRef<HTMLDivElement | null>(null)
-  
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
     }, 1000)
-    
+
     return () => clearInterval(timer)
   }, [])
 
   /**
    * Formats a date for a specific timezone
-   * 
+   *
    * @param {Date} date - Date to format
    * @param {string} timezone - IANA timezone identifier
    * @returns {string} Formatted time string
@@ -78,8 +87,24 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   }
 
   /**
+   * Formats a date string for a specific timezone (e.g. "Fri, Mar 13")
+   */
+  const formatDateLine = (date: Date, timezone: string): string => {
+    try {
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        timeZone: timezone
+      });
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * Gets the relative date for a timezone (e.g., "Today", "Tomorrow")
-   * 
+   *
    * @param {Date} date - Date to check
    * @param {string} timezone - IANA timezone identifier
    * @returns {string} Relative date string
@@ -93,14 +118,14 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         day: 'numeric',
         timeZone: timezone
       };
-      
+
       const dateInTimezone = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
       const localDate = new Date();
-      
+
       // Compare the date in the target timezone with the local date
       const targetDay = dateInTimezone.getDate();
       const localDay = localDate.getDate();
-      
+
       if (targetDay === localDay) {
         return 'Today';
       } else if (targetDay === localDay + 1) {
@@ -118,27 +143,27 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Gets the time difference between local time and a timezone
-   * 
+   *
    * @param {string} timezone - IANA timezone identifier
    * @returns {string} Time difference string (e.g., "+3h")
    */
   const getTimeDiff = (timezone: string): string => {
     try {
       const localDate = new Date();
-      
+
       // Get the target timezone's current time
       const targetDate = new Date(localDate.toLocaleString('en-US', { timeZone: timezone }));
-      
+
       // Calculate the time difference in hours
       let hoursDiff = (targetDate.getHours() - localDate.getHours());
-      
+
       // Adjust for day boundary crossings
       if (hoursDiff > 12) {
         hoursDiff -= 24;
       } else if (hoursDiff < -12) {
         hoursDiff += 24;
       }
-      
+
       // Format the difference
       if (hoursDiff === 0) {
         return 'Same time';
@@ -153,16 +178,29 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   }
 
   /**
+   * Determines whether it is daytime (6am-6pm) in a given timezone
+   */
+  const isDaytime = (date: Date, timezone: string): boolean => {
+    try {
+      const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+      const hour = tzDate.getHours();
+      return hour >= 6 && hour < 18;
+    } catch {
+      return true;
+    }
+  }
+
+  /**
    * Removes a timezone from the list
-   * 
+   *
    * @param {number} id - The id of the timezone to remove
    */
   const removeTimezone = (id: number): void => {
     const updatedTimezones = timezones.filter(tz => tz.id !== id);
-    
+
     // Update state
     setTimezones(updatedTimezones);
-    
+
     // Save using onUpdate callback to persist
     if (config?.onUpdate) {
       config.onUpdate({
@@ -174,7 +212,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Searches for cities and their timezones based on input
-   * 
+   *
    * @param {string} searchTerm - The city name to search for
    */
   const searchCities = (searchTerm: string): void => {
@@ -182,9 +220,9 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       setSearchResults([]);
       return;
     }
-    
+
     setIsSearching(true);
-    
+
     // Comprehensive list of cities and their timezones
     // This is a much more extensive list than the original 10 cities
     const cityDatabase = [
@@ -204,7 +242,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Seattle', country: 'USA', timezone: 'America/Los_Angeles' },
       { city: 'Atlanta', country: 'USA', timezone: 'America/New_York' },
       { city: 'Calgary', country: 'Canada', timezone: 'America/Edmonton' },
-      
+
       // Europe
       { city: 'London', country: 'UK', timezone: 'Europe/London' },
       { city: 'Paris', country: 'France', timezone: 'Europe/Paris' },
@@ -226,7 +264,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Warsaw', country: 'Poland', timezone: 'Europe/Warsaw' },
       { city: 'Budapest', country: 'Hungary', timezone: 'Europe/Budapest' },
       { city: 'Zurich', country: 'Switzerland', timezone: 'Europe/Zurich' },
-      
+
       // Asia & Pacific
       { city: 'Tokyo', country: 'Japan', timezone: 'Asia/Tokyo' },
       { city: 'Shanghai', country: 'China', timezone: 'Asia/Shanghai' },
@@ -248,7 +286,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Kuala Lumpur', country: 'Malaysia', timezone: 'Asia/Kuala_Lumpur' },
       { city: 'Osaka', country: 'Japan', timezone: 'Asia/Tokyo' },
       { city: 'Brisbane', country: 'Australia', timezone: 'Australia/Brisbane' },
-      
+
       // Africa & Middle East
       { city: 'Cairo', country: 'Egypt', timezone: 'Africa/Cairo' },
       { city: 'Johannesburg', country: 'South Africa', timezone: 'Africa/Johannesburg' },
@@ -259,7 +297,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Abu Dhabi', country: 'UAE', timezone: 'Asia/Dubai' },
       { city: 'Riyadh', country: 'Saudi Arabia', timezone: 'Asia/Riyadh' },
       { city: 'Tel Aviv', country: 'Israel', timezone: 'Asia/Tel_Aviv' },
-      
+
       // South America
       { city: 'São Paulo', country: 'Brazil', timezone: 'America/Sao_Paulo' },
       { city: 'Buenos Aires', country: 'Argentina', timezone: 'America/Argentina/Buenos_Aires' },
@@ -269,41 +307,41 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Santiago', country: 'Chile', timezone: 'America/Santiago' },
       { city: 'Caracas', country: 'Venezuela', timezone: 'America/Caracas' },
     ];
-    
+
     // Filter results based on search term (case insensitive)
-    const results = cityDatabase.filter(item => 
+    const results = cityDatabase.filter(item =>
       item.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.country.toLowerCase().includes(searchTerm.toLowerCase())
     ).slice(0, 10); // Limit to 10 results for performance
-    
+
     setSearchResults(results);
     setIsSearching(false);
   };
 
   /**
    * Selects a city from search results and adds it as a timezone
-   * 
+   *
    * @param {Object} cityData - The selected city data with timezone
    */
   const selectCity = (cityData: {city: string, country: string, timezone: string}): void => {
     // Format the display name to include the country
     const displayName = `${cityData.city}, ${cityData.country}`;
-    
+
     // Clear search results
     setSearchResults([]);
     setCitySearchInput('');
-    
+
     // Directly add the timezone after selection
     const newId = Math.max(0, ...timezones.map(tz => tz.id || 0)) + 1;
-    const updatedTimezones = [...timezones, { 
-      id: newId, 
-      name: displayName, 
-      timezone: cityData.timezone 
+    const updatedTimezones = [...timezones, {
+      id: newId,
+      name: displayName,
+      timezone: cityData.timezone
     }];
-    
+
     // Update state
     setTimezones(updatedTimezones);
-    
+
     // Save using onUpdate callback to persist
     if (config?.onUpdate) {
       config.onUpdate({
@@ -430,7 +468,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the compact view optimized for 1x1 grid size
-   * 
+   *
    * @returns {React.ReactElement} Compact view optimized for 1x1 grid size
    */
   const renderCompactView = (): React.ReactElement => {
@@ -438,7 +476,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     const timeString = formatTime(currentTime, mainTimezone.timezone).split(':').slice(0, 2).join(':');
     const period = formatTime(currentTime, mainTimezone.timezone).split(' ')[1];
     const label = mainTimezone.name.split(',')[0];
-    
+
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
         <div className="text-[2.15rem] font-semibold leading-none tracking-tight text-gray-900 dark:text-gray-100">
@@ -454,9 +492,141 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     );
   };
 
+  // ── Nx1 Ribbon ──────────────────────────────────────────────────
+  /**
+   * Renders a horizontal ribbon for Nx1 (height === 1, width > 1) layouts.
+   * Shows the primary timezone time prominently, plus 2-3 others as chips.
+   */
+  const renderRibbonView = (): React.ReactElement => {
+    const mainTz = timezones[0] || { id: 0, name: 'Local', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    const mainTime = formatTime(currentTime, mainTz.timezone).split(':').slice(0, 2).join(':');
+    const mainPeriod = formatTime(currentTime, mainTz.timezone).split(' ')[1];
+    const chipCount = Math.min(timezones.length - 1, Math.max(2, width - 1));
+    const chipTimezones = timezones.slice(1, 1 + chipCount);
+
+    return (
+      <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
+        {/* Primary timezone */}
+        <span className="shrink-0 font-semibold text-sm text-gray-900 dark:text-gray-100">
+          {mainTime}
+          <span className="ml-0.5 text-[10px] font-normal text-gray-500 dark:text-gray-400 uppercase">{mainPeriod}</span>
+        </span>
+        <span className="shrink-0 truncate text-[11px] font-medium text-gray-600 dark:text-gray-300">
+          {mainTz.name.split(',')[0]}
+        </span>
+
+        {/* Divider */}
+        {chipTimezones.length > 0 && (
+          <span className="h-4 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+        )}
+
+        {/* Other timezone chips */}
+        {chipTimezones.map((tz) => {
+          const t = formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':');
+          const p = formatTime(currentTime, tz.timezone).split(' ')[1];
+          const city = tz.name.split(',')[0];
+          return (
+            <span
+              key={tz.id}
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1 text-gray-700 ring-1 ring-black/5 dark:border-white/10 dark:bg-black/20 dark:text-gray-200 dark:ring-white/10"
+            >
+              <span className="max-w-[6rem] truncate">{city}</span>
+              <span className="font-medium">{t}</span>
+              <span className="text-[10px] uppercase text-gray-400 dark:text-gray-500">{p}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ── 6x6+ App View ──────────────────────────────────────────────
+  /**
+   * Renders a full world-clock dashboard for 6x6+ "app" sizes.
+   * Each timezone gets a large analog clock, digital time, date line,
+   * time difference from local, and a day/night indicator.
+   */
+  const renderAppView = (): React.ReactElement => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    // Responsive grid: aim for 3-4 columns depending on width
+    const cols = width >= 8 ? 4 : 3;
+
+    return (
+      <div className="flex h-full flex-col overflow-hidden">
+        {/* Title bar for app view */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">World Clocks</h2>
+          {!readOnly && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="rounded-md px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+
+        {/* Clock grid */}
+        <div
+          className="grid flex-1 gap-4 overflow-y-auto px-4 pb-4"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gridAutoRows: 'minmax(180px, auto)',
+          }}
+        >
+          {timezones.map((tz) => {
+            const timeStr = formatTime(currentTime, tz.timezone);
+            const timeParts = timeStr.split(':').slice(0, 2).join(':');
+            const period = timeStr.split(' ')[1];
+            const dateLine = formatDateLine(currentTime, tz.timezone);
+            const diff = getTimeDiff(tz.timezone);
+            const day = isDaytime(currentTime, tz.timezone);
+            const DayNightIcon = day ? Sun : Moon;
+
+            return (
+              <div
+                key={tz.id}
+                className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-gray-50/60 p-4 dark:border-gray-800 dark:bg-gray-800/40 transition-all duration-300"
+              >
+                {/* City name */}
+                <div className="mb-2 text-sm font-semibold text-gray-800 dark:text-gray-200 truncate w-full text-center">
+                  {tz.name}
+                </div>
+
+                {/* Analog clock */}
+                <div className="mb-2">
+                  {renderClock(tz.timezone, 100, isDarkMode)}
+                </div>
+
+                {/* Digital time */}
+                <div className="text-2xl font-light tracking-tighter leading-none">
+                  {timeParts}
+                  <span className="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">{period}</span>
+                </div>
+
+                {/* Date line */}
+                <div className="mt-1.5 text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+                  {dateLine}
+                </div>
+
+                {/* Day/night + time diff */}
+                <div className="mt-1 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                  <DayNightIcon className="h-3.5 w-3.5" />
+                  <span>{day ? 'Day' : 'Night'}</span>
+                  <span className="h-3 w-px bg-gray-300 dark:bg-gray-600" />
+                  <span>{diff}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   /**
    * Renders the default view optimized for 2x2 grid size
-   * 
+   *
    * @returns {React.ReactElement} Default view optimized for 2x2 grid size
    */
   const renderDefaultView = (): React.ReactElement => {
@@ -483,7 +653,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
+
     // For 3+ timezones, use a more compact list view with scrolling
     return (
       <div className="flex flex-col space-y-2 overflow-y-auto h-full py-2 px-3 transition-all duration-300">
@@ -507,7 +677,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the medium view optimized for 2x2 grid size with multiple timezones
-   * 
+   *
    * @returns {React.ReactElement} Medium view optimized for 2x2 grid size with multiple timezones
    */
   const renderMediumView = (): React.ReactElement => {
@@ -528,12 +698,12 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the wide view optimized for 3x2 grid size
-   * 
+   *
    * @returns {React.ReactElement} Wide view optimized for 3x2 grid size
    */
   const renderWideView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     // For 1-3 timezones, show analog clocks
     if (timezones.length <= 3) {
       return (
@@ -554,7 +724,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
+
     // For 4-6 timezones, show digital clocks in a 3x2 grid
     if (timezones.length <= 6) {
       return (
@@ -575,7 +745,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
+
     // For 7+ timezones, use a more compact grid with scrolling
     return (
       <div className="grid grid-cols-3 auto-rows-min gap-x-3 gap-y-2 h-full overflow-y-auto transition-all duration-300">
@@ -598,12 +768,12 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the tall view optimized for 2x3+ grid sizes
-   * 
+   *
    * @returns {React.ReactElement} Tall view optimized for 2x3+ grid sizes
    */
   const renderTallView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     // For 1-4 timezones, show larger clocks with more details
     if (timezones.length <= 4) {
       return (
@@ -627,7 +797,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
+
     // For 5+ timezones, use a compact layout with smaller clocks
     return (
       <div className="grid grid-cols-2 auto-rows-min gap-1 h-full overflow-y-auto transition-all duration-300">
@@ -651,12 +821,12 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the full view optimized for 4x4+ grid sizes
-   * 
+   *
    * @returns {React.ReactElement} Full view optimized for 4x4+ grid sizes
    */
   const renderFullView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     return (
       <div className="grid grid-cols-3 gap-3 h-full overflow-y-auto transition-all duration-300">
         {timezones.map(tz => (
@@ -684,13 +854,13 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   /**
-   * Renders the extra-wide view optimized for 6×2 or wider layouts
-   * 
-   * @returns {React.ReactElement} Extra-wide view optimized for 6×2 or wider layouts
+   * Renders the extra-wide view optimized for 6x2 or wider layouts
+   *
+   * @returns {React.ReactElement} Extra-wide view optimized for 6x2 or wider layouts
    */
   const renderExtraWideView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     // For 1-6 timezones, show in a single row with larger analog clocks
     if (timezones.length <= 6) {
       return (
@@ -717,8 +887,8 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
-    // For 7-12 timezones, use a 6×2 grid layout
+
+    // For 7-12 timezones, use a 6x2 grid layout
     if (timezones.length <= 12) {
       return (
         <div className="grid grid-cols-6 grid-rows-2 gap-x-3 gap-y-1 h-full transition-all duration-300">
@@ -738,7 +908,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
+
     // For 13+ timezones, use a scrollable 6-column grid
     return (
       <div className="grid grid-cols-6 auto-rows-min gap-x-3 gap-y-2 h-full overflow-y-auto transition-all duration-300">
@@ -760,13 +930,13 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   /**
-   * Renders the tall-wide view optimized for 2×3 or 2×4 grid sizes
-   * 
-   * @returns {React.ReactElement} Tall-wide view optimized for 2×3 or 2×4 grid sizes
+   * Renders the tall-wide view optimized for 2x3 or 2x4 grid sizes
+   *
+   * @returns {React.ReactElement} Tall-wide view optimized for 2x3 or 2x4 grid sizes
    */
   const renderTallWideView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     return (
       <div className="grid grid-cols-2 gap-4 h-full transition-all duration-300">
         {timezones.map(tz => (
@@ -797,7 +967,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the appropriate view for the current dimensions and timezone count
-   * 
+   *
    * @returns {React.ReactElement} The appropriate view for the current dimensions and timezone count
    */
   const renderContent = (): React.ReactElement => {
@@ -805,49 +975,61 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       return (
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No timezones added</p>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
-          >
-            Add Timezone
-          </button>
+          {!readOnly && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
+            >
+              Add Timezone
+            </button>
+          )}
         </div>
       );
     }
-    
-    // Single timezone for very small widgets
-    if (width === 1 && height === 1) {
+
+    // 1x1 tiny icon
+    if (isTiny) {
       return renderCompactView();
     }
-    
-    // Determine the best view based on dimensions and timezone count
-    
+
+    // Nx1 ribbon
+    if (isShort) {
+      return renderRibbonView();
+    }
+
+    // 6x6+ app dashboard
+    if (isApp) {
+      return renderAppView();
+    }
+
+    // ── Existing size routing (unchanged) ─────────────────────────
+
     // Full size widgets - use the most detailed view
     if (width >= 4 && height >= 4) {
       return renderFullView();
     }
-    
+
     // Extra-wide layout (6+ columns, 2 rows)
     if (width >= 6 && height === 2) {
       return renderExtraWideView();
     }
-    
+
     // Tall-wide layout (2 columns, 3-4 rows)
     if (width === 2 && (height === 3 || height === 4)) {
       return renderTallWideView();
     }
-    
+
     // Tall layout - 2x5+
     if (width === 2 && height >= 5) {
       // For many timezones in this layout, the tall view with compact list is best
       return renderTallView();
     }
-    
+
     // Wide layout - 3x2 to 5x2
     if (width >= 3 && height === 2) {
       return renderWideView();
     }
-    
+
     // Square 2x2 layout
     if (width === 2 && height === 2) {
       // Choose based on number of timezones
@@ -859,26 +1041,26 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         return renderDefaultView(); // Scrollable list for many timezones
       }
     }
-    
+
     // 3x3 and similar sizes
     if (width >= 3 && height >= 3) {
       return renderTallView();
     }
-    
+
     // For all other irregular sizes, choose based on aspect ratio
     if (width > height) {
       return renderWideView(); // Wider than tall
     } else if (height > width) {
       return renderTallView(); // Taller than wide
     }
-    
+
     // Default fallback for other dimensions
     return renderDefaultView();
   };
 
   /**
    * Handles the start of dragging a timezone item
-   * 
+   *
    * @param {number} index - The index of the item being dragged
    */
   const handleDragStart = (index: number) => {
@@ -887,7 +1069,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Handles dragging over another timezone item
-   * 
+   *
    * @param {number} index - The index of the item being dragged over
    */
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
@@ -902,19 +1084,19 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     if (draggedItemIndex !== null && dragOverItemIndex !== null) {
       // Create a copy of the current timezones
       const updatedTimezones = [...timezones];
-      
+
       // Save the dragged item
       const draggedItem = updatedTimezones[draggedItemIndex];
-      
+
       // Remove the dragged item from its original position
       updatedTimezones.splice(draggedItemIndex, 1);
-      
+
       // Insert the dragged item at the new position
       updatedTimezones.splice(dragOverItemIndex, 0, draggedItem);
-      
+
       // Update state with the new order
       setTimezones(updatedTimezones);
-      
+
       // Save using onUpdate callback to persist
       if (config?.onUpdate) {
         config.onUpdate({
@@ -923,7 +1105,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         });
       }
     }
-    
+
     // Reset drag state
     setDraggedItemIndex(null);
     setDragOverItemIndex(null);
@@ -937,9 +1119,50 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     setDragOverItemIndex(null);
   };
 
+  // ── Settings modal helpers ──────────────────────────────────────
+
+  /** Reset draft state back to the persisted snapshot */
+  const resetSettingsDraft = useCallback(() => {
+    setTimezones(savedTimezones);
+    setCitySearchInput('');
+    setSearchResults([]);
+  }, [savedTimezones]);
+
+  /** Called when the Dialog open state changes */
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    if (nextOpen) {
+      // Snapshot current timezones when opening
+      setSavedTimezones(timezones);
+    } else {
+      // Closing without save => revert
+      resetSettingsDraft();
+    }
+    setShowSettings(nextOpen);
+  }, [timezones, resetSettingsDraft]);
+
+  /** Cancel button handler */
+  const handleCancelSettings = useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
+
+  /** Save button handler */
+  const saveSettings = useCallback(() => {
+    if (config?.onUpdate) {
+      config.onUpdate({
+        ...config,
+        timezones: timezones
+      });
+    }
+    setSavedTimezones(timezones);
+    setShowSettings(false);
+    setCitySearchInput('');
+    setSearchResults([]);
+  }, [config, timezones]);
+
   /**
    * Renders the settings content
-   * 
+   *
    * @returns {React.ReactElement} Settings content
    */
   const renderSettingsContent = (): React.ReactElement => {
@@ -970,7 +1193,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   </div>
                 )}
               </div>
-              
+
               {searchResults.length > 0 && (
                 <div className="mt-1 border rounded-md overflow-hidden max-h-60 overflow-y-auto bg-white dark:bg-gray-800">
                   {searchResults.map((result, index) => (
@@ -985,7 +1208,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   ))}
                 </div>
               )}
-              
+
               {citySearchInput && searchResults.length === 0 && !isSearching && (
                 <div className="text-sm text-gray-500 mt-1 px-1">
                   No cities found. Try a different search term.
@@ -994,7 +1217,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             </div>
           </CardContent>
         </Card>
-        
+
         {timezones.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
@@ -1005,13 +1228,13 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             </CardHeader>
             <CardContent className="space-y-2">
               {timezones.map((tz, index) => (
-                <div 
-                  key={tz.id} 
+                <div
+                  key={tz.id}
                   className={`flex justify-between items-center p-2 rounded-lg border ${
-                    draggedItemIndex === index 
-                      ? 'bg-gray-100 dark:bg-gray-700 border-blue-300 dark:border-blue-500 opacity-50' 
-                      : dragOverItemIndex === index 
-                        ? 'bg-gray-50 dark:bg-gray-800 border-blue-200 dark:border-blue-700' 
+                    draggedItemIndex === index
+                      ? 'bg-gray-100 dark:bg-gray-700 border-blue-300 dark:border-blue-500 opacity-50'
+                      : dragOverItemIndex === index
+                        ? 'bg-gray-50 dark:bg-gray-800 border-blue-200 dark:border-blue-700'
                         : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
                   } transition-colors duration-150`}
                   draggable
@@ -1047,87 +1270,69 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   /**
-   * Renders the settings footer
-   * 
-   * @returns {React.ReactElement} Settings footer
+   * Renders the settings dialog
    */
-  const renderSettingsFooter = (): React.ReactElement => {
-    return (
-      <div className="flex justify-between w-full">
-        {config?.onDelete && (
-          <Button
-            variant="destructive"
-            onClick={() => {
-              if (config.onDelete) {
-                config.onDelete();
-              }
-            }}
-            aria-label="Delete this widget"
-          >
-            Delete
-          </Button>
-        )}
-        
-        <div className="flex justify-end">
-          <Button
-            variant="default"
-            onClick={() => {
-              // Explicitly save current timezone list to ensure persistence
-              if (config?.onUpdate) {
-                config.onUpdate({
-                  ...config,
-                  timezones: timezones
-                });
-              }
-              
-              setShowSettings(false);
-              setCitySearchInput('');
-              setSearchResults([]);
-            }}
-          >
-            Save
-          </Button>
+  const renderSettings = () => (
+    <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="gap-2 px-6 pt-6">
+          <DialogTitle>World Clocks Settings</DialogTitle>
+          <DialogDescription>
+            Add, remove, and reorder the timezones displayed by this widget.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 overflow-y-auto px-6 py-4">
+          {renderSettingsContent()}
         </div>
-      </div>
-    );
-  };
+
+        <DialogFooter className="flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            {config?.onDelete && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (config.onDelete) {
+                    config.onDelete();
+                  }
+                }}
+                aria-label="Delete this widget"
+              >
+                Delete Widget
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCancelSettings}>
+              Cancel
+            </Button>
+            <Button variant="default" onClick={saveSettings}>
+              Save
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // ── Main return ─────────────────────────────────────────────────
+  const suppressHeader = isTiny || isApp;
 
   return (
     <div ref={widgetRef} className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
-      {!isTiny && (
-        <WidgetHeader 
-          title="World Clocks" 
-          onSettingsClick={() => setShowSettings(true)}
-          compact={width === 1 || height === 1}
+      {!suppressHeader && (
+        <WidgetHeader
+          title="World Clocks"
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isCompact || isShort}
         />
       )}
-      
+
       <div className={`flex-1 overflow-hidden ${isTiny ? 'p-2' : ''}`}>
         {renderContent()}
       </div>
-      
-      {showSettings && (
-        <Dialog
-          open={showSettings}
-          onOpenChange={(open: boolean) => {
-            if (!open) {
-              setShowSettings(false);
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>World Clocks Settings</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {renderSettingsContent()}
-            </div>
-            <DialogFooter>
-              {renderSettingsFooter()}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+
+      {!readOnly && renderSettings()}
     </div>
   );
 };
@@ -1135,4 +1340,4 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 export default WorldClocksWidget;
 
 // Export types for use in other files
-export * from './types'; 
+export * from './types';

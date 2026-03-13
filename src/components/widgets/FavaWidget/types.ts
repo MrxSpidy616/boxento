@@ -29,6 +29,7 @@ export interface FavaWidgetConfig {
   currency?: string; // Display currency symbol
   onUpdate?: (config: FavaWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

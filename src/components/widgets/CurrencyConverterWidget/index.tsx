@@ -253,18 +253,32 @@ enum WidgetSizeCategory {
  * @returns {JSX.Element} Widget component
  */
 const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width, height, config = {} }) => {
+  // --- Size-tier detection ---
+  const isTiny = width === 1 && height === 1;
+  const isShort = height === 1 && width > 1;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
+
   const [amount, setAmount] = React.useState('1');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('general');
   const [showSettings, setShowSettings] = React.useState(false);
-  const [localConfig, setLocalConfig] = React.useState<CurrencyConverterWidgetConfig>({
+
+  const mergedConfig = React.useMemo<CurrencyConverterWidgetConfig>(() => ({
     title: 'Currency Converter',
     baseCurrency: 'USD',
     targetCurrencies: ['EUR', 'GBP', 'JPY'],
     autoRefresh: false,
     refreshInterval: 60,
     ...config
-  });
+  }), [config]);
+
+  const [localConfig, setLocalConfig] = React.useState<CurrencyConverterWidgetConfig>(mergedConfig);
+
+  // Keep local config in sync when props change
+  React.useEffect(() => {
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
 
   // Use exchange rates hook - no API key needed anymore
   const { rates, loading, error, refetch } = useExchangeRates(
@@ -279,8 +293,29 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
     setAmount(value);
   };
 
+  // Reset local config draft back to persisted values
+  const resetSettingsDraft = React.useCallback(() => {
+    setLocalConfig(mergedConfig);
+    setActiveTab('general');
+    setSearchQuery('');
+  }, [mergedConfig]);
+
+  // Handle dialog open/close -- reset draft when closing
+  const handleSettingsOpenChange = React.useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetSettingsDraft();
+    }
+    setShowSettings(nextOpen);
+  }, [resetSettingsDraft]);
+
+  // Cancel button handler
+  const handleCancelSettings = React.useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
+
   // Save settings
-  const saveSettings = () => {
+  const saveSettings = React.useCallback(() => {
     if (config?.onUpdate) {
       config.onUpdate(localConfig);
     }
@@ -290,150 +325,152 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
     setTimeout(() => {
       refetch();
     }, 500);
-  };
+  }, [config, localConfig, refetch]);
 
   // Handle widget deletion
-  const handleDelete = () => {
+  const handleDelete = React.useCallback(() => {
     if (config?.onDelete) {
       config.onDelete();
     }
     setShowSettings(false);
-  };
+  }, [config]);
 
   // Render settings dialog
   const renderSettings = () => (
-    <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Currency Converter Settings</DialogTitle>
         </DialogHeader>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="currencies">Currencies</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="general" className="space-y-4 py-4">
-            <div className="space-y-4">
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="title-input">Widget Title</Label>
-                <Input
-                  id="title-input"
-                  value={localConfig.title || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-              
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="base-currency-select">Base Currency</Label>
-                <Select
-                  value={localConfig.baseCurrency || 'USD'}
-                  onValueChange={(value: string) => setLocalConfig(prev => ({ ...prev, baseCurrency: value }))}
-                >
-                  <SelectTrigger id="base-currency-select">
-                    <SelectValue placeholder="Select base currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {POPULAR_CURRENCIES.map(code => (
-                      <SelectItem key={code} value={code}>
-                        {code} - {CURRENCIES[code as keyof typeof CURRENCIES]?.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="currencies" className="space-y-4 py-4">
-            <div className="space-y-4">
-              <div className="grid w-full items-center gap-1.5">
-                <div className="flex justify-between items-center">
-                  <Label>Target Currencies</Label>
-                  <span className="text-xs text-muted-foreground">
-                    Selected: {localConfig.targetCurrencies?.length || 0}
-                  </span>
+
+        <div className="flex-1 overflow-y-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="currencies">Currencies</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="general" className="space-y-4 py-4">
+              <div className="space-y-4">
+                <div className="grid w-full items-center gap-1.5">
+                  <Label htmlFor="title-input">Widget Title</Label>
+                  <Input
+                    id="title-input"
+                    value={localConfig.title || ''}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({ ...prev, title: e.target.value }))}
+                  />
                 </div>
-                
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  placeholder="Search currencies..."
-                  className="mb-2"
-                />
-                
-                <div className="h-36 overflow-y-auto border rounded-md">
-                  <div className="grid grid-cols-2 gap-1 p-2">
-                    {POPULAR_CURRENCIES.map(code => (
-                      <div key={code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`currency-${code}`}
-                          checked={localConfig.targetCurrencies?.includes(code) || false}
-                          onCheckedChange={(checked: boolean) => {
-                            const currentTargets = localConfig.targetCurrencies || [];
-                            setLocalConfig(prev => ({
-                              ...prev,
-                              targetCurrencies: checked
-                                ? [...currentTargets, code]
-                                : currentTargets.filter(c => c !== code)
-                            }));
-                          }}
-                        />
-                        <Label htmlFor={`currency-${code}`} className="text-sm">
-                          {code}
-                        </Label>
-                      </div>
-                    ))}
+
+                <div className="grid w-full items-center gap-1.5">
+                  <Label htmlFor="base-currency-select">Base Currency</Label>
+                  <Select
+                    value={localConfig.baseCurrency || 'USD'}
+                    onValueChange={(value: string) => setLocalConfig(prev => ({ ...prev, baseCurrency: value }))}
+                  >
+                    <SelectTrigger id="base-currency-select">
+                      <SelectValue placeholder="Select base currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POPULAR_CURRENCIES.map(code => (
+                        <SelectItem key={code} value={code}>
+                          {code} - {CURRENCIES[code as keyof typeof CURRENCIES]?.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="currencies" className="space-y-4 py-4">
+              <div className="space-y-4">
+                <div className="grid w-full items-center gap-1.5">
+                  <div className="flex justify-between items-center">
+                    <Label>Target Currencies</Label>
+                    <span className="text-xs text-muted-foreground">
+                      Selected: {localConfig.targetCurrencies?.length || 0}
+                    </span>
+                  </div>
+
+                  <Input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                    placeholder="Search currencies..."
+                    className="mb-2"
+                  />
+
+                  <div className="h-36 overflow-y-auto border rounded-md">
+                    <div className="grid grid-cols-2 gap-1 p-2">
+                      {POPULAR_CURRENCIES.map(code => (
+                        <div key={code} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`currency-${code}`}
+                            checked={localConfig.targetCurrencies?.includes(code) || false}
+                            onCheckedChange={(checked: boolean) => {
+                              const currentTargets = localConfig.targetCurrencies || [];
+                              setLocalConfig(prev => ({
+                                ...prev,
+                                targetCurrencies: checked
+                                  ? [...currentTargets, code]
+                                  : currentTargets.filter(c => c !== code)
+                              }));
+                            }}
+                          />
+                          <Label htmlFor={`currency-${code}`} className="text-sm">
+                            {code}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="advanced" className="space-y-4 py-4">
-            <div className="space-y-4">
-              {/* No API key needed info */}
-              <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-3 space-y-1">
-                <div className="flex items-center text-sm font-medium text-green-700 dark:text-green-400">
-                  <BadgeCent className="h-3.5 w-3.5 mr-1.5" />
-                  No API Key Required
+            </TabsContent>
+
+            <TabsContent value="advanced" className="space-y-4 py-4">
+              <div className="space-y-4">
+                {/* No API key needed info */}
+                <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-3 space-y-1">
+                  <div className="flex items-center text-sm font-medium text-green-700 dark:text-green-400">
+                    <BadgeCent className="h-3.5 w-3.5 mr-1.5" />
+                    No API Key Required
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-500">
+                    Currency rates are provided automatically. Just select your currencies above.
+                  </p>
                 </div>
-                <p className="text-xs text-green-600 dark:text-green-500">
-                  Currency rates are provided automatically. Just select your currencies above.
-                </p>
-              </div>
 
-              <div className="flex items-center space-x-3">
-                <Switch
-                  id="auto-refresh"
-                  checked={localConfig.autoRefresh || false}
-                  onCheckedChange={(checked: boolean) => setLocalConfig(prev => ({ ...prev, autoRefresh: checked }))}
-                />
-                <Label htmlFor="auto-refresh">Auto Refresh</Label>
-              </div>
-
-              {localConfig.autoRefresh && (
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <Label>Refresh Interval (minutes)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="1440"
-                    value={localConfig.refreshInterval || 60}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({
-                      ...prev,
-                      refreshInterval: parseInt(e.target.value) || 60
-                    }))}
+                <div className="flex items-center space-x-3">
+                  <Switch
+                    id="auto-refresh"
+                    checked={localConfig.autoRefresh || false}
+                    onCheckedChange={(checked: boolean) => setLocalConfig(prev => ({ ...prev, autoRefresh: checked }))}
                   />
+                  <Label htmlFor="auto-refresh">Auto Refresh</Label>
                 </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-        
+
+                {localConfig.autoRefresh && (
+                  <div className="grid grid-cols-2 items-center gap-2">
+                    <Label>Refresh Interval (minutes)</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      value={localConfig.refreshInterval || 60}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({
+                        ...prev,
+                        refreshInterval: parseInt(e.target.value) || 60
+                      }))}
+                    />
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+
         <DialogFooter>
           <div className="flex justify-between w-full">
             {config?.onDelete && (
@@ -445,12 +482,20 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
                 Delete
               </Button>
             )}
-            <Button
-              variant="default"
-              onClick={saveSettings}
-            >
-              Save
-            </Button>
+            <div className="flex items-center gap-2 ml-auto">
+              <Button
+                variant="outline"
+                onClick={handleCancelSettings}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="default"
+                onClick={saveSettings}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         </DialogFooter>
       </DialogContent>
@@ -478,10 +523,160 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
     }
   };
 
-  // Render content based on widget size
+  // --- 1x1 Icon view ---
+  const renderTinyView = () => {
+    const primaryCurrency = localConfig.targetCurrencies?.[0];
+    const rate = primaryCurrency ? (rates[primaryCurrency] || 0) : 0;
+    const baseSymbol = CURRENCIES[localConfig.baseCurrency as keyof typeof CURRENCIES]?.symbol || localConfig.baseCurrency;
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-0.5 text-center">
+        <span className="text-lg font-semibold leading-none text-gray-900 dark:text-gray-100">
+          {baseSymbol}{rate ? rate.toFixed(2) : '--'}
+        </span>
+        <span className="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-300">
+          {primaryCurrency || localConfig.baseCurrency}
+        </span>
+      </div>
+    );
+  };
+
+  // --- Nx1 Ribbon view ---
+  const renderRibbonView = () => {
+    const currencies = (localConfig.targetCurrencies || []).slice(0, Math.min(3, Math.max(2, width)));
+    const numericAmount = parseFloat(amount) || 0;
+
+    return (
+      <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
+        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-gray-700 dark:bg-white/[0.06] dark:text-gray-200">
+          {CURRENCIES[localConfig.baseCurrency as keyof typeof CURRENCIES]?.symbol || ''}{numericAmount || 1} {localConfig.baseCurrency}
+        </span>
+        {currencies.map(currency => {
+          const rate = rates[currency] || 0;
+          const value = (numericAmount * rate).toFixed(2);
+          return (
+            <span
+              key={currency}
+              className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 tabular-nums text-gray-700 dark:bg-white/[0.06] dark:text-gray-200"
+            >
+              {CURRENCIES[currency as keyof typeof CURRENCIES]?.symbol}{value} {currency}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // --- 6x6+ App view ---
+  const renderAppView = () => {
+    const currencies = localConfig.targetCurrencies || [];
+    const numericAmount = parseFloat(amount) || 0;
+    // For the conversion matrix, show a subset
+    const matrixCurrencies = [localConfig.baseCurrency || 'USD', ...currencies.slice(0, 5)];
+
+    return (
+      <div className="flex h-full flex-col gap-3 p-3 overflow-y-auto">
+        {/* Amount input + base currency selector */}
+        <div className="flex gap-2">
+          <div className="flex flex-1 border rounded-md overflow-hidden">
+            <Input
+              type="text"
+              value={amount}
+              onChange={handleAmountChange}
+              className="flex-grow border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              aria-label={`Amount in ${localConfig.baseCurrency}`}
+            />
+          </div>
+          <Select
+            value={localConfig.baseCurrency || 'USD'}
+            onValueChange={(value: string) => {
+              setLocalConfig(prev => ({ ...prev, baseCurrency: value }));
+              if (config?.onUpdate) {
+                config.onUpdate({ ...localConfig, baseCurrency: value });
+              }
+            }}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {POPULAR_CURRENCIES.map(code => (
+                <SelectItem key={code} value={code}>
+                  {CURRENCIES[code as keyof typeof CURRENCIES]?.symbol} {code}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Currency rate grid */}
+        <div className="grid grid-cols-3 gap-2">
+          {currencies.map(currency => {
+            const rate = rates[currency] || 0;
+            const value = (numericAmount * rate).toFixed(2);
+            return (
+              <div key={currency} className="flex flex-col items-center justify-center bg-card text-card-foreground rounded-md p-3 border shadow-sm">
+                <span className="text-xl font-semibold tabular-nums">
+                  {CURRENCIES[currency as keyof typeof CURRENCIES]?.symbol}{value}
+                </span>
+                <span className="text-xs font-medium text-muted-foreground">{currency}</span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">
+                  1 {localConfig.baseCurrency} = {rate.toFixed(4)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Conversion matrix table */}
+        {currencies.length > 0 && (
+          <div className="mt-1">
+            <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Conversion Matrix</h4>
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="p-1.5 text-left font-medium text-muted-foreground">From / To</th>
+                    {matrixCurrencies.map(code => (
+                      <th key={code} className="p-1.5 text-right font-medium text-muted-foreground">{code}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrixCurrencies.map(fromCurrency => {
+                    const fromRate = fromCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[fromCurrency] ?? 0);
+                    return (
+                      <tr key={fromCurrency} className="border-t">
+                        <td className="p-1.5 font-medium">{fromCurrency}</td>
+                        {matrixCurrencies.map(toCurrency => {
+                          const toRate = toCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[toCurrency] ?? 0);
+                          const crossRate = fromCurrency === toCurrency ? 1 : (fromRate === 0 || toRate === 0) ? 0 : toRate / fromRate;
+                          return (
+                            <td key={toCurrency} className="p-1.5 text-right tabular-nums text-muted-foreground">
+                              {crossRate === 0 && fromCurrency !== toCurrency ? '--' : crossRate.toFixed(4)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render content based on widget size -- isTiny -> isShort -> isApp -> existing size category
   const renderContent = () => {
+    if (isTiny) return renderTinyView();
+    if (isShort) return renderRibbonView();
+    if (isApp) return renderAppView();
+
     const sizeCategory = getWidgetSizeCategory(width, height);
-    
+
     switch (sizeCategory) {
       case WidgetSizeCategory.LARGE:
         return renderLargeView();
@@ -718,41 +913,54 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
 
   // Main render
   return (
-    <div className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title={localConfig.title || 'Currency Converter'} 
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      
-      <div className="flex-grow overflow-hidden">
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && !isApp && (
+        <WidgetHeader
+          title={localConfig.title || 'Currency Converter'}
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isShort}
+        />
+      )}
+
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-2' : isShort ? 'p-1.5' : ''}`}>
         {error ? (
-          // Error view
-          <div className="h-full flex flex-col items-center justify-center text-center p-4">
-            {/* Use AlertCircle icon for errors */}
-            <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
-            {/* Consistent error text styling */}
-            <p className="text-sm text-red-500 dark:text-red-400 mb-3">
-              {error}
-            </p>
-            {/* Consistent button styling */}
-            <Button
-              size="sm"
-              onClick={refetch}
-            >
-              Retry
-            </Button>
-          </div>
+          // Error view - compact for tiny
+          isTiny ? (
+            <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+              <AlertCircle size={16} className="text-red-500" strokeWidth={1.5} />
+              <span className="text-[10px] text-red-500">Error</span>
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-4">
+              <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
+              <p className="text-sm text-red-500 dark:text-red-400 mb-3">
+                {error}
+              </p>
+              <Button
+                size="sm"
+                onClick={refetch}
+              >
+                Retry
+              </Button>
+            </div>
+          )
         ) : loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin h-6 w-6 rounded-full border-2 border-primary border-t-transparent"></div>
-          </div>
+          isTiny ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="animate-spin h-4 w-4 rounded-full border-2 border-primary border-t-transparent"></div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin h-6 w-6 rounded-full border-2 border-primary border-t-transparent"></div>
+            </div>
+          )
         ) : (
           renderContent()
         )}
       </div>
 
       {/* Settings dialog */}
-      {renderSettings()}
+      {!readOnly && renderSettings()}
     </div>
   );
 };
