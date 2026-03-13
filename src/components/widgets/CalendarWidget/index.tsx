@@ -924,16 +924,13 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
    */
   const renderCompactCalendar = () => {
     const today = new Date()
-    const dayOfWeek = today.toLocaleDateString('default', { weekday: 'long' })
     const dayOfMonth = today.getDate()
     const month = today.toLocaleDateString('default', { month: 'long' })
-    
-    const shortDay = today.toLocaleDateString('default', { weekday: 'short' });
 
     return (
       <div ref={widgetRef} className="h-full flex flex-col justify-center items-center text-center overflow-hidden">
         <div className="text-xs text-muted-foreground mb-0.5 truncate max-w-full px-1">
-          {width <= 2 ? shortDay : dayOfWeek}
+          {today.toLocaleDateString('default', { weekday: width <= 2 ? 'short' : 'long' })}
         </div>
 
         <div className="flex flex-col items-center">
