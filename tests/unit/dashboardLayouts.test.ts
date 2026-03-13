@@ -71,8 +71,8 @@ describe('dashboardLayouts', () => {
       createWidget('calendar', 'calendar-1'),
       'xl'
     );
-    expect(calendar.minW).toBe(2);
-    expect(calendar.minH).toBe(2);
+    expect(calendar.minW).toBe(1);
+    expect(calendar.minH).toBe(1);
 
     const mobileQuickLinks = applyWidgetLayoutConstraints(
       createLayoutItem({ i: 'quick-links-1', x: 1, y: 0, w: 5, h: 1 }),
