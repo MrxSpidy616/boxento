@@ -14,6 +14,19 @@ export interface TodoistTask {
   priority: number;
   project_id: string;
   url: string;
+  description?: string;
+  labels?: string[];
+  section_id?: string;
+}
+
+/**
+ * Represents a Todoist project
+ */
+export interface TodoistProject {
+  id: string;
+  name: string;
+  color: string;
+  order: number;
 }
 
 /**
@@ -21,16 +34,18 @@ export interface TodoistTask {
  */
 export interface TodoistWidgetConfig {
   id?: string;
+  title?: string;
   apiToken?: string;
   projectId?: string;
   showCompleted?: boolean;
   maxTasks?: number;
   onUpdate?: (config: TodoistWidgetConfig) => void;
   onDelete?: () => void;
-  [key: string]: unknown; // Add index signature for Record<string, unknown> compatibility
+  readOnly?: boolean;
+  [key: string]: unknown;
 }
 
 /**
  * Props for the Todoist widget component
  */
-export type TodoistWidgetProps = WidgetProps<TodoistWidgetConfig>; 
+export type TodoistWidgetProps = WidgetProps<TodoistWidgetConfig>;

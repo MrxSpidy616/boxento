@@ -22,6 +22,7 @@ export interface OllamaWidgetConfig {
   messages?: ChatMessage[]; // Chat history
   onUpdate?: (config: OllamaWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

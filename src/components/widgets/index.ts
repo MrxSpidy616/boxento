@@ -83,6 +83,12 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'rss',
   'pomodoro',
   'currency-converter',
+  'habits',
+  'iframe',
+  'ollama',
+  'qrcode',
+  'countdown',
+  'todoist',
 ]);
 
 // Widget registry with enhanced metadata

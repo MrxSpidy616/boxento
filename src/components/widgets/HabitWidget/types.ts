@@ -19,6 +19,7 @@ export interface HabitWidgetConfig {
   habits?: Habit[];
   onUpdate?: (config: HabitWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 
