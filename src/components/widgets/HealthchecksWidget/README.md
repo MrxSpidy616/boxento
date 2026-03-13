@@ -12,7 +12,9 @@ Display scheduled job and dead-man-switch status from Healthchecks inside Boxent
 ## Configuration
 
 - `Title`: widget header label
-- `API URL`: Boxento backend endpoint or custom normalized JSON endpoint
+- `Healthchecks URL`: base URL of your Healthchecks instance
+- `Read-only API Key`: API key used to fetch checks
+- `API URL`: advanced override for the Boxento backend endpoint
 - `Open URL`: optional override for the external-link button
 - `Refresh (s)`: polling interval, minimum practical value is 15 seconds
 - `Max items`: number of checks shown in standard layouts
@@ -59,4 +61,5 @@ The widget expects a JSON response shaped like:
 ## Notes
 
 - This widget is best for jobs and cron-like workflows, not live service uptime.
+- Fresh Boxento installs can configure this widget directly from widget settings using the instance URL and a read-only API key.
 - Pair it with Uptime Kuma for a full homelab monitoring setup.

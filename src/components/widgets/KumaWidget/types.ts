@@ -31,6 +31,7 @@ export interface KumaWidgetConfig {
   id?: string;
   title?: string;
   apiUrl?: string;
+  statusPageUrl?: string;
   dashboardUrl?: string;
   refreshInterval?: number;
   maxItems?: number;

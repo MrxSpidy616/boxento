@@ -6,6 +6,7 @@ import {
   ExternalLink,
   RefreshCw,
   Search,
+  Settings,
   Siren,
   Timer,
   XCircle,
@@ -33,6 +34,8 @@ const DEFAULT_API_URL = SQLITE_API_URL ? `${SQLITE_API_URL}/monitoring/healthche
 const DEFAULT_CONFIG: HealthchecksWidgetConfig = {
   title: 'Job Monitoring',
   apiUrl: DEFAULT_API_URL,
+  baseUrl: '',
+  apiKey: '',
   refreshInterval: 60,
   maxItems: 6,
   tagFilter: '',
@@ -149,6 +152,9 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [selectedCheckSlug, setSelectedCheckSlug] = useState<string | null>(null);
+  const hasCustomHealthchecksConfig = Boolean(localConfig.baseUrl?.trim() && localConfig.apiKey?.trim());
+  const shouldUseServerFallback = !hasCustomHealthchecksConfig;
+  const shouldShowSetupPrompt = !data && !loading && shouldUseServerFallback && error === 'Healthchecks monitoring is not configured';
 
   useEffect(() => {
     setLocalConfig(mergedConfig);
@@ -159,10 +165,19 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
       setLoading(true);
       setError(null);
       const response = await fetch(localConfig.apiUrl || DEFAULT_API_URL, {
+        method: hasCustomHealthchecksConfig ? 'POST' : 'GET',
+        headers: hasCustomHealthchecksConfig ? { 'Content-Type': 'application/json' } : undefined,
+        body: hasCustomHealthchecksConfig
+          ? JSON.stringify({
+              baseUrl: localConfig.baseUrl?.trim(),
+              apiKey: localConfig.apiKey?.trim(),
+            })
+          : undefined,
         signal: AbortSignal.timeout(10000),
       });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || `HTTP ${response.status}`);
       }
       const payload: HealthchecksWidgetData = await response.json();
       setData(payload);
@@ -171,7 +186,7 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
     } finally {
       setLoading(false);
     }
-  }, [localConfig.apiUrl]);
+  }, [hasCustomHealthchecksConfig, localConfig.apiKey, localConfig.apiUrl, localConfig.baseUrl]);
 
   useEffect(() => {
     fetchData();
@@ -243,6 +258,28 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
   const saveSettings = () => {
     config?.onUpdate?.(localConfig);
     setShowSettings(false);
+  };
+
+  const renderSetupPrompt = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <Clock3 className="h-5 w-5 text-muted-foreground" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+        <Settings className="h-8 w-8" />
+        <p className="text-sm">Add your Healthchecks URL and read-only API key to get started.</p>
+        {!readOnly && (
+          <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+            Open Settings
+          </Button>
+        )}
+      </div>
+    );
   };
 
   const renderLoading = () => (
@@ -508,7 +545,7 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
     return <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : '')}>{renderLoading()}</div>;
   }
 
-  if (error && !data) {
+  if (error && !data && !shouldShowSetupPrompt) {
     return <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : '')}>{renderError()}</div>;
   }
 
@@ -537,7 +574,8 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
       )}
 
       <div className={cn('flex-1 overflow-hidden', isTiny ? 'p-1' : isApp ? '' : 'p-2 md:p-3')}>
-        {isTiny ? renderTiny()
+        {shouldShowSetupPrompt ? renderSetupPrompt()
+          : isTiny ? renderTiny()
           : isShort ? renderShort()
           : isApp ? renderApp()
           : isWide && isTall ? renderPanel()
@@ -561,15 +599,44 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="health-api-url">API URL</Label>
+                <Label htmlFor="health-base-url">Healthchecks URL</Label>
+                <Input
+                  id="health-base-url"
+                  type="url"
+                  value={localConfig.baseUrl || ''}
+                  onChange={(event) => setLocalConfig((prev) => ({ ...prev, baseUrl: event.target.value }))}
+                  placeholder="https://healthchecks.example.com"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your Healthchecks instance base URL.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="health-api-key">Read-only API Key</Label>
+                <Input
+                  id="health-api-key"
+                  type="password"
+                  value={localConfig.apiKey || ''}
+                  onChange={(event) => setLocalConfig((prev) => ({ ...prev, apiKey: event.target.value }))}
+                  placeholder="hcs_..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  Stored as an encrypted widget config field by Boxento.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="health-api-url">Backend Endpoint</Label>
                 <Input
                   id="health-api-url"
                   value={localConfig.apiUrl || ''}
                   onChange={(event) => setLocalConfig((prev) => ({ ...prev, apiUrl: event.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Advanced: override the Boxento backend endpoint used by this widget.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="health-dashboard-url">Open URL</Label>
+                <Label htmlFor="health-dashboard-url">Open URL Override</Label>
                 <Input
                   id="health-dashboard-url"
                   value={localConfig.dashboardUrl || ''}

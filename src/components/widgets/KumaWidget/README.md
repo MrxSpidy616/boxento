@@ -12,7 +12,8 @@ Display service monitor status from an Uptime Kuma instance inside Boxento.
 ## Configuration
 
 - `Title`: widget header label
-- `API URL`: Boxento backend endpoint or custom normalized JSON endpoint
+- `Status Page URL`: the public Uptime Kuma status page to read from
+- `API URL`: advanced override for the Boxento backend endpoint
 - `Open URL`: optional override for the external-link button
 - `Refresh (s)`: polling interval, minimum practical value is 15 seconds
 - `Max items`: number of monitors shown in standard layouts
@@ -55,4 +56,5 @@ The widget expects a JSON response shaped like:
 ## Notes
 
 - The widget is intended for visibility, not alerting.
+- Fresh Boxento installs can configure this widget directly from widget settings using a status page URL.
 - For hosted or self-hosted homelabs, pair it with actual notifications from Uptime Kuma itself.

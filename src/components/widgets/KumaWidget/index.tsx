@@ -6,6 +6,7 @@ import {
   ExternalLink,
   RefreshCw,
   Search,
+  Settings,
   XCircle,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../../ui/dialog';
@@ -31,6 +32,7 @@ const DEFAULT_API_URL = SQLITE_API_URL ? `${SQLITE_API_URL}/monitoring/kuma` : '
 const DEFAULT_CONFIG: KumaWidgetConfig = {
   title: 'Service Monitoring',
   apiUrl: DEFAULT_API_URL,
+  statusPageUrl: '',
   refreshInterval: 60,
   maxItems: 6,
   groupFilter: '',
@@ -141,6 +143,9 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [selectedMonitorId, setSelectedMonitorId] = useState<number | null>(null);
+  const hasCustomStatusPageUrl = Boolean(localConfig.statusPageUrl?.trim());
+  const shouldUseServerFallback = !hasCustomStatusPageUrl;
+  const shouldShowSetupPrompt = !data && !loading && shouldUseServerFallback && error === 'Kuma monitoring is not configured';
 
   useEffect(() => {
     setLocalConfig(mergedConfig);
@@ -151,10 +156,16 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
       setLoading(true);
       setError(null);
       const response = await fetch(localConfig.apiUrl || DEFAULT_API_URL, {
+        method: hasCustomStatusPageUrl ? 'POST' : 'GET',
+        headers: hasCustomStatusPageUrl ? { 'Content-Type': 'application/json' } : undefined,
+        body: hasCustomStatusPageUrl
+          ? JSON.stringify({ statusPageUrl: localConfig.statusPageUrl?.trim() })
+          : undefined,
         signal: AbortSignal.timeout(10000),
       });
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || `HTTP ${response.status}`);
       }
       const payload: KumaWidgetData = await response.json();
       setData(payload);
@@ -163,7 +174,7 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
     } finally {
       setLoading(false);
     }
-  }, [localConfig.apiUrl]);
+  }, [hasCustomStatusPageUrl, localConfig.apiUrl, localConfig.statusPageUrl]);
 
   useEffect(() => {
     fetchData();
@@ -234,6 +245,28 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
   const saveSettings = () => {
     config?.onUpdate?.(localConfig);
     setShowSettings(false);
+  };
+
+  const renderSetupPrompt = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <Activity className="h-5 w-5 text-muted-foreground" />
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+        <Settings className="h-8 w-8" />
+        <p className="text-sm">Add your Uptime Kuma status page URL to get started.</p>
+        {!readOnly && (
+          <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+            Open Settings
+          </Button>
+        )}
+      </div>
+    );
   };
 
   const renderLoading = () => (
@@ -493,7 +526,7 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
     return <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : '')}>{renderLoading()}</div>;
   }
 
-  if (error && !data) {
+  if (error && !data && !shouldShowSetupPrompt) {
     return <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : '')}>{renderError()}</div>;
   }
 
@@ -522,7 +555,8 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
       )}
 
       <div className={cn('flex-1 overflow-hidden', isTiny ? 'p-1' : isApp ? '' : 'p-2 md:p-3')}>
-        {isTiny ? renderTiny()
+        {shouldShowSetupPrompt ? renderSetupPrompt()
+          : isTiny ? renderTiny()
           : isShort ? renderShort()
           : isApp ? renderApp()
           : isWide && isTall ? renderPanel()
@@ -546,15 +580,31 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="kuma-api-url">API URL</Label>
+                <Label htmlFor="kuma-status-page-url">Status Page URL</Label>
+                <Input
+                  id="kuma-status-page-url"
+                  type="url"
+                  value={localConfig.statusPageUrl || ''}
+                  onChange={(event) => setLocalConfig((prev) => ({ ...prev, statusPageUrl: event.target.value }))}
+                  placeholder="https://kuma.example.com/status/homelab"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Paste the public Uptime Kuma status page URL for this widget.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="kuma-api-url">Backend Endpoint</Label>
                 <Input
                   id="kuma-api-url"
                   value={localConfig.apiUrl || ''}
                   onChange={(event) => setLocalConfig((prev) => ({ ...prev, apiUrl: event.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Advanced: override the Boxento backend endpoint used by this widget.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="kuma-dashboard-url">Open URL</Label>
+                <Label htmlFor="kuma-dashboard-url">Open URL Override</Label>
                 <Input
                   id="kuma-dashboard-url"
                   value={localConfig.dashboardUrl || ''}
