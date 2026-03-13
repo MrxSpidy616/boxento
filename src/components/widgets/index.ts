@@ -77,6 +77,7 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'world-clocks',
   'year-progress',
   'weather',
+  'calendar',
 ]);
 
 // Widget registry with enhanced metadata
