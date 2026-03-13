@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
   AlertCircle,
   CheckCircle2,
   ExternalLink,
@@ -251,7 +250,7 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
     if (isTiny) {
       return (
         <div className="flex h-full items-center justify-center">
-          <Activity className="h-5 w-5 text-muted-foreground" />
+          <AlertCircle className="h-5 w-5 text-muted-foreground" />
         </div>
       );
     }
@@ -305,6 +304,34 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
       <span className="rounded-full bg-muted px-2.5 py-1">
         {summary.total} total
       </span>
+    </div>
+  );
+
+  const renderActions = (textOnly = false) => (
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Button
+        variant="ghost"
+        size={textOnly ? 'sm' : 'icon'}
+        onClick={fetchData}
+        className={cn(textOnly ? 'h-7 px-2' : 'h-7 w-7')}
+        aria-label="Refresh service monitoring"
+      >
+        <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
+        {textOnly && <span className="ml-1">Refresh</span>}
+      </Button>
+      {openUrl && (
+        <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
+          <Button
+            variant="ghost"
+            size={textOnly ? 'sm' : 'icon'}
+            className={cn(textOnly ? 'h-7 px-2' : 'h-7 w-7')}
+            aria-label="Open Uptime Kuma"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {textOnly && <span className="ml-1">Open</span>}
+          </Button>
+        </a>
+      )}
     </div>
   );
 
@@ -430,7 +457,10 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderCompact = () => (
     <div className="flex h-full flex-col gap-2">
-      {renderStatusPills()}
+      <div className="flex items-start justify-between gap-2">
+        {renderStatusPills()}
+        {renderActions()}
+      </div>
       <div className="flex-1 space-y-2 overflow-auto">
         {visibleMonitors.length > 0
           ? visibleMonitors.slice(0, 3).map((monitor) => renderMonitorRow(monitor, true))
@@ -441,7 +471,10 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderDefault = () => (
     <div className="flex h-full flex-col gap-3">
-      {renderStatusPills()}
+      <div className="flex items-start justify-between gap-3">
+        {renderStatusPills()}
+        {renderActions()}
+      </div>
       <div className="flex-1 space-y-2 overflow-auto">
         {visibleMonitors.length > 0
           ? visibleMonitors.map((monitor) => renderMonitorRow(monitor))
@@ -458,7 +491,10 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
   const renderPanel = () => (
     <div className="flex h-full overflow-hidden">
       <div className="flex w-2/5 flex-col border-r border-border/60 p-3">
-        {renderStatusPills()}
+        <div className="flex items-start justify-between gap-3">
+          {renderStatusPills()}
+          {renderActions()}
+        </div>
         <div className="mt-3 flex-1 space-y-2 overflow-auto">
           {visibleMonitors.length > 0
             ? visibleMonitors.map((monitor) => renderMonitorRow(monitor, false, monitor.id === selectedMonitorId))
@@ -473,27 +509,20 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderApp = () => (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2 widget-drag-handle cursor-move">
+      <div className="border-b border-border px-4 py-2 widget-drag-handle cursor-move">
         <div>
           <h2 className="text-base font-semibold text-foreground">{localConfig.title || DEFAULT_CONFIG.title}</h2>
-          <div className="mt-1">{renderStatusPills()}</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={fetchData} aria-label="Refresh service monitoring">
-            <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
-          </Button>
-          {openUrl && (
-            <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
-              <Button variant="ghost" size="icon" aria-label="Open Uptime Kuma">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </a>
-          )}
-          {!readOnly && (
-            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
-              Settings
-            </Button>
-          )}
+          <div className="mt-1 flex items-start justify-between gap-3">
+            {renderStatusPills()}
+            <div className="flex items-center gap-2">
+              {renderActions(true)}
+              {!readOnly && (
+                <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+                  Settings
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex flex-1 overflow-hidden">
@@ -535,23 +564,9 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || DEFAULT_CONFIG.title}
-          icon={<Activity className="h-4 w-4" />}
           onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
           compact={isShort}
-        >
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={fetchData} className="h-7 w-7" aria-label="Refresh service monitoring">
-              <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
-            </Button>
-            {openUrl && (
-              <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Open Uptime Kuma">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </a>
-            )}
-          </div>
-        </WidgetHeader>
+        />
       )}
 
       <div className={cn('flex-1 overflow-hidden', isTiny ? 'p-1' : isApp ? '' : 'p-2 md:p-3')}>
@@ -580,7 +595,7 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="kuma-status-page-url">Status Page URL</Label>
+                <Label htmlFor="kuma-status-page-url">Status Page URL *</Label>
                 <Input
                   id="kuma-status-page-url"
                   type="url"
@@ -589,7 +604,7 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
                   placeholder="https://kuma.example.com/status/homelab"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Paste the public Uptime Kuma status page URL for this widget.
+                  Required. Paste the public Uptime Kuma status page URL for this widget.
                 </p>
               </div>
               <div className="space-y-2">

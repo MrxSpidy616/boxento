@@ -321,6 +321,34 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
     </div>
   );
 
+  const renderActions = (textOnly = false) => (
+    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+      <Button
+        variant="ghost"
+        size={textOnly ? 'sm' : 'icon'}
+        onClick={fetchData}
+        className={cn(textOnly ? 'h-7 px-2' : 'h-7 w-7')}
+        aria-label="Refresh job monitoring"
+      >
+        <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
+        {textOnly && <span className="ml-1">Refresh</span>}
+      </Button>
+      {openUrl && (
+        <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
+          <Button
+            variant="ghost"
+            size={textOnly ? 'sm' : 'icon'}
+            className={cn(textOnly ? 'h-7 px-2' : 'h-7 w-7')}
+            aria-label="Open Healthchecks"
+          >
+            <ExternalLink className="h-4 w-4" />
+            {textOnly && <span className="ml-1">Open</span>}
+          </Button>
+        </a>
+      )}
+    </div>
+  );
+
   const renderCheckRow = (check: HealthchecksCheck, compact = false, selected = false) => {
     const statusStyle = STATUS_STYLES[check.status];
     const StatusIcon = statusStyle.icon;
@@ -449,7 +477,10 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderCompact = () => (
     <div className="flex h-full flex-col gap-2">
-      {renderStatusPills()}
+      <div className="flex items-start justify-between gap-2">
+        {renderStatusPills()}
+        {renderActions()}
+      </div>
       <div className="flex-1 space-y-2 overflow-auto">
         {visibleChecks.length > 0
           ? visibleChecks.slice(0, 3).map((check) => renderCheckRow(check, true))
@@ -460,7 +491,10 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderDefault = () => (
     <div className="flex h-full flex-col gap-3">
-      {renderStatusPills()}
+      <div className="flex items-start justify-between gap-3">
+        {renderStatusPills()}
+        {renderActions()}
+      </div>
       <div className="flex-1 space-y-2 overflow-auto">
         {visibleChecks.length > 0
           ? visibleChecks.map((check) => renderCheckRow(check))
@@ -477,7 +511,10 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
   const renderPanel = () => (
     <div className="flex h-full overflow-hidden">
       <div className="flex w-2/5 flex-col border-r border-border/60 p-3">
-        {renderStatusPills()}
+        <div className="flex items-start justify-between gap-3">
+          {renderStatusPills()}
+          {renderActions()}
+        </div>
         <div className="mt-3 flex-1 space-y-2 overflow-auto">
           {visibleChecks.length > 0
             ? visibleChecks.map((check) => renderCheckRow(check, false, check.slug === selectedCheckSlug))
@@ -492,27 +529,20 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
 
   const renderApp = () => (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2 widget-drag-handle cursor-move">
+      <div className="border-b border-border px-4 py-2 widget-drag-handle cursor-move">
         <div>
           <h2 className="text-base font-semibold text-foreground">{localConfig.title || DEFAULT_CONFIG.title}</h2>
-          <div className="mt-1">{renderStatusPills()}</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={fetchData} aria-label="Refresh job monitoring">
-            <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
-          </Button>
-          {openUrl && (
-            <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
-              <Button variant="ghost" size="icon" aria-label="Open Healthchecks">
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </a>
-          )}
-          {!readOnly && (
-            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
-              Settings
-            </Button>
-          )}
+          <div className="mt-1 flex items-start justify-between gap-3">
+            {renderStatusPills()}
+            <div className="flex items-center gap-2">
+              {renderActions(true)}
+              {!readOnly && (
+                <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+                  Settings
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="flex flex-1 overflow-hidden">
@@ -554,23 +584,9 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || DEFAULT_CONFIG.title}
-          icon={<Clock3 className="h-4 w-4" />}
           onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
           compact={isShort}
-        >
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={fetchData} className="h-7 w-7" aria-label="Refresh job monitoring">
-              <RefreshCw className={cn('h-4 w-4', loading ? 'animate-spin' : '')} />
-            </Button>
-            {openUrl && (
-              <a href={openUrl} target="_blank" rel="noreferrer" className="inline-flex">
-                <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Open Healthchecks">
-                  <ExternalLink className="h-4 w-4" />
-                </Button>
-              </a>
-            )}
-          </div>
-        </WidgetHeader>
+        />
       )}
 
       <div className={cn('flex-1 overflow-hidden', isTiny ? 'p-1' : isApp ? '' : 'p-2 md:p-3')}>
@@ -599,7 +615,7 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="health-base-url">Healthchecks URL</Label>
+                <Label htmlFor="health-base-url">Healthchecks URL *</Label>
                 <Input
                   id="health-base-url"
                   type="url"
@@ -608,11 +624,11 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
                   placeholder="https://healthchecks.example.com"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Your Healthchecks instance base URL.
+                  Required. Your Healthchecks instance base URL.
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="health-api-key">Read-only API Key</Label>
+                <Label htmlFor="health-api-key">Read-only API Key *</Label>
                 <Input
                   id="health-api-key"
                   type="password"
@@ -621,7 +637,7 @@ const HealthchecksWidget: React.FC<Props> = ({ width, height, config }) => {
                   placeholder="hcs_..."
                 />
                 <p className="text-xs text-muted-foreground">
-                  Stored as an encrypted widget config field by Boxento.
+                  Required. Stored as an encrypted widget config field by Boxento.
                 </p>
               </div>
               <div className="space-y-2">
