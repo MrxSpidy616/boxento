@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -108,20 +108,84 @@ const DEFAULT_SERVICES: Service[] = [
   }
 ];
 
+const DEFAULT_CONFIG: ServicesWidgetConfig = {
+  title: 'Services',
+  services: DEFAULT_SERVICES,
+  showStatus: true,
+  checkInterval: 60
+};
+
+const mergeConfigWithDefaults = (config?: ServicesWidgetConfig): ServicesWidgetConfig => ({
+  ...DEFAULT_CONFIG,
+  ...config,
+  services: config?.services ?? DEFAULT_SERVICES
+});
+
+const getIcon = (iconName?: string): LucideIcon => {
+  if (!iconName) return Globe;
+  return ICONS[iconName] || Globe;
+};
+
+const getStatusColor = (status?: 'online' | 'offline' | 'checking') => {
+  switch (status) {
+    case 'online':
+      return 'bg-green-500';
+    case 'offline':
+      return 'bg-red-500';
+    case 'checking':
+      return 'bg-yellow-500 animate-pulse';
+    default:
+      return 'bg-gray-400';
+  }
+};
+
+const getStatusLabel = (status?: 'online' | 'offline' | 'checking') => {
+  switch (status) {
+    case 'online':
+      return 'Online';
+    case 'offline':
+      return 'Offline';
+    case 'checking':
+      return 'Checking';
+    default:
+      return 'Unknown';
+  }
+};
+
+const getStatusIcon = (status?: 'online' | 'offline' | 'checking') => {
+  switch (status) {
+    case 'online':
+      return Wifi;
+    case 'offline':
+      return WifiOff;
+    default:
+      return Activity;
+  }
+};
+
+const getServiceHost = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url.replace(/^https?:\/\//, '').split('/')[0];
+  }
+};
+
+const getServicePathLabel = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.pathname}${parsed.search}${parsed.hash}` || '/';
+  } catch {
+    return '/';
+  }
+};
+
 const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }) => {
   const isTiny = width === 1 && height === 1;
-  const defaultConfig: ServicesWidgetConfig = {
-    title: 'Services',
-    services: DEFAULT_SERVICES,
-    showStatus: true,
-    checkInterval: 60
-  };
+  const mergedConfig = useMemo(() => mergeConfigWithDefaults(config), [config]);
 
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [localConfig, setLocalConfig] = useState<ServicesWidgetConfig>({
-    ...defaultConfig,
-    ...config
-  });
+  const [localConfig, setLocalConfig] = useState<ServicesWidgetConfig>(() => mergedConfig);
   const [serviceStatus, setServiceStatus] = useState<Record<string, 'online' | 'offline' | 'checking'>>({});
   // const [editingService, setEditingService] = useState<Service | null>(null);
   const [showAddService, setShowAddService] = useState<boolean>(false);
@@ -131,8 +195,8 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
 
   // Update local config when props change
   useEffect(() => {
-    setLocalConfig(prev => ({ ...prev, ...config }));
-  }, [config]);
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
 
   // Check service status
   const checkServiceStatus = useCallback(async (service: Service) => {
@@ -193,26 +257,10 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     return () => observer.disconnect();
   }, []);
 
-  // Get Lucide icon component
-  const getIcon = (iconName?: string): LucideIcon => {
-    if (!iconName) return Globe;
-    return ICONS[iconName] || Globe;
-  };
-
-  // Get status color
-  const getStatusColor = (status?: 'online' | 'offline' | 'checking') => {
-    switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'offline': return 'bg-red-500';
-      case 'checking': return 'bg-yellow-500 animate-pulse';
-      default: return 'bg-gray-400';
-    }
-  };
-
   // Open service in new tab
-  const openService = (url: string) => {
+  const openService = useCallback((url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  }, []);
 
   const getCompactGridCols = () => {
     if (width >= 4) return 'grid-cols-4';
@@ -234,53 +282,45 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     return 1;
   };
 
-  const getStatusLabel = (status?: 'online' | 'offline' | 'checking') => {
-    switch (status) {
-      case 'online':
-        return 'Online';
-      case 'offline':
-        return 'Offline';
-      case 'checking':
-        return 'Checking';
-      default:
-        return 'Unknown';
-    }
-  };
+  // Delete service handler
+  const handleDeleteService = useCallback((serviceId: string) => {
+    setLocalConfig(prev => ({
+      ...prev,
+      services: prev.services.filter(s => s.id !== serviceId)
+    }));
+  }, []);
 
-  const getStatusIcon = (status?: 'online' | 'offline' | 'checking') => {
-    switch (status) {
-      case 'online':
-        return Wifi;
-      case 'offline':
-        return WifiOff;
-      default:
-        return Activity;
-    }
-  };
+  const { categoryCount, onlineCount, offlineCount } = useMemo(() => {
+    const stats = localConfig.services.reduce(
+      (acc, service) => {
+        if (service.category) {
+          acc.categories.add(service.category);
+        }
 
-  const getServiceHost = (url: string) => {
-    try {
-      return new URL(url).hostname.replace(/^www\./, '');
-    } catch {
-      return url.replace(/^https?:\/\//, '').split('/')[0];
-    }
-  };
+        const status = serviceStatus[service.id];
+        if (status === 'online') {
+          acc.online += 1;
+        } else if (status === 'offline') {
+          acc.offline += 1;
+        }
 
-  const getServicePathLabel = (url: string) => {
-    try {
-      const parsed = new URL(url);
-      return `${parsed.pathname}${parsed.search}${parsed.hash}` || '/';
-    } catch {
-      return '/';
-    }
-  };
+        return acc;
+      },
+      {
+        categories: new Set<string>(),
+        online: 0,
+        offline: 0,
+      }
+    );
 
-  const servicesWithCategory = localConfig.services.filter((service) => Boolean(service.category));
-  const categoryCount = new Set(servicesWithCategory.map((service) => service.category)).size;
-  const onlineCount = localConfig.services.filter((service) => serviceStatus[service.id] === 'online').length;
-  const offlineCount = localConfig.services.filter((service) => serviceStatus[service.id] === 'offline').length;
+    return {
+      categoryCount: stats.categories.size,
+      onlineCount: stats.online,
+      offlineCount: stats.offline,
+    };
+  }, [localConfig.services, serviceStatus]);
 
-  const renderServiceSettingsCard = (service: Service) => {
+  const renderServiceSettingsCard = useCallback((service: Service) => {
     const Icon = getIcon(service.icon);
     const status = serviceStatus[service.id];
     const StatusIcon = getStatusIcon(status);
@@ -348,7 +388,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
         </div>
       </div>
     );
-  };
+  }, [handleDeleteService, localConfig.showStatus, openService, serviceStatus]);
 
   // Render service card
   const renderServiceCard = (service: Service, compact: boolean = false) => {
@@ -553,7 +593,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   };
 
   // Add service handler
-  const handleAddService = () => {
+  const handleAddService = useCallback(() => {
     if (!newService.name || !newService.url) return;
 
     const service: Service = {
@@ -571,28 +611,38 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     }));
     setNewService({});
     setShowAddService(false);
-  };
+  }, [newService]);
 
-  // Delete service handler
-  const handleDeleteService = (serviceId: string) => {
-    setLocalConfig(prev => ({
-      ...prev,
-      services: prev.services.filter(s => s.id !== serviceId)
-    }));
-  };
+  const resetSettingsDraft = useCallback(() => {
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
+
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetSettingsDraft();
+    } else {
+      setLocalConfig(mergedConfig);
+    }
+    setShowSettings(nextOpen);
+  }, [mergedConfig, resetSettingsDraft]);
+
+  const handleCancelSettings = useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
 
   // Save settings
-  const saveSettings = () => {
+  const saveSettings = useCallback(() => {
     if (config?.onUpdate) {
       config.onUpdate(localConfig);
     }
     setShowSettings(false);
-  };
+  }, [config, localConfig]);
 
   // Settings dialog
   const renderSettings = () => (
-    <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-hidden p-0 sm:max-w-[980px]">
+    <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+      <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:max-w-[980px]">
         <DialogHeader className="gap-2 px-6 pt-6">
           <DialogTitle>Services Settings</DialogTitle>
           <DialogDescription>
@@ -600,7 +650,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 px-6 py-6">
+        <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-6">
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
             <div className="space-y-2">
               <Label htmlFor="title-input">Widget title</Label>
@@ -642,7 +692,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={() => setShowAddService(true)}>
-              <Plus data-icon="inline-start" />
+              <Plus />
               Add service
             </Button>
           </div>
@@ -672,7 +722,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setShowSettings(false)}>
+            <Button variant="outline" onClick={handleCancelSettings}>
               Cancel
             </Button>
             <Button variant="default" onClick={saveSettings}>
@@ -769,7 +819,7 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     >
       {!isTiny && (
         <WidgetHeader
-          title={localConfig.title || defaultConfig.title}
+          title={localConfig.title || DEFAULT_CONFIG.title}
           onSettingsClick={() => setShowSettings(true)}
           compact={width === 1 || height === 1}
         />
