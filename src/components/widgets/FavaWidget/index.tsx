@@ -144,14 +144,12 @@ const FavaWidget: React.FC<FavaWidgetProps> = ({ width, height, config }) => {
     const symbol = localConfig.currency || '$';
     const absAmount = Math.abs(amount);
     const sign = amount < 0 ? '-' : '';
-    if (compact || absAmount >= 1000000) {
-      if (absAmount >= 1000000) return `${sign}${symbol}${(absAmount / 1000000).toFixed(1)}M`;
-      if (absAmount >= 1000) return `${sign}${symbol}${(absAmount / 1000).toFixed(0)}K`;
+    if (compact) {
+      if (absAmount >= 1_000_000_000) return `${sign}${symbol}${(absAmount / 1_000_000_000).toFixed(1)}B`;
+      if (absAmount >= 1_000_000) return `${sign}${symbol}${(absAmount / 1_000_000).toFixed(1)}M`;
+      if (absAmount >= 1_000) return `${sign}${symbol}${(absAmount / 1_000).toFixed(0)}K`;
     }
-    if (absAmount >= 1000000) return `${sign}${symbol}${(absAmount / 1000000).toFixed(1)}M`;
-    if (absAmount >= 10000) return `${sign}${symbol}${Math.round(absAmount).toLocaleString()}`;
-    if (absAmount >= 1000) return `${sign}${symbol}${Math.round(absAmount).toLocaleString()}`;
-    return `${sign}${symbol}${absAmount.toFixed(0)}`;
+    return `${sign}${symbol}${Math.round(absAmount).toLocaleString()}`;
   }, [localConfig.currency]);
 
   // Open Fava in browser

@@ -332,7 +332,8 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
       flightNumber: addFlightNumber.toUpperCase().trim(),
       flightDate: addFlightDate,
     };
-    const flights = [...(localConfig.trackedFlights || []), newFlight];
+    // Use derived trackedFlights to include legacy single-flight entries
+    const flights = [...trackedFlights, newFlight];
     setLocalConfig((prev) => ({ ...prev, trackedFlights: flights }));
     setAddFlightNumber('');
     setAddFlightDate(new Date().toISOString().split('T')[0]);

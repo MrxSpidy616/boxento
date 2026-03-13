@@ -644,16 +644,16 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
                 </thead>
                 <tbody>
                   {matrixCurrencies.map(fromCurrency => {
-                    const fromRate = fromCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[fromCurrency] || 1);
+                    const fromRate = fromCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[fromCurrency] ?? 0);
                     return (
                       <tr key={fromCurrency} className="border-t">
                         <td className="p-1.5 font-medium">{fromCurrency}</td>
                         {matrixCurrencies.map(toCurrency => {
-                          const toRate = toCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[toCurrency] || 1);
-                          const crossRate = fromCurrency === toCurrency ? 1 : toRate / fromRate;
+                          const toRate = toCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[toCurrency] ?? 0);
+                          const crossRate = fromCurrency === toCurrency ? 1 : (fromRate === 0 || toRate === 0) ? 0 : toRate / fromRate;
                           return (
                             <td key={toCurrency} className="p-1.5 text-right tabular-nums text-muted-foreground">
-                              {crossRate.toFixed(4)}
+                              {crossRate === 0 && fromCurrency !== toCurrency ? '--' : crossRate.toFixed(4)}
                             </td>
                           );
                         })}

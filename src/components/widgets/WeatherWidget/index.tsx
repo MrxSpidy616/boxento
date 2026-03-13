@@ -563,6 +563,11 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         <p className="text-xs text-gray-500 dark:text-gray-400">
           Check your location or try again later.
         </p>
+        {isApp && !readOnly && (
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => setIsSettingsOpen(true)}>
+            Open Settings
+          </Button>
+        )}
       </div>
     );
   };

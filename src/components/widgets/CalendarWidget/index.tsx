@@ -808,20 +808,29 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
   }
 
   /**
-   * Get events for a specific date
+   * Pre-process events into a Map grouped by date for O(1) lookups
    */
-  const getEventsForDate = React.useCallback((targetDate: Date): CalendarEvent[] => {
-    return events.filter(event => {
-      if (!event.start) return false;
-      const eventDate = new Date(event.start);
-      return eventDate.getDate() === targetDate.getDate() &&
-             eventDate.getMonth() === targetDate.getMonth() &&
-             eventDate.getFullYear() === targetDate.getFullYear();
-    }).sort((a, b) => {
-      if (!a.start || !b.start) return 0;
-      return new Date(a.start).getTime() - new Date(b.start).getTime();
-    });
+  const eventsByDate = React.useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    for (const event of events) {
+      if (event.start) {
+        const dateKey = new Date(event.start).toDateString();
+        if (!map.has(dateKey)) map.set(dateKey, []);
+        map.get(dateKey)!.push(event);
+      }
+    }
+    for (const dayEvents of map.values()) {
+      dayEvents.sort((a, b) => {
+        if (!a.start || !b.start) return 0;
+        return new Date(a.start).getTime() - new Date(b.start).getTime();
+      });
+    }
+    return map;
   }, [events]);
+
+  const getEventsForDate = React.useCallback((targetDate: Date): CalendarEvent[] => {
+    return eventsByDate.get(targetDate.toDateString()) || [];
+  }, [eventsByDate]);
 
   /**
    * Get upcoming events from now
