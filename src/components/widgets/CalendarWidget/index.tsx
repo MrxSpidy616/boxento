@@ -1106,7 +1106,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs font-medium text-blue-600 dark:text-blue-400 h-6 px-1.5"
+              className="text-xs font-medium text-primary h-6 px-1.5"
               onClick={() => {
                 const today = new Date();
                 setDate(today);
@@ -1266,7 +1266,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs font-medium text-blue-600 dark:text-blue-400 h-7 px-2"
+              className="text-xs font-medium text-primary h-7 px-2"
               onClick={() => {
                 const today = new Date();
                 setDate(today);
@@ -1437,7 +1437,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs font-medium text-blue-600 dark:text-blue-400 h-7 px-2"
+              className="text-xs font-medium text-primary h-7 px-2"
               onClick={() => {
                 const today = new Date();
                 setDate(today);
@@ -1701,7 +1701,7 @@ const CalendarWidget: React.FC<CalendarWidgetProps> = ({ width = 2, height = 2, 
             <Button
               variant="ghost"
               size="sm"
-              className="text-sm font-medium text-blue-600 dark:text-blue-400 h-7 px-2.5"
+              className="text-sm font-medium text-primary h-7 px-2.5"
               onClick={() => { setDate(new Date()); setSelectedDate(new Date()); }}
             >
               Today

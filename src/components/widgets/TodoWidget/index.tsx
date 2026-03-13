@@ -487,7 +487,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                   onDragEnd={handleDragEnd}
                   onDragOver={(e) => handleDragOver(e, item)}
                   onDrop={(e) => handleDrop(e, item)}
-                  className={`flex items-center p-1 rounded-md hover:bg-accent dark:hover:bg-opacity-50 transition-all relative text-foreground group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
+                  className={`flex items-center p-1 rounded-md hover:bg-accent transition-all relative text-foreground group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
                 >
                   <button
                     onClick={() => !readOnly && toggleTodo(item.id)}
@@ -510,7 +510,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
                     <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-1">
                       <button
                         onClick={() => deleteTodo(item.id)}
-                        className="p-0.5 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                        className="p-0.5 text-muted-foreground hover:text-destructive"
                         aria-label="Delete task"
                       >
                         <Trash2 size={10} />
@@ -572,7 +572,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
           onDragEnd={handleDragEnd}
           onDragOver={(e) => handleDragOver(e, item)}
           onDrop={(e) => handleDrop(e, item)}
-          className={`flex items-center gap-3 p-2.5 hover:bg-accent dark:hover:bg-opacity-50 rounded-lg transition-all relative text-foreground group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
+          className={`flex items-center gap-3 p-2.5 hover:bg-accent rounded-lg transition-all relative text-foreground group cursor-grab active:cursor-grabbing ${getDropZoneClass(item.id)}`}
         >
           {!readOnly && (
             <div className="flex-shrink-0 mr-0.5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
@@ -605,7 +605,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => deleteTodo(item.id)}
-                className="p-1 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                className="p-1 text-muted-foreground hover:text-destructive"
                 aria-label="Delete task"
               >
                 <Trash2 size={14} />
@@ -908,7 +908,7 @@ const TodoWidget: React.FC<TodoWidgetProps> = ({ width, height, config }) => {
             </button>
             <button
               onClick={() => deleteTodo(item.id)}
-              className="p-1 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+              className="p-1 text-muted-foreground hover:text-destructive"
               aria-label="Delete task"
             >
               <Trash2 size={14} />

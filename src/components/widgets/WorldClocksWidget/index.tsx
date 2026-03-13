@@ -528,7 +528,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
           return (
             <span
               key={tz.id}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-black/5 bg-white/80 px-2.5 py-1 text-foreground ring-1 ring-black/5 dark:border-white/10 dark:bg-black/20 dark:ring-white/10"
+              className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-foreground ring-1 ring-border"
             >
               <span className="max-w-[6rem] truncate">{city}</span>
               <span className="font-medium">{t}</span>
@@ -1233,9 +1233,9 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   key={tz.id}
                   className={`flex justify-between items-center p-2 rounded-lg border ${
                     draggedItemIndex === index
-                      ? 'bg-muted border-blue-300 dark:border-blue-500 opacity-50'
+                      ? 'bg-muted border-primary opacity-50'
                       : dragOverItemIndex === index
-                        ? 'bg-muted border-blue-200 dark:border-blue-700'
+                        ? 'bg-muted border-primary/50'
                         : 'bg-muted border-border'
                   } transition-colors duration-150`}
                   draggable
@@ -1257,7 +1257,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                     variant="ghost"
                     size="icon"
                     onClick={() => removeTimezone(tz.id)}
-                    className="text-muted-foreground hover:text-red-500 ml-2 shrink-0"
+                    className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
                   >
                     <Trash size={16} />
                   </Button>

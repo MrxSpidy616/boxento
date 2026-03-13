@@ -563,7 +563,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-red-500"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
                           onClick={e => {
                             e.stopPropagation();
                             removeLink(link.id);
@@ -944,7 +944,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                      className="h-5 w-5 text-muted-foreground hover:text-destructive"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -1005,7 +1005,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();

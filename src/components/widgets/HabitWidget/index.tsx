@@ -399,7 +399,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-5 w-5 shrink-0 text-muted-foreground hover:text-red-500"
+                          className="h-5 w-5 shrink-0 text-muted-foreground hover:text-destructive"
                           onClick={() => handleDeleteHabit(habit.id)}
                         >
                           <X className="w-3 h-3" />
@@ -541,7 +541,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
                         <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => openEditDialog(habit)}>
                           <Pencil className="w-3 h-3" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-red-500" onClick={() => handleDeleteHabit(habit.id)}>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteHabit(habit.id)}>
                           <X className="w-3 h-3" />
                         </Button>
                       </div>
