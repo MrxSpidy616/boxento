@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -13,6 +14,7 @@ import { Switch } from '../../ui/switch';
 import WidgetHeader from '../common/WidgetHeader';
 import { WidgetProps } from '@/types';
 import { ServicesWidgetConfig, Service } from './types';
+import { cn } from '@/lib/utils';
 import {
   Globe,
   Server,
@@ -264,6 +266,90 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
     }
   };
 
+  const getServicePathLabel = (url: string) => {
+    try {
+      const parsed = new URL(url);
+      return `${parsed.pathname}${parsed.search}${parsed.hash}` || '/';
+    } catch {
+      return '/';
+    }
+  };
+
+  const servicesWithCategory = localConfig.services.filter((service) => Boolean(service.category));
+  const categoryCount = new Set(servicesWithCategory.map((service) => service.category)).size;
+  const onlineCount = localConfig.services.filter((service) => serviceStatus[service.id] === 'online').length;
+  const offlineCount = localConfig.services.filter((service) => serviceStatus[service.id] === 'offline').length;
+
+  const renderServiceSettingsCard = (service: Service) => {
+    const Icon = getIcon(service.icon);
+    const status = serviceStatus[service.id];
+    const StatusIcon = getStatusIcon(status);
+
+    return (
+      <div
+        key={service.id}
+        className="grid min-w-[760px] grid-cols-[minmax(0,1.1fr)_minmax(0,1.7fr)_minmax(0,0.85fr)_auto] gap-3 px-3 py-2.5"
+      >
+        <div className="flex min-w-0 items-start gap-2">
+          <div className="mt-0.5 flex size-7 flex-shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+            <Icon className="size-3.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium text-foreground">{service.name}</div>
+            <div className="mt-0.5 truncate text-xs text-muted-foreground">
+              {service.description || 'No description'}
+            </div>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <div className="truncate font-mono text-[11px] text-foreground" title={service.url}>
+            {service.url}
+          </div>
+          <div className="mt-1 truncate text-[11px] text-muted-foreground">
+            {getServiceHost(service.url)} · {getServicePathLabel(service.url)}
+          </div>
+        </div>
+
+        <div className="min-w-0 text-[11px] text-muted-foreground">
+          <div className="truncate">{service.category || 'Uncategorized'}</div>
+          {localConfig.showStatus && (
+            <div
+              className={cn(
+                'mt-1 inline-flex items-center gap-1 font-medium',
+                status === 'online' && 'text-emerald-700 dark:text-emerald-300',
+                status === 'offline' && 'text-rose-700 dark:text-rose-300'
+              )}
+            >
+              <div className={cn('size-1.5 rounded-full', getStatusColor(status))} />
+              <StatusIcon className="size-3" />
+              <span>{getStatusLabel(status)}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-start gap-1 justify-self-end">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openService(service.url)}
+            aria-label={`Open ${service.name}`}
+          >
+            <ArrowUpRight />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleDeleteService(service.id)}
+            aria-label={`Delete ${service.name}`}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   // Render service card
   const renderServiceCard = (service: Service, compact: boolean = false) => {
     const Icon = getIcon(service.icon);
@@ -506,81 +592,91 @@ const ServicesWidget: React.FC<ServicesWidgetProps> = ({ width, height, config }
   // Settings dialog
   const renderSettings = () => (
     <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] overflow-hidden p-0 sm:max-w-[980px]">
+        <DialogHeader className="gap-2 px-6 pt-6">
           <DialogTitle>Services Settings</DialogTitle>
+          <DialogDescription>
+            Tune the widget and manage the service catalog from one dense editor view.
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="title-input">Widget Title</Label>
-            <Input
-              id="title-input"
-              type="text"
-              value={localConfig.title || ''}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setLocalConfig({...localConfig, title: e.target.value})
-              }
-            />
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="status-toggle"
-              checked={Boolean(localConfig.showStatus)}
-              onCheckedChange={(checked: boolean) =>
-                setLocalConfig({...localConfig, showStatus: checked})
-              }
-            />
-            <Label htmlFor="status-toggle">Show Status Indicators</Label>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label>Services ({localConfig.services.length})</Label>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddService(true)}
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add
-              </Button>
+        <div className="space-y-5 px-6 py-6">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="title-input">Widget title</Label>
+              <Input
+                id="title-input"
+                type="text"
+                value={localConfig.title || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setLocalConfig({ ...localConfig, title: e.target.value })
+                }
+              />
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {localConfig.services.map(service => {
-                const Icon = getIcon(service.icon);
-                return (
-                  <div key={service.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    <div className="flex-grow min-w-0">
-                      <div className="text-sm font-medium truncate">{service.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{service.url}</div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteService(service.id)}
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </Button>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border/70 px-3 py-2 md:min-w-[280px]">
+              <div className="min-w-0">
+                <Label htmlFor="status-toggle" className="text-sm font-medium">
+                  Show status indicators
+                </Label>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Surface online and offline state in the service list.
+                </p>
+              </div>
+              <Switch
+                id="status-toggle"
+                checked={Boolean(localConfig.showStatus)}
+                onCheckedChange={(checked: boolean) =>
+                  setLocalConfig({ ...localConfig, showStatus: checked })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground">Services</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {localConfig.services.length} total · {categoryCount} categories
+                {localConfig.showStatus ? ` · ${onlineCount} online · ${offlineCount} offline` : ' · status hidden'}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowAddService(true)}>
+              <Plus data-icon="inline-start" />
+              Add service
+            </Button>
+          </div>
+
+          <div className="overflow-hidden rounded-md border border-border/70">
+            <div className="overflow-x-auto">
+              <div className="grid min-w-[760px] grid-cols-[minmax(0,1.1fr)_minmax(0,1.7fr)_minmax(0,0.85fr)_auto] gap-3 border-b border-border/70 bg-muted/20 px-3 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                <span>Service</span>
+                <span>URL</span>
+                <span>Meta</span>
+                <span className="justify-self-end">Actions</span>
+              </div>
+
+              <div className="max-h-[min(54vh,520px)] divide-y divide-border/70 overflow-y-auto">
+                {localConfig.services.map((service) => renderServiceSettingsCard(service))}
+              </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <div className="flex justify-between w-full">
+        <DialogFooter className="flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
             {config?.onDelete && (
               <Button variant="destructive" onClick={config.onDelete}>
                 Delete Widget
               </Button>
             )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setShowSettings(false)}>
+              Cancel
+            </Button>
             <Button variant="default" onClick={saveSettings}>
-              Save
+              Save changes
             </Button>
           </div>
         </DialogFooter>
