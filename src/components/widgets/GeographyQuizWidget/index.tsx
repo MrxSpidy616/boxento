@@ -15,6 +15,7 @@ import {
   QuizQuestion,
   QuizRound
 } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -911,7 +912,7 @@ const GeographyQuizWidget: React.FC<GeographyQuizWidgetProps> = ({ width, height
   const settingsClick = readOnly ? undefined : () => setShowSettings(true);
 
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title}

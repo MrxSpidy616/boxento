@@ -12,6 +12,7 @@ import { Label } from '../../ui/label';
 import { Switch } from '../../ui/switch';
 import WidgetHeader from '../common/WidgetHeader';
 import { PaisaWidgetConfig, PaisaWidgetProps, AssetBreakdown, NetworthEntry } from './types';
+import { cn } from '@/lib/utils';
 import {
   PiggyBank,
   TrendingUp,
@@ -1132,7 +1133,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
   };
 
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title}

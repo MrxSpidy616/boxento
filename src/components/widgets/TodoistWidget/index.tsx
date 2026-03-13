@@ -26,6 +26,7 @@ import { Switch } from '../../ui/switch';
 import { Label } from '../../ui/label';
 import WidgetHeader from '../common/WidgetHeader';
 import { TodoistWidgetConfig, TodoistWidgetProps, TodoistTask, TodoistProject } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '../../ui/button';
 
 const defaultConfig: TodoistWidgetConfig = {
@@ -1045,7 +1046,7 @@ const TodoistWidget: React.FC<TodoistWidgetProps> = ({ width, height, config }) 
   }
 
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || defaultConfig.title}

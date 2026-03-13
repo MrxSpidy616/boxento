@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/tabs';
 import WidgetHeader from '../common/WidgetHeader';
 import type { QRCodeWidgetConfig, QRCodeWidgetProps, QRCodeHistoryItem } from './types';
+import { cn } from '@/lib/utils';
 
 const defaultConfig: QRCodeWidgetConfig = {
   title: 'QR Code',
@@ -780,7 +781,7 @@ const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) =>
   );
 
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title || 'QR Code'}

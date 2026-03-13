@@ -12,6 +12,7 @@ import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
 import WidgetHeader from '../common/WidgetHeader';
 import type { HabitWidgetProps, HabitWidgetConfig, Habit } from './types';
+import { cn } from '@/lib/utils';
 
 const defaultConfig: HabitWidgetConfig = {
   title: 'Habits',
@@ -1056,7 +1057,7 @@ const HabitWidget: React.FC<HabitWidgetProps> = ({ width = 2, height = 2, config
 
   // --- Main render ---
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : isApp ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny && 'widget-drag-handle', !isTiny && !isApp && 'p-2 md:p-3')}>
       {!isTiny && !isApp && (
         <WidgetHeader
           title={localConfig.title || 'Habits'}

@@ -22,6 +22,7 @@ import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
 import WidgetHeader from '../common/WidgetHeader';
 import type { IframeWidgetConfig, IframeWidgetProps } from './types';
+import { cn } from '@/lib/utils';
 
 const defaultConfig: IframeWidgetConfig = {
   title: 'Embed',
@@ -464,7 +465,7 @@ const IframeWidget: React.FC<IframeWidgetProps> = ({ width, height, config }) =>
   };
 
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {/* Header: hide on tiny (tap opens settings), show compact on short */}
       {!isTiny && (
         <WidgetHeader

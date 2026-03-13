@@ -8,6 +8,7 @@ import {
 } from '../../ui/dialog';
 import WidgetHeader from '../common/WidgetHeader';
 import { UFWidgetProps, UFWidgetConfig, UFData, UFSerieItem } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
@@ -603,7 +604,7 @@ const UFWidget: React.FC<UFWidgetProps> = ({ width, height, config }) => {
 
   // --- Main render ---
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       {!isTiny && (
         <WidgetHeader
           title={localConfig.title}

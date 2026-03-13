@@ -21,6 +21,7 @@ import {
   Search,
 } from 'lucide-react';
 import { ReaderDocument, ReaderWidgetConfig, ReaderWidgetProps } from './types';
+import { cn } from '@/lib/utils';
 import { Button } from '../../ui/button';
 import { Input } from '../../ui/input';
 import { Label } from '../../ui/label';
@@ -951,7 +952,7 @@ const ReaderWidget: React.FC<ReaderWidgetProps> = ({ width, height, config }) =>
   );
 
   return (
-    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}>
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
       <WidgetHeader
         title={isTiny ? undefined : (localConfig.title || 'Reader')}
         onSettingsClick={readOnly ? undefined : openSettings}

@@ -28,6 +28,7 @@ import type {
   FlightTrackerWidgetConfig,
   TrackedFlight,
 } from './types';
+import { cn } from '@/lib/utils';
 
 // Flight data interface from API
 interface FlightData {
@@ -1327,7 +1328,7 @@ const FlightTrackerWidget: React.FC<FlightTrackerWidgetProps> = ({
   // --- Main render ---
   return (
     <div
-      className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''} ${isTiny ? '' : 'p-2 md:p-3'}`}
+      className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}
     >
       {!isTiny && (
         <WidgetHeader
