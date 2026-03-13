@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogFooter
 } from '../../ui/dialog';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import WidgetHeader from '../common/WidgetHeader';
 import { PomodoroWidgetConfig, PomodoroWidgetProps } from './types';
 import { Label } from '../../ui/label';
@@ -16,13 +16,21 @@ import { faviconService } from '@/lib/services/favicon';
 
 /**
  * Pomodoro Widget Component
- * 
+ *
  * A productivity widget implementing the Pomodoro Technique for time management.
- * 
+ * Supports the full "icon -> widget -> app" tier spectrum:
+ *   1x1 Icon  |  Nx1 Ribbon  |  default/wide/tall/large  |  6x6+ App
+ *
  * @param {PomodoroWidgetProps} props - Component props
  * @returns {JSX.Element} Widget component
  */
 const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }) => {
+  // ── Size detection ──────────────────────────────────────────────
+  const isTiny = width === 1 && height === 1;
+  const isShort = height === 1 && width > 1;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
+
   // Default configuration
   const defaultConfig: PomodoroWidgetConfig = {
     title: 'Pomodoro Timer',
@@ -49,11 +57,17 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
   const [isActive, setIsActive] = useState<boolean>(false);
   const [mode, setMode] = useState<TimerMode>(TimerMode.WORK);
   const [cyclesCompleted, setCyclesCompleted] = useState<number>(0);
-  
+
   // Refs
   const widgetRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
+
+  // Merged config for settings reset
+  const mergedConfig = useMemo(() => ({
+    ...defaultConfig,
+    ...config
+  }), [config]);
+
   // Update local config when props config changes
   useEffect(() => {
     setLocalConfig((prevConfig: PomodoroWidgetConfig) => ({
@@ -116,7 +130,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
     if (mode === TimerMode.WORK) {
       nextCycles = cyclesCompleted + 1;
       setCyclesCompleted(nextCycles);
-      
+
       if (nextCycles % (localConfig.cyclesBeforeLongBreak || 4) === 0) {
         nextMode = TimerMode.LONG_BREAK;
         nextDuration = (localConfig.longBreakDuration || 15) * 60;
@@ -136,11 +150,13 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
 
   // Toggle timer active state
   const toggleTimer = () => {
+    if (readOnly) return;
     setIsActive(!isActive);
   };
 
   // Reset timer
   const resetTimer = () => {
+    if (readOnly) return;
     setIsActive(false);
     setMode(TimerMode.WORK);
     setCyclesCompleted(0);
@@ -148,6 +164,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
+  };
+
+  // Skip to next mode
+  const skipTimer = () => {
+    if (readOnly) return;
+    handleTimerComplete();
   };
 
   // Format time as MM:SS
@@ -168,6 +190,20 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         return 'Long Break';
       default:
         return 'Focus Time';
+    }
+  };
+
+  // Get short mode label for ribbon
+  const getShortModeLabel = (): string => {
+    switch (mode) {
+      case TimerMode.WORK:
+        return 'Work';
+      case TimerMode.BREAK:
+        return 'Break';
+      case TimerMode.LONG_BREAK:
+        return 'Long Break';
+      default:
+        return 'Work';
     }
   };
 
@@ -198,10 +234,251 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         return 'text-red-500 dark:text-red-400';
     }
   };
-  
-  // Render content based on widget size
+
+  // Get mode ring stroke color (for SVG)
+  const getModeStrokeColor = (): string => {
+    switch (mode) {
+      case TimerMode.WORK:
+        return '#ef4444';
+      case TimerMode.BREAK:
+        return '#22c55e';
+      case TimerMode.LONG_BREAK:
+        return '#3b82f6';
+      default:
+        return '#ef4444';
+    }
+  };
+
+  // Get mode bg color
+  const getModeBgColor = (): string => {
+    switch (mode) {
+      case TimerMode.WORK:
+        return 'bg-red-500/10';
+      case TimerMode.BREAK:
+        return 'bg-green-500/10';
+      case TimerMode.LONG_BREAK:
+        return 'bg-blue-500/10';
+      default:
+        return 'bg-red-500/10';
+    }
+  };
+
+  // Calculate progress percentage
+  const getProgress = (): number => {
+    let totalSeconds: number;
+    switch (mode) {
+      case TimerMode.WORK:
+        totalSeconds = (localConfig.workDuration || 25) * 60;
+        break;
+      case TimerMode.BREAK:
+        totalSeconds = (localConfig.breakDuration || 5) * 60;
+        break;
+      case TimerMode.LONG_BREAK:
+        totalSeconds = (localConfig.longBreakDuration || 15) * 60;
+        break;
+      default:
+        totalSeconds = (localConfig.workDuration || 25) * 60;
+    }
+    return ((totalSeconds - timeLeft) / totalSeconds) * 100;
+  };
+
+  // ── 1x1 Icon: Large timer text, colored by mode ────────────────
+  const renderTinyView = () => {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-0.5 text-center">
+        <div className={`text-lg font-bold leading-none ${getModeColor()} ${!isActive ? 'opacity-50' : ''}`}>
+          {formatTime(timeLeft)}
+        </div>
+        <div className="text-[9px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {getShortModeLabel()}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Nx1 Ribbon: Timer + mode label + play/pause inline ─────────
+  const renderRibbonView = () => {
+    return (
+      <div className="flex h-full items-center gap-2 overflow-hidden px-1">
+        <span className={`shrink-0 text-base font-bold ${getModeColor()} ${!isActive ? 'opacity-60' : ''}`}>
+          {formatTime(timeLeft)}
+        </span>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${getModeBgColor()} ${getModeColor()}`}>
+          {getShortModeLabel()}
+        </span>
+        {!readOnly && (
+          <button
+            className="shrink-0 rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={toggleTimer}
+            aria-label={isActive ? 'Pause' : 'Start'}
+          >
+            {isActive ? <Pause size={14} /> : <Play size={14} />}
+          </button>
+        )}
+        {width >= 3 && (
+          <span className="shrink-0 text-[10px] text-gray-400 dark:text-gray-500">
+            Cycle {cyclesCompleted % (localConfig.cyclesBeforeLongBreak || 4) + 1}/{localConfig.cyclesBeforeLongBreak || 4}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  // ── 6x6+ App: Full productivity timer ──────────────────────────
+  const renderAppView = () => {
+    const progress = getProgress();
+    const radius = 90;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (progress / 100) * circumference;
+    const cyclesBeforeLong = localConfig.cyclesBeforeLongBreak || 4;
+    const currentCycleInSet = cyclesCompleted % cyclesBeforeLong;
+
+    return (
+      <div className="flex h-full flex-col overflow-hidden">
+        {/* App header */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-2">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {localConfig.title || defaultConfig.title}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {getModeDescription()}
+            </p>
+          </div>
+          {!readOnly && (
+            <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+              Settings
+            </Button>
+          )}
+        </div>
+
+        {/* Main content */}
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6">
+          {/* Progress ring + timer */}
+          <div className="relative flex items-center justify-center">
+            <svg width="220" height="220" viewBox="0 0 220 220" className="-rotate-90">
+              {/* Background ring */}
+              <circle
+                cx="110"
+                cy="110"
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="6"
+                className="text-gray-200 dark:text-gray-700"
+              />
+              {/* Progress ring */}
+              <circle
+                cx="110"
+                cy="110"
+                r={radius}
+                fill="none"
+                stroke={getModeStrokeColor()}
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                className="transition-[stroke-dashoffset] duration-1000 ease-linear"
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <div className={`text-5xl font-bold tabular-nums ${getModeColor()}`}>
+                {formatTime(timeLeft)}
+              </div>
+              <div className={`mt-1 rounded-full px-3 py-0.5 text-sm font-medium ${getModeBgColor()} ${getModeColor()}`}>
+                {getModeLabel()}
+              </div>
+            </div>
+          </div>
+
+          {/* Controls */}
+          {!readOnly && (
+            <div className="flex items-center gap-3">
+              <button
+                className="rounded-full bg-gray-100 p-3 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                onClick={resetTimer}
+                aria-label="Reset"
+              >
+                <RotateCcw size={20} />
+              </button>
+              <button
+                className={`rounded-full p-5 text-white transition-colors ${
+                  mode === TimerMode.WORK
+                    ? 'bg-red-500 hover:bg-red-600'
+                    : mode === TimerMode.BREAK
+                    ? 'bg-green-500 hover:bg-green-600'
+                    : 'bg-blue-500 hover:bg-blue-600'
+                }`}
+                onClick={toggleTimer}
+                aria-label={isActive ? 'Pause' : 'Start'}
+              >
+                {isActive ? <Pause size={28} /> : <Play size={28} />}
+              </button>
+              <button
+                className="rounded-full bg-gray-100 p-3 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600"
+                onClick={skipTimer}
+                aria-label="Skip to next"
+              >
+                <SkipForward size={20} />
+              </button>
+            </div>
+          )}
+
+          {/* Session progress dots */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Sessions</span>
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: cyclesBeforeLong }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-3 w-3 rounded-full transition-colors ${
+                    i < currentCycleInSet
+                      ? 'bg-red-500 dark:bg-red-400'
+                      : i === currentCycleInSet && mode === TimerMode.WORK
+                      ? 'bg-red-500/40 ring-2 ring-red-500/50'
+                      : 'bg-gray-200 dark:bg-gray-700'
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+              {cyclesCompleted} total
+            </span>
+          </div>
+        </div>
+
+        {/* Bottom settings bar (inline durations) */}
+        <div className="grid grid-cols-3 gap-3 border-t border-gray-100 px-5 py-4 dark:border-gray-800">
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800/50">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Focus</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {localConfig.workDuration || 25}<span className="text-xs font-normal text-gray-400">m</span>
+            </div>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800/50">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Break</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {localConfig.breakDuration || 5}<span className="text-xs font-normal text-gray-400">m</span>
+            </div>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-gray-800/50">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Long Break</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {localConfig.longBreakDuration || 15}<span className="text-xs font-normal text-gray-400">m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Render content routing ─────────────────────────────────────
   const renderContent = () => {
-    // Adapt content based on widget dimensions
+    if (isTiny) return renderTinyView();
+    if (isShort) return renderRibbonView();
+    if (isApp) return renderAppView();
+
+    // Existing size-based branching
     if (width >= 4 && height >= 4) {
       return renderLargeView();
     } else if (width >= 4) {
@@ -212,7 +489,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
       return renderDefaultView();
     }
   };
-  
+
   // Default view (2x2)
   const renderDefaultView = () => {
     return (
@@ -221,26 +498,28 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
           {formatTime(timeLeft)}
         </div>
         <div className="text-sm font-medium">{getModeLabel()}</div>
-        <div className="flex space-x-3">
-          <button 
-            className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={toggleTimer}
-            aria-label={isActive ? 'Pause' : 'Start'}
-          >
-            {isActive ? <Pause size={16} /> : <Play size={16} />}
-          </button>
-          <button 
-            className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={resetTimer}
-            aria-label="Reset"
-          >
-            <RotateCcw size={16} />
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex space-x-3">
+            <button
+              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={toggleTimer}
+              aria-label={isActive ? 'Pause' : 'Start'}
+            >
+              {isActive ? <Pause size={16} /> : <Play size={16} />}
+            </button>
+            <button
+              className="p-2 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={resetTimer}
+              aria-label="Reset"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+        )}
       </div>
     );
   };
-  
+
   // Wide view (4x2 or larger width)
   const renderWideView = () => {
     return (
@@ -253,22 +532,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
           <div className="text-sm opacity-75 text-center max-w-[180px]">{getModeDescription()}</div>
         </div>
         <div className="flex flex-col items-center">
-          <div className="flex space-x-3">
-            <button 
-              className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-              onClick={toggleTimer}
-              aria-label={isActive ? 'Pause' : 'Start'}
-            >
-              {isActive ? <Pause size={20} /> : <Play size={20} />}
-            </button>
-            <button 
-              className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-              onClick={resetTimer}
-              aria-label="Reset"
-            >
-              <RotateCcw size={20} />
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex space-x-3">
+              <button
+                className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                onClick={toggleTimer}
+                aria-label={isActive ? 'Pause' : 'Start'}
+              >
+                {isActive ? <Pause size={20} /> : <Play size={20} />}
+              </button>
+              <button
+                className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                onClick={resetTimer}
+                aria-label="Reset"
+              >
+                <RotateCcw size={20} />
+              </button>
+            </div>
+          )}
           <div className="text-sm mt-2">
             Cycle: {cyclesCompleted % (localConfig.cyclesBeforeLongBreak || 4) || (localConfig.cyclesBeforeLongBreak || 4)}/{localConfig.cyclesBeforeLongBreak || 4}
           </div>
@@ -276,7 +557,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
       </div>
     );
   };
-  
+
   // Tall view (2x4 or larger height)
   const renderTallView = () => {
     return (
@@ -286,22 +567,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         </div>
         <div className="text-lg font-medium">{getModeLabel()}</div>
         <div className="text-sm opacity-75 text-center max-w-[180px]">{getModeDescription()}</div>
-        <div className="flex space-x-3 mt-3">
-          <button 
-            className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={toggleTimer}
-            aria-label={isActive ? 'Pause' : 'Start'}
-          >
-            {isActive ? <Pause size={20} /> : <Play size={20} />}
-          </button>
-          <button 
-            className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={resetTimer}
-            aria-label="Reset"
-          >
-            <RotateCcw size={20} />
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex space-x-3 mt-3">
+            <button
+              className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={toggleTimer}
+              aria-label={isActive ? 'Pause' : 'Start'}
+            >
+              {isActive ? <Pause size={20} /> : <Play size={20} />}
+            </button>
+            <button
+              className="p-3 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={resetTimer}
+              aria-label="Reset"
+            >
+              <RotateCcw size={20} />
+            </button>
+          </div>
+        )}
         <div className="text-sm mt-2">
           Cycle: {cyclesCompleted % (localConfig.cyclesBeforeLongBreak || 4) || (localConfig.cyclesBeforeLongBreak || 4)}/{localConfig.cyclesBeforeLongBreak || 4}
         </div>
@@ -311,7 +594,7 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
       </div>
     );
   };
-  
+
   // Large view (4x4 or larger)
   const renderLargeView = () => {
     return (
@@ -321,22 +604,24 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
         </div>
         <div className="text-xl font-medium">{getModeLabel()}</div>
         <div className="text-md opacity-75 text-center max-w-[280px]">{getModeDescription()}</div>
-        <div className="flex space-x-4 mt-4">
-          <button 
-            className="p-4 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={toggleTimer}
-            aria-label={isActive ? 'Pause' : 'Start'}
-          >
-            {isActive ? <Pause size={24} /> : <Play size={24} />}
-          </button>
-          <button 
-            className="p-4 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-            onClick={resetTimer}
-            aria-label="Reset"
-          >
-            <RotateCcw size={24} />
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex space-x-4 mt-4">
+            <button
+              className="p-4 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={toggleTimer}
+              aria-label={isActive ? 'Pause' : 'Start'}
+            >
+              {isActive ? <Pause size={24} /> : <Play size={24} />}
+            </button>
+            <button
+              className="p-4 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={resetTimer}
+              aria-label="Reset"
+            >
+              <RotateCcw size={24} />
+            </button>
+          </div>
+        )}
         <div className="text-lg mt-2">
           Cycle: {cyclesCompleted % (localConfig.cyclesBeforeLongBreak || 4) || (localConfig.cyclesBeforeLongBreak || 4)}/{localConfig.cyclesBeforeLongBreak || 4}
         </div>
@@ -360,29 +645,53 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
       </div>
     );
   };
-  
+
+  // ── Settings helpers ───────────────────────────────────────────
+  const resetSettingsDraft = useCallback(() => {
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
+
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetSettingsDraft();
+    } else {
+      setLocalConfig(mergedConfig);
+    }
+    setShowSettings(nextOpen);
+  }, [mergedConfig, resetSettingsDraft]);
+
+  const handleCancelSettings = useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
+
   // Save settings
-  const saveSettings = () => {
+  const saveSettings = useCallback(() => {
     if (config?.onUpdate) {
       config.onUpdate(localConfig);
     }
     setShowSettings(false);
-    
+
     // Update timer based on new settings
-    resetTimer();
-  };
-  
+    setIsActive(false);
+    setMode(TimerMode.WORK);
+    setCyclesCompleted(0);
+    setTimeLeft((localConfig.workDuration || 25) * 60);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+  }, [config, localConfig]);
+
   // Settings dialog
   const renderSettings = () => {
     return (
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Pomodoro Widget Settings</DialogTitle>
           </DialogHeader>
-          
-          {/* Change py-2 to py-4 */}
-          <div className="space-y-4 py-4">
+
+          <div className="min-h-0 space-y-4 overflow-y-auto py-4">
             {/* Title setting */}
             <div className="space-y-2">
               <Label htmlFor="title-input">Widget Title</Label>
@@ -390,12 +699,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                 id="title-input"
                 type="text"
                 value={localConfig.title || ''}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setLocalConfig({...localConfig, title: e.target.value})
                 }
               />
             </div>
-            
+
             {/* Work duration setting */}
             <div className="space-y-2">
               <Label htmlFor="work-duration">Focus Time Duration (minutes)</Label>
@@ -405,12 +714,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                 min="1"
                 max="60"
                 value={localConfig.workDuration || 25}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setLocalConfig({...localConfig, workDuration: parseInt(e.target.value)})
                 }
               />
             </div>
-            
+
             {/* Break duration setting */}
             <div className="space-y-2">
               <Label htmlFor="break-duration">Short Break Duration (minutes)</Label>
@@ -420,12 +729,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                 min="1"
                 max="30"
                 value={localConfig.breakDuration || 5}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setLocalConfig({...localConfig, breakDuration: parseInt(e.target.value)})
                 }
               />
             </div>
-            
+
             {/* Long break duration setting */}
             <div className="space-y-2">
               <Label htmlFor="long-break-duration">Long Break Duration (minutes)</Label>
@@ -435,12 +744,12 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                 min="1"
                 max="45"
                 value={localConfig.longBreakDuration || 15}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setLocalConfig({...localConfig, longBreakDuration: parseInt(e.target.value)})
                 }
               />
             </div>
-            
+
             {/* Cycles before long break setting */}
             <div className="space-y-2">
               <Label htmlFor="cycles-before-long-break">Cycles Before Long Break</Label>
@@ -450,15 +759,15 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                 min="1"
                 max="10"
                 value={localConfig.cyclesBeforeLongBreak || 4}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                   setLocalConfig({...localConfig, cyclesBeforeLongBreak: parseInt(e.target.value)})
                 }
               />
             </div>
           </div>
-          
-          <DialogFooter>
-            <div className="flex justify-between w-full">
+
+          <DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
               {config?.onDelete && (
                 <Button
                   variant="destructive"
@@ -472,6 +781,11 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
                   Delete
                 </Button>
               )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleCancelSettings}>
+                Cancel
+              </Button>
               <Button
                 variant="default"
                 onClick={saveSettings}
@@ -487,19 +801,25 @@ const PomodoroWidget: React.FC<PomodoroWidgetProps> = ({ width, height, config }
 
   // Main render
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title={localConfig.title || defaultConfig.title} 
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      
-      <div className="flex-grow p-4 overflow-hidden">
+    <div
+      ref={widgetRef}
+      className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}
+    >
+      {!isTiny && !isApp && (
+        <WidgetHeader
+          title={localConfig.title || defaultConfig.title}
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isShort}
+        />
+      )}
+
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-1.5' : isShort ? 'p-1.5' : 'p-4'}`}>
         {renderContent()}
       </div>
-      
-      {renderSettings()}
+
+      {!readOnly && renderSettings()}
     </div>
   );
 };
 
-export default PomodoroWidget; 
+export default PomodoroWidget;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, type FC, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useVisibilityRefresh } from '../../../lib/useVisibilityRefresh';
-import { Cloud, CloudRain, CloudSnow, CloudLightning, Wind, Sun, SunDim, Droplets, Info, Search, MapPin, Loader2 } from 'lucide-react';
+import { Cloud, CloudRain, CloudSnow, CloudLightning, Wind, Sun, SunDim, Droplets, Info, Search, MapPin, Loader2, Thermometer, Gauge, Sunrise, Sunset, Settings } from 'lucide-react';
 import { Skeleton } from '../../ui/skeleton';
 import {
   Dialog,
@@ -44,6 +44,9 @@ interface CitySearchResult {
  */
 const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshInterval = 15 }) => {
   const isTiny = width === 1 && height === 1;
+  const isShort = height === 1 && width > 1;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -849,9 +852,242 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   };
 
   /**
+   * Renders a horizontal ribbon view for Nx1 short widgets
+   * Shows temperature and condition as compact chips in a single row
+   *
+   * @returns {JSX.Element} Ribbon view
+   */
+  const renderRibbonView = () => {
+    if (!weather) return null;
+    const shortLocation = weather.location.split(',')[0].trim();
+
+    return (
+      <div className="flex h-full items-center gap-2 px-2 overflow-hidden">
+        {/* Location chip */}
+        <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
+          <MapPin size={10} className="text-gray-500 dark:text-gray-400" />
+          <span className="text-[11px] font-medium text-gray-700 dark:text-gray-300 truncate max-w-[5rem]">
+            {shortLocation}
+          </span>
+        </div>
+        {/* Temp + icon chip */}
+        <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
+          <span className="text-gray-700 dark:text-gray-300 [&>svg]:!h-3 [&>svg]:!w-3">
+            {getWeatherIcon(weather.condition, weather.icon)}
+          </span>
+          <span className="text-[11px] font-semibold text-gray-900 dark:text-gray-100">
+            {formatTemperature(weather.temperature)}
+          </span>
+        </div>
+        {/* Condition chip */}
+        <div className="flex items-center rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
+          <span className="text-[11px] text-gray-600 dark:text-gray-400">
+            {weather.condition}
+          </span>
+        </div>
+        {/* Humidity chip (shown when space allows) */}
+        {width >= 3 && (
+          <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
+            <Droplets size={10} className="text-blue-400" />
+            <span className="text-[11px] text-gray-600 dark:text-gray-400">
+              {weather.humidity}%
+            </span>
+          </div>
+        )}
+        {/* Wind chip (shown when more space allows) */}
+        {width >= 4 && (
+          <div className="flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-800 px-2 py-0.5 shrink-0">
+            <Wind size={10} className="text-gray-400" />
+            <span className="text-[11px] text-gray-600 dark:text-gray-400">
+              {weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * Renders a full weather app view for 6x6+ widgets
+   * Comprehensive display with current conditions prominently shown,
+   * hourly forecast timeline, 7-day detailed forecast grid, and weather details panel
+   *
+   * @returns {JSX.Element} Full app view
+   */
+  const renderAppView = () => {
+    if (!weather) return null;
+
+    const now = new Date();
+    const currentTime = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const currentDate = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const sunriseTime = new Date(weather.sunrise * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const sunsetTime = new Date(weather.sunset * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    // Generate synthetic hourly data from current conditions + forecast
+    const hourlyData = Array.from({ length: 12 }, (_, i) => {
+      const hour = new Date(now.getTime() + i * 3600000);
+      // Gradually interpolate toward next day's forecast temp
+      const nextForecast = weather.forecast[0];
+      const progress = i / 12;
+      const tempRange = nextForecast ? nextForecast.temp.max - nextForecast.temp.min : 4;
+      const tempOffset = Math.sin(progress * Math.PI) * tempRange * 0.3;
+      return {
+        time: hour.toLocaleTimeString('en-US', { hour: 'numeric' }),
+        temp: Math.round(weather.temperature + tempOffset + (Math.random() - 0.5) * 2),
+        condition: i < 4 ? weather.condition : (nextForecast?.condition || weather.condition),
+        icon: i < 4 ? weather.icon : (nextForecast?.icon || weather.icon),
+      };
+    });
+
+    // Wind direction as compass
+    const windDirectionLabel = (() => {
+      const d = weather.windDirection;
+      if (d >= 337.5 || d < 22.5) return 'N';
+      if (d >= 22.5 && d < 67.5) return 'NE';
+      if (d >= 67.5 && d < 112.5) return 'E';
+      if (d >= 112.5 && d < 157.5) return 'SE';
+      if (d >= 157.5 && d < 202.5) return 'S';
+      if (d >= 202.5 && d < 247.5) return 'SW';
+      if (d >= 247.5 && d < 292.5) return 'W';
+      return 'NW';
+    })();
+
+    return (
+      <div className="flex flex-col h-full overflow-auto">
+        {/* App header bar */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 widget-drag-handle cursor-move">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{weather.location}</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{currentDate} &middot; {currentTime}</p>
+          </div>
+          {!readOnly && (
+            <button
+              className="settings-button hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full p-1.5"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                setIsSettingsOpen(true);
+              }}
+            >
+              <Settings size={16} className="text-gray-500 dark:text-slate-400" />
+            </button>
+          )}
+        </div>
+
+        {/* Current conditions - prominent */}
+        <div className="px-5 py-4 flex items-center gap-6">
+          <div className="text-gray-700 dark:text-gray-300 [&>svg]:!h-16 [&>svg]:!w-16">
+            {getWeatherIcon(weather.condition, weather.icon)}
+          </div>
+          <div>
+            <div className="text-5xl font-light tracking-tight text-gray-900 dark:text-gray-100">
+              {formatTemperature(weather.temperature)}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              {weather.description}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Feels like {formatTemperature(weather.feelsLike)}
+            </div>
+          </div>
+        </div>
+
+        {/* Hourly forecast timeline */}
+        <div className="px-5 py-3">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Hourly Forecast</h3>
+          <div className="flex gap-1 overflow-x-auto pb-1">
+            {hourlyData.map((h, i) => (
+              <div key={i} className="flex flex-col items-center min-w-[3.5rem] px-1.5 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">{i === 0 ? 'Now' : h.time}</span>
+                <span className="text-gray-700 dark:text-gray-300 [&>svg]:!h-4 [&>svg]:!w-4 my-1">
+                  {getWeatherIcon(h.condition, h.icon)}
+                </span>
+                <span className="text-xs font-medium text-gray-900 dark:text-gray-100">{h.temp}°</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Weather details panel */}
+        <div className="px-5 py-3">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Weather Details</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+              <Droplets size={18} className="text-blue-400 mb-1" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Humidity</span>
+              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{weather.humidity}%</span>
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+              <Wind size={18} className="text-sky-500 mb-1" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Wind</span>
+              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{weather.windSpeed}</span>
+              <span className="text-[10px] text-gray-400">{unit === 'celsius' ? 'm/s' : 'mph'} {windDirectionLabel}</span>
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+              <Thermometer size={18} className="text-red-400 mb-1" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Feels Like</span>
+              <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">{formatTemperature(weather.feelsLike)}</span>
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+              <Sunrise size={18} className="text-amber-400 mb-1" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Sunrise</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sunriseTime}</span>
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+              <Sunset size={18} className="text-orange-400 mb-1" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Sunset</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{sunsetTime}</span>
+            </div>
+            <div className="rounded-xl bg-gray-50 dark:bg-gray-800/50 p-3 flex flex-col items-center">
+              <Gauge size={18} className="text-purple-400 mb-1" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Pressure</span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">--</span>
+              <span className="text-[10px] text-gray-400">hPa</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 7-day forecast grid (uses available 5-day data) */}
+        <div className="px-5 py-3 flex-1">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            {weather.forecast.length}-Day Forecast
+          </h3>
+          <div className="space-y-1">
+            {weather.forecast.map((day, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 px-4 py-2.5"
+              >
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 w-10">{day.day}</span>
+                <span className="text-gray-700 dark:text-gray-300 [&>svg]:!h-5 [&>svg]:!w-5 w-8 flex justify-center">
+                  {getWeatherIcon(day.condition, day.icon)}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 flex-1">{day.description}</span>
+                {/* Temperature bar visualization */}
+                <div className="flex items-center gap-2 w-32">
+                  <span className="text-xs text-gray-400 dark:text-gray-500 w-8 text-right">{Math.round(day.temp.min)}°</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                    <div
+                      className="absolute h-full rounded-full bg-gradient-to-r from-blue-400 to-orange-400"
+                      style={{
+                        left: '0%',
+                        width: `${Math.max(20, ((day.temp.max - day.temp.min) / Math.max(1, day.temp.max)) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-gray-900 dark:text-gray-100 w-8">{Math.round(day.temp.max)}°</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
    * Determines which view to render based on widget dimensions
    * Adapts the content display to make optimal use of available space
-   * 
+   *
    * @returns {JSX.Element} The appropriate view for the current dimensions
    */
   const renderContent = () => {
@@ -864,8 +1100,14 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     }
     
     // Determine which view to render based on available space
-    // Using a more nuanced approach to sizing
-    if (width >= 4 && height >= 4) {
+    // Most specific first (icon → widget → app spectrum)
+    if (isTiny) {
+      return renderMinimalView();
+    } else if (isShort) {
+      return renderRibbonView();
+    } else if (isApp) {
+      return renderAppView();
+    } else if (width >= 4 && height >= 4) {
       return renderDetailedView();
     } else if (width >= 3 && height >= 3) {
       return renderVerticalForecastView();
@@ -1022,7 +1264,13 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
           </Button>
         )}
 
-        <div className="flex">
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setIsSettingsOpen(false)}
+          >
+            Cancel
+          </Button>
           <Button
             variant="default"
             onClick={handleSaveSettings}
@@ -1057,15 +1305,15 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
 
   return (
     <div ref={widgetRef} className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
-      {!isTiny && (
-        <WidgetHeader 
-          title="Weather" 
-          onSettingsClick={() => setIsSettingsOpen(true)}
-          compact={width === 1 || height === 1}
+      {!isTiny && !isApp && (
+        <WidgetHeader
+          title="Weather"
+          onSettingsClick={readOnly ? undefined : () => setIsSettingsOpen(true)}
+          compact={isShort || width === 1 || height === 1}
         />
       )}
-      
-      <div className={`flex-1 overflow-hidden rounded-md ${isTiny ? 'm-0 p-2' : 'm-1'}`}>
+
+      <div className={`flex-1 overflow-hidden rounded-md ${isTiny ? 'm-0 p-2' : isApp ? '' : 'm-1'}`}>
         {renderContent()}
       </div>
       

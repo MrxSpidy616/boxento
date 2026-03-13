@@ -81,6 +81,8 @@ const TINY_READY_WIDGET_TYPES = new Set([
   'todo',
   'notes',
   'rss',
+  'pomodoro',
+  'currency-converter',
 ]);
 
 // Widget registry with enhanced metadata

@@ -14,6 +14,7 @@ export interface LinkItem {
   url: string;
   title: string;
   favicon: string;
+  category?: string;
 }
 
 /**
@@ -36,6 +37,7 @@ export interface QuickLinksWidgetConfig {
   showFavicons?: boolean;
   onDelete?: () => void;
   onUpdate?: (config: QuickLinksWidgetConfig) => void;
+  readOnly?: boolean;
   [key: string]: unknown;
 }
 

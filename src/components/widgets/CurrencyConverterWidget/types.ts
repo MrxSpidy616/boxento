@@ -24,6 +24,7 @@ export interface CurrencyConverterWidgetConfig extends Record<string, unknown> {
   refreshInterval?: number;
   onUpdate?: (config: CurrencyConverterWidgetConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
 }
 
 /**
