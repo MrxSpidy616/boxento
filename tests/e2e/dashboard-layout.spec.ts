@@ -143,8 +143,9 @@ test('keeps quick links app header controls from dragging the widget', async ({ 
   }).toBe(0);
 
   await searchInput.fill('box');
+  await expect(searchInput).toHaveValue('box');
 
-  const clearSearchButton = widget.locator('.widget-drag-handle button').first();
+  const clearSearchButton = widget.getByRole('button', { name: 'Clear search' });
   await expect(clearSearchButton).toBeVisible();
 
   const clearBox = await clearSearchButton.boundingBox();
