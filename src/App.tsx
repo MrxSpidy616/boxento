@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Suspense } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Moon, Sun, Cloud, CloudOff, Loader2 } from 'lucide-react'
 // Import GridLayout components - direct imports to avoid runtime issues
 
@@ -6,13 +6,12 @@ import { Plus, Moon, Sun, Cloud, CloudOff, Loader2 } from 'lucide-react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
-import { getWidgetComponent, getWidgetConfigByType, WIDGET_REGISTRY } from '@/components/widgets'
+import { getWidgetConfigByType, WIDGET_REGISTRY } from '@/components/widgets'
 import { 
   WidgetConfig, 
   Widget,
   LayoutItem
 } from '@/types'
-import WidgetErrorBoundary from '@/components/widgets/common/WidgetErrorBoundary'
 import WidgetSelector from '@/components/widgets/common/WidgetSelector'
 import { configManager } from '@/lib/configManager'
 import { UserMenuButton } from '@/components/auth/UserMenuButton'
@@ -35,6 +34,7 @@ import { Changelog } from '@/components/Changelog'
 import { faviconService } from '@/lib/services/favicon'
 import { useAppSettings } from '@/context/AppSettingsContext'
 import { DashboardContextMenu } from '@/components/dashboard/DashboardContextMenu'
+import DashboardWidgetFrame from '@/components/dashboard/DashboardWidgetFrame'
 import { DashboardSwitcher, Dashboard, DashboardVisibility } from '@/components/dashboard/DashboardSwitcher'
 import { breakpoints, cols, createDefaultLayoutItem } from '@/lib/layoutUtils'
 import {
@@ -540,10 +540,9 @@ function App() {
     }
   };
 
-  const widgetCategories: WidgetCategory = (() => {
-    // Group widgets by category
+  const widgetCategories = useMemo<WidgetCategory>(() => {
     const categories: WidgetCategory = {};
-    
+
     WIDGET_REGISTRY.forEach(widget => {
       const category = widget.category || 'Other';
       if (!categories[category]) {
@@ -551,19 +550,24 @@ function App() {
       }
       categories[category].push(widget);
     });
-    
+
     return categories;
-  })();
+  }, []);
   
   // References for debouncing updates
   const layoutSaveTimeout = useRef<number | null>(null);
   const widgetUpdateTimeout = useRef<number | null>(null);
   const publicDashboardSyncTimeout = useRef<number | null>(null);
   const layoutsRef = useRef(layouts);
+  const widgetsRef = useRef(widgets);
 
   useEffect(() => {
     layoutsRef.current = layouts;
   }, [layouts]);
+
+  useEffect(() => {
+    widgetsRef.current = widgets;
+  }, [widgets]);
 
   // Get sync status from context
   const { isSyncing, syncStatus } = useSync();
@@ -624,6 +628,7 @@ function App() {
    *                   If false, waits for save to complete before returning.
    */
   const saveWidgets = async (updatedWidgets: Widget[], debounce = true): Promise<void> => {
+    widgetsRef.current = updatedWidgets;
     setWidgets(updatedWidgets);
 
     const provider = getStorageProvider();
@@ -661,7 +666,7 @@ function App() {
 
     // Sync to public dashboard if visibility is public/team (Firebase-specific)
     if (auth?.currentUser && currentDashboard.visibility !== 'private') {
-      syncPublicDashboard(currentDashboard, updatedWidgets, layouts);
+      syncPublicDashboard(currentDashboard, updatedWidgets, layoutsRef.current);
     }
   };
   
@@ -676,6 +681,7 @@ function App() {
     const normalizedLayouts = validateLayouts(updatedLayouts);
 
     // Update state
+    layoutsRef.current = normalizedLayouts;
     setLayouts(normalizedLayouts);
     const provider = getStorageProvider();
 
@@ -704,9 +710,14 @@ function App() {
 
     // Sync to public dashboard if visibility is public/team (Firebase-specific)
     if (auth?.currentUser && currentDashboard.visibility !== 'private') {
-      syncPublicDashboard(currentDashboard, widgets, normalizedLayouts);
+      syncPublicDashboard(currentDashboard, widgetsRef.current, normalizedLayouts);
     }
   };
+
+  const saveWidgetsRef = useRef(saveWidgets);
+  const saveLayoutsRef = useRef(saveLayouts);
+  saveWidgetsRef.current = saveWidgets;
+  saveLayoutsRef.current = saveLayouts;
 
   // Update theme based on settings
   useEffect(() => {
@@ -737,31 +748,30 @@ function App() {
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
+      setCurrentBreakpoint(getBreakpointForWidth(window.innerWidth));
     };
     
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // Calculate row height based on window width to ensure square widgets
-  const calculateRowHeight = (): number => {
+  const rowHeight = useMemo(() => {
     const columnCount = cols[currentBreakpoint as BreakpointName] || cols.lg;
     const totalPadding = GRID.CONTAINER_PADDING * 2;
     const totalMargins = GRID.ITEM_MARGIN * (columnCount - 1);
     const usableWidth = windowWidth - totalPadding - totalMargins;
-
     const columnWidth = usableWidth / columnCount;
 
     if (windowWidth < 600) {
       return columnWidth * 0.8;
-    } else if (windowWidth < 1200) {
-      return columnWidth * 0.9;
-    } else {
-      return columnWidth;
     }
-  };
-  
-  const rowHeight = calculateRowHeight();
+
+    if (windowWidth < 1200) {
+      return columnWidth * 0.9;
+    }
+
+    return columnWidth;
+  }, [currentBreakpoint, windowWidth]);
   
   const toggleTheme = (): void => {
     const newTheme: 'light' | 'dark' = theme === 'dark' ? 'light' : 'dark';
@@ -910,155 +920,98 @@ function App() {
     }
   };
   
-  // Delete widget function - refactored to reduce duplication
-  const deleteWidget = async (widgetId: string): Promise<void> => {
-    // Remove widget config from storage
+  const currentLayoutById = useMemo(
+    () => new Map((layouts[currentBreakpoint] || []).map(item => [item.i, item])),
+    [currentBreakpoint, layouts]
+  );
+  const isReadOnlyDashboard = currentDashboard.ownerId !== undefined
+    && auth?.currentUser?.uid !== currentDashboard.ownerId;
+  const isAuthenticated = Boolean(auth?.currentUser);
+
+  const deleteWidget = useCallback(async (widgetId: string): Promise<void> => {
     await configManager.clearConfig(widgetId);
-    
-    // Remove widget from state
-    const updatedWidgets = widgets.filter(widget => widget.id !== widgetId);
-    
-    // Remove layout item from all breakpoints
-    const updatedLayouts = { ...layouts };
+
+    const updatedWidgets = widgetsRef.current.filter(widget => widget.id !== widgetId);
+    const updatedLayouts = { ...layoutsRef.current };
     Object.keys(updatedLayouts).forEach(breakpoint => {
       updatedLayouts[breakpoint] = updatedLayouts[breakpoint].filter(item => item.i !== widgetId);
     });
 
     const normalizedLayouts = validateLayouts(updatedLayouts, { rebalanceWideSparse: true });
-    
-    // Update state and save
-    setWidgets(updatedWidgets);
-    setLayouts(normalizedLayouts);
-    
-    // Save changes
-    saveWidgets(updatedWidgets);
-    saveLayouts(normalizedLayouts, false);
-  };
-  
-  // Update layout function - refactored to reduce duplication
-  const handleLayoutChange = (currentLayout: LayoutItem[], _allLayouts?: { [key: string]: LayoutItem[] }): void => {
-    const validatedLayout = validateLayout(currentLayout);
 
-    // Ignore mount/breakpoint normalization callbacks from react-grid-layout.
-    if (!draggedWidgetId && !resizingWidgetId) {
-      return;
-    }
+    await saveWidgetsRef.current(updatedWidgets);
+    await saveLayoutsRef.current(normalizedLayouts, false);
+  }, []);
 
-    const updatedLayouts = { ...layoutsRef.current };
-    updatedLayouts[currentBreakpoint] = validatedLayout;
-
-    setLayouts(validateLayouts(updatedLayouts));
-  };
-  
-  // Update widget config - refactored to be more maintainable
-  const updateWidgetConfig = (widgetId: string, newConfig: Record<string, unknown>): void => {
-    // Update widget in state
-    const updatedWidgets = widgets.map(widget => 
-      widget.id === widgetId 
+  const updateWidgetConfig = useCallback((widgetId: string, newConfig: Record<string, unknown>): void => {
+    const updatedWidgets = widgetsRef.current.map(widget =>
+      widget.id === widgetId
         ? { ...widget, config: { ...widget.config, ...newConfig } }
         : widget
     );
-    
+
+    widgetsRef.current = updatedWidgets;
     setWidgets(updatedWidgets);
-    
-    // Save to configManager - excluding function properties
+
     const configToSave = prepareWidgetConfigForSave(newConfig);
-    configManager.saveWidgetConfig(widgetId, configToSave);
-    
-    // Save to Firestore if logged in
-    if (auth?.currentUser) {
-      saveWidgets(updatedWidgets);
+    void configManager.saveWidgetConfig(widgetId, configToSave);
+
+    if (isAuthenticated) {
+      void saveWidgetsRef.current(updatedWidgets);
     }
+  }, [isAuthenticated]);
+
+  const [liveResizeDimensions, setLiveResizeDimensions] = useState<{
+    id: string;
+    width: number;
+    height: number;
+  } | null>(null);
+  const draggedWidgetIdRef = useRef<string | null>(null);
+  const resizingWidgetIdRef = useRef<string | null>(null);
+  const lastResizeSize = useRef<{ w: number; h: number } | null>(null);
+
+  const getWidgetDimensions = useCallback((widgetId: string, isMobileView = false) => {
+    if (!isLayoutReady) {
+      return { width: isMobileView ? 2 : 3, height: isMobileView ? 2 : 3 };
+    }
+
+    if (isMobileView) {
+      return { width: 2, height: 2 };
+    }
+
+    if (liveResizeDimensions?.id === widgetId) {
+      return { width: liveResizeDimensions.width, height: liveResizeDimensions.height };
+    }
+
+    const layoutItem = currentLayoutById.get(widgetId);
+    if (!layoutItem) {
+      return { width: 3, height: 3 };
+    }
+
+    return { width: layoutItem.w, height: layoutItem.h };
+  }, [currentLayoutById, isLayoutReady, liveResizeDimensions]);
+  const isMobileBreakpoint = currentBreakpoint === 'xs' || currentBreakpoint === 'xxs';
+  const isTabletBreakpoint = currentBreakpoint === 'sm';
+
+  const handleLayoutChange = (_currentLayout: LayoutItem[]): void => {
+    if (!draggedWidgetIdRef.current && !resizingWidgetIdRef.current) {
+      return;
+    }
+
+    // React-grid-layout updates item positions internally during pointer moves.
+    // Persisting the whole layout only on interaction end avoids rerendering every widget each tick.
   };
 
-  // Unified widget rendering function
-  const renderWidget = (widget: Widget, isMobileView = false): React.ReactNode => {
-    const WidgetComponent = getWidgetComponent(widget.type);
-    
-    if (!WidgetComponent) {
-      return (
-        <div className="widget-error">
-          <p>Widget type "{widget.type}" not found</p>
-        </div>
-      );
-    }
-    
-    // Get widget dimensions
-    const getWidgetDimensions = () => {
-      // If layout isn't ready yet, use default dimensions
-      if (!isLayoutReady) {
-        return { width: isMobileView ? 2 : 3, height: isMobileView ? 2 : 3 };
-      }
-      
-      // Find layout item for this widget
-      const layoutItem = layouts[currentBreakpoint]?.find(item => item.i === widget.id);
-      
-      // If no layout item found, use default dimensions
-      if (!layoutItem) {
-        return { width: isMobileView ? 2 : 3, height: isMobileView ? 2 : 3 };
-      }
-      
-      // Use the layout item dimensions
-      return {
-        width: isMobileView ? 2 : layoutItem.w,
-        height: isMobileView ? 2 : layoutItem.h
-      };
-    };
-    
-    const { width, height } = getWidgetDimensions();
-    
-    // Determine if we're in read-only mode (viewing someone else's dashboard)
-    // For now, check if dashboard has an ownerId that doesn't match current user
-    const isReadOnly = currentDashboard.ownerId !== undefined &&
-                       auth?.currentUser?.uid !== currentDashboard.ownerId;
-
-    // Create widget config with callbacks
-    // IMPORTANT: Include widget.id so widgets can use it for storage keys
-    // In read-only mode, don't provide edit/delete callbacks
-    const widgetConfig = {
-      ...widget.config,
-      id: widget.id,
-      readOnly: isReadOnly,
-      ...(isReadOnly ? {} : {
-        onDelete: () => deleteWidget(widget.id),
-        onUpdate: (newConfig: Record<string, unknown>) => updateWidgetConfig(widget.id, newConfig)
-      })
-    };
-    
-    return (
-      <WidgetErrorBoundary>
-        <Suspense fallback={
-          <div className="w-full h-full flex items-center justify-center bg-card rounded-lg">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        }>
-          <WidgetComponent
-            width={width}
-            height={height}
-            config={widgetConfig}
-          />
-        </Suspense>
-      </WidgetErrorBoundary>
-    );
-  };
-  
-  // Handle drag events - refactored to be more maintainable
-  const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
-  
   const handleDragStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     document.body.classList.add('react-grid-layout--dragging');
-    setDraggedWidgetId(newItem.i);
+    draggedWidgetIdRef.current = newItem.i;
   };
-  
+
   const handleDragStop = (currentLayout: LayoutItem[]): void => {
-    const activeDraggedWidgetId = draggedWidgetId;
-    
-    // Reset states
-    setDraggedWidgetId(null);
-    
-    // Remove classes
+    const activeDraggedWidgetId = draggedWidgetIdRef.current;
+    draggedWidgetIdRef.current = null;
     document.body.classList.remove('react-grid-layout--dragging');
-    
+
     if (!activeDraggedWidgetId) {
       return;
     }
@@ -1068,15 +1021,11 @@ function App() {
       [currentBreakpoint]: validateLayout(currentLayout),
     };
 
-    // Save the actual layout emitted by the grid, not stale React state.
-    saveLayouts(updatedLayouts, false);
-    // Drag completed, layout saved
+    void saveLayouts(updatedLayouts, false);
   };
-  
-  // Cleanup drag/resize classes on unmount to prevent memory leaks
+
   useEffect(() => {
     return () => {
-      // Clean up any lingering drag/resize classes from body
       document.body.classList.remove(
         'react-grid-layout--dragging',
         'react-grid-layout--resizing'
@@ -1084,67 +1033,64 @@ function App() {
     };
   }, []);
 
-  // Track resizing widget for constraint feedback
-  const [resizingWidgetId, setResizingWidgetId] = useState<string | null>(null);
-  const lastResizeSize = useRef<{ w: number; h: number } | null>(null);
-
-  // Handle resize events
   const handleResizeStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     document.body.classList.add('react-grid-layout--resizing');
-    setResizingWidgetId(newItem.i);
+    resizingWidgetIdRef.current = newItem.i;
     lastResizeSize.current = { w: newItem.w, h: newItem.h };
+    setLiveResizeDimensions({ id: newItem.i, width: newItem.w, height: newItem.h });
   };
 
-  // Handle resize in progress - for constraint feedback
   const handleResize = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
-    if (!resizingWidgetId || !lastResizeSize.current) return;
+    if (!resizingWidgetIdRef.current || !lastResizeSize.current) return;
 
     const widgetElement = document.querySelector(`.react-grid-item[data-widget-id="${newItem.i}"]`) as HTMLElement;
     if (!widgetElement) return;
 
-    // Check if hitting min constraints
     const isAtMinWidth = newItem.w === (newItem.minW || 2);
     const isAtMinHeight = newItem.h === (newItem.minH || 2);
     const wasLarger = lastResizeSize.current.w > newItem.w || lastResizeSize.current.h > newItem.h;
 
-    // Check if hitting max constraints
     const isAtMaxWidth = newItem.maxW && newItem.w === newItem.maxW;
     const isAtMaxHeight = newItem.maxH && newItem.h === newItem.maxH;
     const wasSmaller = lastResizeSize.current.w < newItem.w || lastResizeSize.current.h < newItem.h;
 
-    // Apply constraint feedback classes
     if ((isAtMinWidth || isAtMinHeight) && wasLarger) {
       widgetElement.classList.remove('at-max-size');
       widgetElement.classList.add('at-min-size');
-      // Remove after animation
       setTimeout(() => widgetElement.classList.remove('at-min-size'), 300);
     } else if ((isAtMaxWidth || isAtMaxHeight) && wasSmaller) {
       widgetElement.classList.remove('at-min-size');
       widgetElement.classList.add('at-max-size');
-      // Remove after animation
       setTimeout(() => widgetElement.classList.remove('at-max-size'), 300);
     }
 
+    setLiveResizeDimensions(previousValue => (
+      previousValue?.id === newItem.i
+      && previousValue.width === newItem.w
+      && previousValue.height === newItem.h
+        ? previousValue
+        : { id: newItem.i, width: newItem.w, height: newItem.h }
+    ));
     lastResizeSize.current = { w: newItem.w, h: newItem.h };
   };
 
-  const handleResizeStop = (currentLayout: LayoutItem[], _oldItem: LayoutItem, _newItem: LayoutItem): void => {
+  const handleResizeStop = (currentLayout: LayoutItem[]): void => {
     document.body.classList.remove('react-grid-layout--resizing');
 
-    if (!resizingWidgetId) {
+    if (!resizingWidgetIdRef.current) {
       return;
     }
 
-    // Reset tracking
-    setResizingWidgetId(null);
+    resizingWidgetIdRef.current = null;
     lastResizeSize.current = null;
+    setLiveResizeDimensions(null);
 
     const updatedLayouts = {
       ...layoutsRef.current,
       [currentBreakpoint]: validateLayout(currentLayout),
     };
 
-    saveLayouts(updatedLayouts, false);
+    void saveLayouts(updatedLayouts, false);
   };
   
   // Toggle widget selector
@@ -1154,23 +1100,27 @@ function App() {
   
   // Unified function to render widget items for the grid
   const renderWidgetItems = () => {
+    const sizeClass = isMobileBreakpoint ? 'mobile-widget' : isTabletBreakpoint ? 'tablet-widget' : 'desktop-widget';
+
     return widgets.map(widget => {
-      // Determine if mobile view
-      const isMobile = currentBreakpoint === 'xs' || currentBreakpoint === 'xxs';
-      
-      // Add different classes based on screen size
-      const isTablet = currentBreakpoint === 'sm';
-      const sizeClass = isMobile ? 'mobile-widget' : isTablet ? 'tablet-widget' : 'desktop-widget';
-      
+      const { width, height } = getWidgetDimensions(widget.id, isMobileBreakpoint);
+
       return (
         <div 
           key={widget.id} 
           className={`widget-wrapper ${sizeClass} app-widget`} 
           data-widget-id={widget.id}
           data-breakpoint={currentBreakpoint}
-          style={isMobile ? { marginBottom: '16px', height: 'auto' } : undefined}
+          style={isMobileBreakpoint ? { marginBottom: '16px', height: 'auto' } : undefined}
         >
-          {renderWidget(widget, isMobile)}
+          <DashboardWidgetFrame
+            widget={widget}
+            width={width}
+            height={height}
+            isReadOnly={isReadOnlyDashboard}
+            onDeleteWidget={deleteWidget}
+            onUpdateWidgetConfig={updateWidgetConfig}
+          />
         </div>
       );
     });
@@ -1185,7 +1135,14 @@ function App() {
             key={widget.id} 
             className="mobile-widget-item"
           >
-            {renderWidget(widget, true)}
+            <DashboardWidgetFrame
+              widget={widget}
+              width={2}
+              height={2}
+              isReadOnly={isReadOnlyDashboard}
+              onDeleteWidget={deleteWidget}
+              onUpdateWidgetConfig={updateWidgetConfig}
+            />
           </div>
         ))}
       </div>
@@ -1880,74 +1837,73 @@ function App() {
           />
           
           <div className="w-full">
-            <div className="mobile-view-container">
-              <div className="mobile-view">
-                {renderMobileLayout()}
+            {isMobileBreakpoint ? (
+              <div className="mobile-view-container">
+                <div className="mobile-view">
+                  {renderMobileLayout()}
+                </div>
               </div>
-            </div>
-
-            <div className="desktop-view-container">
-              {/* Show skeleton grid while layout is calculating */}
-              {!isLayoutReady && widgets.length > 0 && (
-                <div className="px-[10px] py-[10px]">
-                  <div className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-4 auto-rows-[100px]">
-                    <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-3">
-                      <Skeleton className="w-full h-full rounded-2xl" />
-                    </div>
-                    <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-3">
-                      <Skeleton className="w-full h-full rounded-2xl" />
-                    </div>
-                    <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-2">
-                      <Skeleton className="w-full h-full rounded-2xl" />
-                    </div>
-                    <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-2">
-                      <Skeleton className="w-full h-full rounded-2xl" />
+            ) : (
+              <div className="desktop-view-container">
+                {!isLayoutReady && widgets.length > 0 && (
+                  <div className="px-[10px] py-[10px]">
+                    <div className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-12 gap-4 auto-rows-[100px]">
+                      <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-3">
+                        <Skeleton className="w-full h-full rounded-2xl" />
+                      </div>
+                      <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-3">
+                        <Skeleton className="w-full h-full rounded-2xl" />
+                      </div>
+                      <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-2">
+                        <Skeleton className="w-full h-full rounded-2xl" />
+                      </div>
+                      <div className="col-span-2 md:col-span-3 lg:col-span-3 row-span-2">
+                        <Skeleton className="w-full h-full rounded-2xl" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              {/* Hide grid completely until layout is ready to prevent position animation */}
-              <DashboardContextMenu onAddWidget={toggleWidgetSelector} onAutoArrange={handleAutoArrange}>
-                <div className={isLayoutReady ? '' : 'hidden'}>
-                  <ResponsiveReactGridLayout
-                    className={`layout ${!isTransitionsEnabled ? 'layout-loading' : ''}`}
-                    layouts={layouts}
-                    breakpoints={breakpoints}
-                    cols={cols}
-                    rowHeight={rowHeight}
-                    onLayoutChange={handleLayoutChange}
-                    onBreakpointChange={(newBreakpoint: string) => {
-                      if (newBreakpoint !== currentBreakpoint) {
-                        // Breakpoint changed
-                        setCurrentBreakpoint(newBreakpoint);
-                      }
-                    }}
-                    onDragStart={handleDragStart}
-                    onDragStop={handleDragStop}
-                    onResizeStart={handleResizeStart}
-                    onResize={handleResize}
-                    onResizeStop={handleResizeStop}
-                    margin={[GRID.ITEM_MARGIN, GRID.ITEM_MARGIN]}
-                    containerPadding={[GRID.CONTAINER_PADDING, GRID.CONTAINER_PADDING]}
-                    draggableHandle=".widget-drag-handle"
-                    draggableCancel=".settings-button"
-                    useCSSTransforms={true}
-                    measureBeforeMount={false}
-                    compactType="vertical"
-                    verticalCompact={true}
-                    preventCollision={false}
-                    isResizable={true}
-                    isDraggable={true}
-                    isBounded={false}
-                    autoSize={true}
-                    transformScale={1}
-                    style={{ width: '100%', minHeight: '100%' }}
-                  >
-                    {renderWidgetItems()}
-                  </ResponsiveReactGridLayout>
-                </div>
-              </DashboardContextMenu>
-            </div>
+                )}
+                <DashboardContextMenu onAddWidget={toggleWidgetSelector} onAutoArrange={handleAutoArrange}>
+                  <div>
+                    <ResponsiveReactGridLayout
+                      className={`layout ${!isTransitionsEnabled ? 'layout-loading' : ''}`}
+                      layouts={layouts}
+                      breakpoints={breakpoints}
+                      cols={cols}
+                      rowHeight={rowHeight}
+                      onLayoutChange={handleLayoutChange}
+                      onBreakpointChange={(newBreakpoint: string) => {
+                        if (newBreakpoint !== currentBreakpoint) {
+                          setCurrentBreakpoint(newBreakpoint);
+                        }
+                      }}
+                      onDragStart={handleDragStart}
+                      onDragStop={handleDragStop}
+                      onResizeStart={handleResizeStart}
+                      onResize={handleResize}
+                      onResizeStop={handleResizeStop}
+                      margin={[GRID.ITEM_MARGIN, GRID.ITEM_MARGIN]}
+                      containerPadding={[GRID.CONTAINER_PADDING, GRID.CONTAINER_PADDING]}
+                      draggableHandle=".widget-drag-handle"
+                      draggableCancel=".settings-button"
+                      useCSSTransforms={true}
+                      measureBeforeMount={false}
+                      compactType="vertical"
+                      verticalCompact={true}
+                      preventCollision={false}
+                      isResizable={true}
+                      isDraggable={true}
+                      isBounded={false}
+                      autoSize={true}
+                      transformScale={1}
+                      style={{ width: '100%', minHeight: '100%' }}
+                    >
+                      {renderWidgetItems()}
+                    </ResponsiveReactGridLayout>
+                  </div>
+                </DashboardContextMenu>
+              </div>
+            )}
           </div>
         </main>
         {/* Add the footer */}
