@@ -685,10 +685,14 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
                   <Label htmlFor="app-link-url">URL</Label>
                   <Input
                     id="app-link-url"
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     value={appEditingLink.url}
                     onChange={e => setAppEditingLink({ ...appEditingLink, url: e.target.value })}
                     placeholder="https://example.com"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     autoFocus
                   />
                 </div>

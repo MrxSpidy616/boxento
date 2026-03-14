@@ -194,7 +194,7 @@ test('uses an on-demand dialog for large quick links layouts and persists added 
 
   const addDialog = page.getByRole('dialog', { name: 'Add Link' });
   await expect(addDialog).toBeVisible();
-  await addDialog.getByLabel('URL').fill('https://docs.boxento.test');
+  await addDialog.getByLabel('URL').fill('docs.boxento.test');
   await addDialog.getByLabel('Title').fill('Docs');
   await addDialog.getByLabel('Category').fill('Work');
   await addDialog.getByRole('button', { name: 'Add Link' }).click();
@@ -205,9 +205,9 @@ test('uses an on-demand dialog for large quick links layouts and persists added 
     return page.evaluate(() => {
       const configs = JSON.parse(localStorage.getItem('boxento-widget-configs') || '{}');
       const quickLinks = configs['quick-links-1'];
-      return quickLinks?.links?.map((link: { title: string }) => link.title).join(',') ?? '';
+      return quickLinks?.links?.map((link: { title: string; url: string }) => `${link.title}:${link.url}`).join(',') ?? '';
     });
-  }).toContain('Docs');
+  }).toContain('Docs:https://docs.boxento.test');
 
   await page.reload();
   await expect(widget.locator('[role="button"]').filter({ hasText: 'Docs' }).first()).toBeVisible();
