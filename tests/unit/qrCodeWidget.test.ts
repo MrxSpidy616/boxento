@@ -3,12 +3,16 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import QRCodeWidget from '@/components/widgets/QRCodeWidget';
+import type { QRCodeWidgetConfig } from '@/components/widgets/QRCodeWidget/types';
 
-const renderCompactWidget = (config: Record<string, unknown>) =>
+const renderCompactWidget = (
+  config: Partial<QRCodeWidgetConfig>,
+  dimensions: { width: number; height: number } = { width: 2, height: 2 }
+) =>
   renderToStaticMarkup(
     React.createElement(QRCodeWidget, {
-      width: 2,
-      height: 2,
+      width: dimensions.width,
+      height: dimensions.height,
       config,
     })
   );
@@ -32,5 +36,19 @@ describe('QRCodeWidget compact layout', () => {
     expect(html).toContain('height="108"');
     expect(html).toContain('width="108"');
     expect(html).not.toContain('height="80"');
+  });
+
+  it('caps compact QR sizing by the constrained side for short-wide layouts', () => {
+    const html = renderCompactWidget(
+      {
+        title: 'QR Code',
+        content: 'https://example.com',
+      },
+      { width: 3, height: 2 }
+    );
+
+    expect(html).toContain('height="108"');
+    expect(html).toContain('width="108"');
+    expect(html).not.toContain('height="124"');
   });
 });

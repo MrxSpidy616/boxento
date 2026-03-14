@@ -45,12 +45,20 @@ const PRESET_TEMPLATES = [
   { label: 'SMS', prefix: 'sms:', placeholder: '+1234567890?body=Hello' },
 ];
 
-const getCompactQrSize = (width: number, height: number) => {
-  const longestSide = Math.max(width, height);
+const COMPACT_QR_SIZES = {
+  constrainedSide1: 80,
+  constrainedSide2: 108,
+  constrainedSide3: 124,
+  constrainedSide4Plus: 136,
+} as const;
 
-  if (longestSide <= 2) return 108;
-  if (longestSide === 3) return 124;
-  return 136;
+const getCompactQrSize = (width: number, height: number) => {
+  const constrainedSide = Math.min(width, height);
+
+  if (constrainedSide <= 1) return COMPACT_QR_SIZES.constrainedSide1;
+  if (constrainedSide === 2) return COMPACT_QR_SIZES.constrainedSide2;
+  if (constrainedSide === 3) return COMPACT_QR_SIZES.constrainedSide3;
+  return COMPACT_QR_SIZES.constrainedSide4Plus;
 };
 
 const QRCodeWidget: React.FC<QRCodeWidgetProps> = ({ width, height, config }) => {
