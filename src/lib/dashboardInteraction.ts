@@ -7,10 +7,6 @@ type DashboardInteractionEvent = {
   stopPropagation: () => void;
 };
 
-type PropagationEvent = {
-  stopPropagation: () => void;
-};
-
 const DASHBOARD_INTERACTIVE_CHILD_SELECTORS = [
   '.settings-button',
   'button',
@@ -53,7 +49,7 @@ export const stopDashboardInteractionPropagation = (
 };
 
 export const stopDashboardContextMenuPropagation = (
-  event: PropagationEvent
+  event: { stopPropagation: () => void }
 ): void => {
   event.stopPropagation();
 };
