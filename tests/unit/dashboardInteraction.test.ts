@@ -39,7 +39,7 @@ describe('dashboard interaction helpers', () => {
     expect(target.closest).toHaveBeenCalledWith(DASHBOARD_INTERACTIVE_CHILD_SELECTOR);
   });
 
-  it('stops propagation only for interactive targets', () => {
+  it('stops propagation for interactive targets', () => {
     const stopPropagation = vi.fn();
 
     stopDashboardInteractionPropagation({
@@ -48,12 +48,16 @@ describe('dashboard interaction helpers', () => {
     });
 
     expect(stopPropagation).toHaveBeenCalledOnce();
+  });
+
+  it('does not stop propagation for non-interactive targets', () => {
+    const stopPropagation = vi.fn();
 
     stopDashboardInteractionPropagation({
       target: createClosestTarget(null),
       stopPropagation,
     });
 
-    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(stopPropagation).not.toHaveBeenCalled();
   });
 });

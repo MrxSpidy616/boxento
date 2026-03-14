@@ -56,8 +56,6 @@ const DashboardWidgetFrameComponent: React.FC<DashboardWidgetFrameProps> = ({
     <div
       className="h-full"
       onClick={stopDashboardInteractionPropagation}
-      onMouseDown={stopDashboardInteractionPropagation}
-      onTouchStart={stopDashboardInteractionPropagation}
     >
       <WidgetErrorBoundary>
         <Suspense fallback={<DashboardWidgetLoadingFallback />}>
