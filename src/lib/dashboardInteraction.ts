@@ -47,3 +47,9 @@ export const stopDashboardInteractionPropagation = (
     event.stopPropagation();
   }
 };
+
+export const stopDashboardContextMenuPropagation = (
+  event: { stopPropagation: () => void }
+): void => {
+  event.stopPropagation();
+};

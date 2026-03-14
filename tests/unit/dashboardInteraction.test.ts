@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DASHBOARD_INTERACTIVE_CHILD_SELECTOR,
   isDashboardInteractiveTarget,
+  stopDashboardContextMenuPropagation,
   stopDashboardInteractionPropagation,
 } from '@/lib/dashboardInteraction';
 
@@ -59,5 +60,13 @@ describe('dashboard interaction helpers', () => {
     });
 
     expect(stopPropagation).not.toHaveBeenCalled();
+  });
+
+  it('always stops widget context menu propagation', () => {
+    const stopPropagation = vi.fn();
+
+    stopDashboardContextMenuPropagation({ stopPropagation });
+
+    expect(stopPropagation).toHaveBeenCalledOnce();
   });
 });
