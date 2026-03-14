@@ -96,6 +96,84 @@ test('persists quick links drag and resize changes across reloads', async ({ pag
   expect(reloadedLayout).toEqual(persistedLayout);
 });
 
+test('preserves drag persistence on dashboards with more than five widgets', async ({ page }) => {
+  await page.setViewportSize({ width: 1512, height: 982 });
+
+  const widgets = Array.from({ length: 6 }, (_, index) => ({
+    id: `quick-links-${index + 1}`,
+    type: 'quick-links',
+    config: {
+      customTitle: `Quick Links ${index + 1}`,
+      links: [],
+    },
+  }));
+
+  await seedDashboard(page, {
+    widgets,
+    layouts: {
+      lg: widgets.map((widget, index) => ({
+        i: widget.id,
+        x: (index % 3) * 4,
+        y: Math.floor(index / 3) * 3,
+        w: 3,
+        h: 3,
+        minW: 1,
+        minH: 1,
+      })),
+    },
+  });
+
+  await expect(page.locator('.react-grid-item')).toHaveCount(6);
+
+  const widget = page.locator('.react-grid-item[data-widget-id="quick-links-1"]');
+  await expect(widget).toBeVisible();
+
+  const dragHandle = widget.locator('.widget-drag-handle').first();
+  const dragBox = await dragHandle.boundingBox();
+  if (!dragBox) {
+    throw new Error('Multi-widget drag handle is not available');
+  }
+
+  await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(dragBox.x + dragBox.width / 2 + 260, dragBox.y + dragBox.height / 2 + 12, { steps: 12 });
+  await page.mouse.up();
+
+  await expect.poll(async () => {
+    return page.evaluate(() => {
+      const layouts = JSON.parse(localStorage.getItem('boxento-layouts-personal') || '{}');
+      return layouts.lg?.find((item: { i: string; x: number }) => item.i === 'quick-links-1')?.x ?? -1;
+    });
+  }).toBeGreaterThan(0);
+
+  await page.reload();
+
+  const reloadedLayout = await page.evaluate<StoredLayoutItem | null>(() => {
+    const layouts = JSON.parse(localStorage.getItem('boxento-layouts-personal') || '{}');
+    return layouts.lg?.find((item: { i: string }) => item.i === 'quick-links-1') ?? null;
+  });
+
+  expect(reloadedLayout).not.toBeNull();
+  expect(reloadedLayout?.x).toBeGreaterThan(0);
+});
+
+test('keeps the dashboard visible at the 768px tablet boundary', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await seedDashboard(page, {
+    widgets: [
+      { id: 'quick-links-1', type: 'quick-links', config: { customTitle: 'Quick Links', links: [] } },
+    ],
+    layouts: {
+      sm: [
+        { i: 'quick-links-1', x: 0, y: 0, w: 3, h: 3, minW: 1, minH: 1 },
+      ],
+    },
+  });
+
+  const widget = page.locator('.react-grid-item[data-widget-id="quick-links-1"]');
+  await expect(widget).toBeVisible();
+});
+
 test('reflows service cards without right-edge clipping on laptop widths', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 982 });
   await seedDashboard(page, {
