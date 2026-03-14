@@ -168,7 +168,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
         setShowFavicons(config.showFavicons);
       }
     }
-  }, [config]); // Depend on entire config object
+  }, [config, customTitle, displayMode, links, showFavicons]);
 
   /**
    * Adds or updates a link in the links collection
