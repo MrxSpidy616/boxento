@@ -626,7 +626,7 @@ body.react-grid-layout--resizing .react-grid-item:not(.resizing) {
 }
 
 /* Tablets and Small Devices (< 768px) */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   /* Layout container */
   .react-grid-layout {
     position: static;
@@ -670,7 +670,7 @@ body.react-grid-layout--resizing .react-grid-item:not(.resizing) {
 }
 
 /* Tablet-specific adjustments */
-@media (min-width: 769px) and (max-width: 1024px) {
+@media (min-width: 768px) and (max-width: 1024px) {
   .widget-container {
     @apply p-3;
   }

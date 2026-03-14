@@ -157,6 +157,23 @@ test('preserves drag persistence on dashboards with more than five widgets', asy
   expect(reloadedLayout?.x).toBeGreaterThan(0);
 });
 
+test('keeps the dashboard visible at the 768px tablet boundary', async ({ page }) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await seedDashboard(page, {
+    widgets: [
+      { id: 'quick-links-1', type: 'quick-links', config: { customTitle: 'Quick Links', links: [] } },
+    ],
+    layouts: {
+      sm: [
+        { i: 'quick-links-1', x: 0, y: 0, w: 3, h: 3, minW: 1, minH: 1 },
+      ],
+    },
+  });
+
+  const widget = page.locator('.react-grid-item[data-widget-id="quick-links-1"]');
+  await expect(widget).toBeVisible();
+});
+
 test('reflows service cards without right-edge clipping on laptop widths', async ({ page }) => {
   await page.setViewportSize({ width: 1512, height: 982 });
   await seedDashboard(page, {

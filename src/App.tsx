@@ -990,8 +990,8 @@ function App() {
 
     return { width: layoutItem.w, height: layoutItem.h };
   }, [currentLayoutById, isLayoutReady, liveResizeDimensions]);
-  const isMobileBreakpoint = currentBreakpoint === 'xs' || currentBreakpoint === 'xxs';
-  const isTabletBreakpoint = currentBreakpoint === 'sm';
+  const isMobileViewport = windowWidth < breakpoints.sm;
+  const isTabletBreakpoint = !isMobileViewport && currentBreakpoint === 'sm';
 
   const handleLayoutChange = (_currentLayout: LayoutItem[]): void => {
     if (!draggedWidgetIdRef.current && !resizingWidgetIdRef.current) {
@@ -1100,10 +1100,10 @@ function App() {
   
   // Unified function to render widget items for the grid
   const renderWidgetItems = () => {
-    const sizeClass = isMobileBreakpoint ? 'mobile-widget' : isTabletBreakpoint ? 'tablet-widget' : 'desktop-widget';
+    const sizeClass = isMobileViewport ? 'mobile-widget' : isTabletBreakpoint ? 'tablet-widget' : 'desktop-widget';
 
     return widgets.map(widget => {
-      const { width, height } = getWidgetDimensions(widget.id, isMobileBreakpoint);
+      const { width, height } = getWidgetDimensions(widget.id, isMobileViewport);
 
       return (
         <div 
@@ -1111,7 +1111,7 @@ function App() {
           className={`widget-wrapper ${sizeClass} app-widget`} 
           data-widget-id={widget.id}
           data-breakpoint={currentBreakpoint}
-          style={isMobileBreakpoint ? { marginBottom: '16px', height: 'auto' } : undefined}
+          style={isMobileViewport ? { marginBottom: '16px', height: 'auto' } : undefined}
         >
           <DashboardWidgetFrame
             widget={widget}
@@ -1837,7 +1837,7 @@ function App() {
           />
           
           <div className="w-full">
-            {isMobileBreakpoint ? (
+            {isMobileViewport ? (
               <div className="mobile-view-container">
                 <div className="mobile-view">
                   {renderMobileLayout()}
