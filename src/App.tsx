@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { Plus, Moon, Sun, Cloud, CloudOff, Loader2 } from 'lucide-react'
 // Import GridLayout components - direct imports to avoid runtime issues
 
@@ -38,13 +38,13 @@ import DashboardWidgetFrame from '@/components/dashboard/DashboardWidgetFrame'
 import { DashboardSwitcher, Dashboard, DashboardVisibility } from '@/components/dashboard/DashboardSwitcher'
 import { breakpoints, cols, createDefaultLayoutItem } from '@/lib/layoutUtils'
 import {
+  applyValidatedBreakpointLayout,
   BREAKPOINT_ORDER,
   BreakpointName,
   LayoutsByBreakpoint,
   ValidateLayoutsOptions,
   applyWidgetLayoutConstraints,
   createLayoutsFromTemplates,
-  validateLayout,
   validateLayouts,
 } from '@/lib/dashboardLayouts'
 import {
@@ -57,6 +57,10 @@ import { AppFooter } from '@/components/AppFooter'
 import { useStorage } from '@/lib/storage/StorageContext'
 import { getStorageProvider } from '@/lib/storage'
 import { DASHBOARD_INTERACTIVE_CHILD_SELECTOR } from '@/lib/dashboardInteraction'
+import {
+  DashboardResizeHandle,
+  type DashboardResizeHandleAxis,
+} from '@/components/dashboard/DashboardResizeHandle'
 
 interface WidgetCategory {
   [category: string]: WidgetConfig[];
@@ -88,6 +92,17 @@ const loadFromLocalStorage = <T,>(key: string, defaultValue: T): T => {
   
   return defaultValue;
 };
+
+type WidgetInteractionMode = 'dragging' | 'resizing';
+
+const WIDGET_INTERACTION_COMPLETION_DURATION_MS = 240;
+const REDUCED_MOTION_WIDGET_INTERACTION_COMPLETION_DURATION_MS = 140;
+
+const cloneLayoutsByBreakpoint = (sourceLayouts: LayoutsByBreakpoint): LayoutsByBreakpoint => (
+  Object.fromEntries(
+    Object.entries(sourceLayouts).map(([breakpoint, layout]) => [breakpoint, [...layout]])
+  )
+);
 
 function App() {
   // Get storage context for provider info
@@ -242,7 +257,7 @@ function App() {
   
   const [windowWidth, setWindowWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [widgetSelectorOpen, setWidgetSelectorOpen] = useState<boolean>(false);
-  const [currentBreakpoint, setCurrentBreakpoint] = useState<string>(() => (
+  const [currentBreakpoint, setCurrentBreakpoint] = useState<BreakpointName>(() => (
     typeof window === 'undefined' ? 'lg' : getDashboardBreakpointForWidth(window.innerWidth)
   ));
   const [isLayoutReady, setIsLayoutReady] = useState(false);
@@ -862,7 +877,7 @@ function App() {
     const updatedWidgets = [...widgets, newWidget];
     
     // For each breakpoint, create a layout item
-    const updatedLayouts = { ...layouts };
+    const updatedLayouts = cloneLayoutsByBreakpoint(layouts);
     
     // For each breakpoint, add a layout item
     Object.keys(breakpoints).forEach((breakpoint) => {
@@ -961,6 +976,51 @@ function App() {
   const draggedWidgetIdRef = useRef<string | null>(null);
   const resizingWidgetIdRef = useRef<string | null>(null);
   const lastResizeSize = useRef<{ w: number; h: number } | null>(null);
+  const interactionCompletionTimeoutRef = useRef<number | null>(null);
+  const [activeWidgetInteraction, setActiveWidgetInteraction] = useState<{
+    widgetId: string;
+    mode: WidgetInteractionMode;
+  } | null>(null);
+  const [completedWidgetId, setCompletedWidgetId] = useState<string | null>(null);
+
+  const clearInteractionCompletionTimeout = useCallback((): void => {
+    if (interactionCompletionTimeoutRef.current !== null) {
+      window.clearTimeout(interactionCompletionTimeoutRef.current);
+      interactionCompletionTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearWidgetInteractionCompletion = useCallback((): void => {
+    clearInteractionCompletionTimeout();
+    setCompletedWidgetId(null);
+  }, [clearInteractionCompletionTimeout]);
+
+  const startWidgetInteraction = useCallback((widgetId: string, mode: WidgetInteractionMode): void => {
+    clearWidgetInteractionCompletion();
+    setActiveWidgetInteraction({ widgetId, mode });
+  }, [clearWidgetInteractionCompletion]);
+
+  const finishWidgetInteraction = useCallback((widgetId: string | null): void => {
+    setActiveWidgetInteraction(null);
+
+    if (!widgetId) {
+      clearWidgetInteractionCompletion();
+      return;
+    }
+
+    const prefersReducedMotion = typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    clearInteractionCompletionTimeout();
+    setCompletedWidgetId(widgetId);
+    interactionCompletionTimeoutRef.current = window.setTimeout(() => {
+      setCompletedWidgetId(currentWidgetId => (
+        currentWidgetId === widgetId ? null : currentWidgetId
+      ));
+      interactionCompletionTimeoutRef.current = null;
+    }, prefersReducedMotion
+      ? REDUCED_MOTION_WIDGET_INTERACTION_COMPLETION_DURATION_MS
+      : WIDGET_INTERACTION_COMPLETION_DURATION_MS);
+  }, [clearInteractionCompletionTimeout, clearWidgetInteractionCompletion]);
 
   const getWidgetDimensions = useCallback((widgetId: string, isMobileView = false) => {
     if (!isLayoutReady) {
@@ -997,39 +1057,41 @@ function App() {
   const handleDragStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     document.body.classList.add('react-grid-layout--dragging');
     draggedWidgetIdRef.current = newItem.i;
+    startWidgetInteraction(newItem.i, 'dragging');
   };
 
   const handleDragStop = (currentLayout: LayoutItem[]): void => {
     const activeDraggedWidgetId = draggedWidgetIdRef.current;
     draggedWidgetIdRef.current = null;
     document.body.classList.remove('react-grid-layout--dragging');
+    finishWidgetInteraction(activeDraggedWidgetId);
 
     if (!activeDraggedWidgetId) {
       return;
     }
 
-    const updatedLayouts = {
-      ...layoutsRef.current,
-      [currentBreakpoint]: validateLayout(currentLayout),
-    };
-
-    void saveLayouts(updatedLayouts, false);
+    void saveLayouts(
+      applyValidatedBreakpointLayout(layoutsRef.current, currentBreakpoint, currentLayout),
+      false
+    );
   };
 
   useEffect(() => {
     return () => {
+      clearInteractionCompletionTimeout();
       document.body.classList.remove(
         'react-grid-layout--dragging',
         'react-grid-layout--resizing'
       );
     };
-  }, []);
+  }, [clearInteractionCompletionTimeout]);
 
   const handleResizeStart = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
     document.body.classList.add('react-grid-layout--resizing');
     resizingWidgetIdRef.current = newItem.i;
     lastResizeSize.current = { w: newItem.w, h: newItem.h };
     setLiveResizeDimensions({ id: newItem.i, width: newItem.w, height: newItem.h });
+    startWidgetInteraction(newItem.i, 'resizing');
   };
 
   const handleResize = (_layout: LayoutItem[], _oldItem: LayoutItem, newItem: LayoutItem): void => {
@@ -1068,21 +1130,22 @@ function App() {
 
   const handleResizeStop = (currentLayout: LayoutItem[]): void => {
     document.body.classList.remove('react-grid-layout--resizing');
+    const activeResizingWidgetId = resizingWidgetIdRef.current;
 
-    if (!resizingWidgetIdRef.current) {
+    if (!activeResizingWidgetId) {
+      finishWidgetInteraction(null);
       return;
     }
 
     resizingWidgetIdRef.current = null;
     lastResizeSize.current = null;
     setLiveResizeDimensions(null);
+    finishWidgetInteraction(activeResizingWidgetId);
 
-    const updatedLayouts = {
-      ...layoutsRef.current,
-      [currentBreakpoint]: validateLayout(currentLayout),
-    };
-
-    void saveLayouts(updatedLayouts, false);
+    void saveLayouts(
+      applyValidatedBreakpointLayout(layoutsRef.current, currentBreakpoint, currentLayout),
+      false
+    );
   };
   
   // Toggle widget selector
@@ -1096,6 +1159,10 @@ function App() {
 
     return widgets.map(widget => {
       const { width, height } = getWidgetDimensions(widget.id, isMobileViewport);
+      const widgetInteractionMode = activeWidgetInteraction?.widgetId === widget.id
+        ? activeWidgetInteraction.mode
+        : undefined;
+      const isInteractionComplete = completedWidgetId === widget.id;
 
       return (
         <div 
@@ -1103,6 +1170,8 @@ function App() {
           className={`widget-wrapper ${sizeClass} app-widget`} 
           data-widget-id={widget.id}
           data-breakpoint={currentBreakpoint}
+          data-widget-interaction={widgetInteractionMode}
+          data-widget-complete={isInteractionComplete ? 'true' : undefined}
           style={isMobileViewport ? { marginBottom: '16px', height: 'auto' } : undefined}
         >
           <DashboardWidgetFrame
@@ -1545,7 +1614,7 @@ function App() {
     if (widgets.length === 0 || !layouts) return;
 
     let needsUpdate = false;
-    const updatedLayouts = { ...layouts };
+    const updatedLayouts = cloneLayoutsByBreakpoint(layouts);
 
     // Check each breakpoint
     Object.keys(breakpoints).forEach(breakpoint => {
@@ -1604,7 +1673,7 @@ function App() {
         updatedWidgets = [...widgets, newWidget];
         
         // For each breakpoint, create a layout item
-        updatedLayouts = { ...layouts };
+        updatedLayouts = cloneLayoutsByBreakpoint(layouts);
         
         // For each breakpoint, add a layout item
         Object.keys(breakpoints).forEach((breakpoint) => {
@@ -1866,8 +1935,8 @@ function App() {
                         rowHeight={rowHeight}
                         onLayoutChange={handleLayoutChange}
                         onBreakpointChange={(newBreakpoint: string) => {
-                          if (newBreakpoint !== currentBreakpoint) {
-                            setCurrentBreakpoint(newBreakpoint);
+                          if (newBreakpoint in cols && newBreakpoint !== currentBreakpoint) {
+                            setCurrentBreakpoint(newBreakpoint as BreakpointName);
                           }
                         }}
                         onDragStart={handleDragStart}
@@ -1875,6 +1944,9 @@ function App() {
                         onResizeStart={handleResizeStart}
                         onResize={handleResize}
                         onResizeStop={handleResizeStop}
+                        resizeHandle={(axis: DashboardResizeHandleAxis, ref: Ref<HTMLElement>) => (
+                          <DashboardResizeHandle ref={ref} handleAxis={axis} />
+                        )}
                         margin={[GRID.ITEM_MARGIN, GRID.ITEM_MARGIN]}
                         containerPadding={[GRID.CONTAINER_PADDING, GRID.CONTAINER_PADDING]}
                         draggableHandle=".widget-drag-handle"
