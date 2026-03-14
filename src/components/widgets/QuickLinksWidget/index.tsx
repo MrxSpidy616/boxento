@@ -168,7 +168,8 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, conf
         setShowFavicons(config.showFavicons);
       }
     }
-  }, [config, customTitle, displayMode, links, showFavicons]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sync local widget state only when upstream config changes
+  }, [config]);
 
   /**
    * Adds or updates a link in the links collection
