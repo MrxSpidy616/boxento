@@ -1,6 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 const reuseExistingServer = process.env.PLAYWRIGHT_USE_EXISTING_SERVER === '1';
+const playwrightPort = Number(process.env.PLAYWRIGHT_PORT || 4417);
+const baseURL = `http://127.0.0.1:${playwrightPort}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -8,12 +10,12 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   timeout: 30_000,
   use: {
-    baseURL: 'http://127.0.0.1:4417',
+    baseURL,
     trace: 'on-first-retry',
   },
   webServer: reuseExistingServer ? undefined : {
-    command: 'bunx --bun vite --host 127.0.0.1 --port 4417 --strictPort',
-    url: 'http://127.0.0.1:4417',
+    command: `bunx --bun vite --host 127.0.0.1 --port ${playwrightPort} --strictPort`,
+    url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
