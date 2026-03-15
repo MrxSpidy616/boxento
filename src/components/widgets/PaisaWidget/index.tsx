@@ -537,12 +537,12 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
               </div>
             </div>
             {!readOnly && (
-              <button
+              <Button type="button" variant="ghost" size="none"
                 onClick={fetchData}
                 className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -686,12 +686,12 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
               </div>
             ))}
             {!readOnly && (
-              <button
+              <Button type="button" variant="ghost" size="none"
                 onClick={fetchData}
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full transition-colors"
               >
                 <RefreshCw className="h-4 w-4" />
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -699,7 +699,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
         {/* Tab navigation */}
         <div className="flex border-b border-border/50 px-4">
           {tabs.map(tab => (
-            <button
+            <Button type="button" variant="ghost" size="none"
               key={tab.key}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm transition-colors ${
                 activeTab === tab.key
@@ -710,7 +710,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
             >
               {tab.icon}
               {tab.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -801,7 +801,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
         </div>
         <div className="space-y-2">
           {assetCategories.map((cat, i) => (
-            <button
+            <Button type="button" variant="ghost" size="none"
               key={cat.key}
               onClick={() => { setSelectedCategory(cat.key); setActiveTab('assets'); }}
               className="w-full text-left rounded-lg border border-border/50 p-3 hover:bg-accent/50 transition-colors"
@@ -819,7 +819,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
                 {cat.gainAmount >= 0 ? '+' : ''}{formatCurrency(cat.gainAmount, true)} gain
                 {cat.xirr ? ` · ${(cat.xirr * 100).toFixed(1)}% XIRR` : ''}
               </div>
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -855,14 +855,14 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
         {/* Left: category list */}
         <div className="w-1/3 border-r border-border/50 overflow-y-auto">
           <div className="p-2 border-b border-border/50">
-            <button
+            <Button type="button" variant="ghost" size="none"
               onClick={() => setSelectedCategory(null)}
               className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
                 !selectedCategory ? 'bg-accent font-medium' : 'hover:bg-accent/50'
               }`}
             >
               All Assets
-            </button>
+            </Button>
           </div>
           {assetCategories.map((cat, i) => (
             <div
@@ -941,7 +941,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
                 {assetCategories.map((cat, i) => {
                   const percentage = totalNetworth > 0 ? (cat.amount / totalNetworth) * 100 : 0;
                   return (
-                    <button
+                    <Button type="button" variant="ghost" size="none"
                       key={cat.key}
                       onClick={() => setSelectedCategory(cat.key)}
                       className="text-left rounded-lg border border-border/50 p-4 hover:bg-accent/50 transition-colors"
@@ -959,7 +959,7 @@ const PaisaWidget: React.FC<PaisaWidgetProps> = ({ width, height, config }) => {
                           {cat.gainAmount >= 0 ? '+' : ''}{formatCurrency(cat.gainAmount, true)}
                         </span>
                       </div>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>

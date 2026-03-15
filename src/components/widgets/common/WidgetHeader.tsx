@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 import {
   getWidgetHeaderClassName,
@@ -46,8 +47,10 @@ const WidgetHeader = ({
         {children}
       </div>
       {onSettingsClick && (
-        <button 
+        <Button
           type="button"
+          variant="ghost"
+          size="icon"
           aria-label={title ? `Open ${title} settings` : 'Open widget settings'}
           className={getWidgetHeaderSettingsButtonClassName(compact)}
           onClick={(e: React.MouseEvent) => {
@@ -56,7 +59,7 @@ const WidgetHeader = ({
           }}
         >
           <Settings size={compact ? 12 : 14} />
-        </button>
+        </Button>
       )}
     </div>
   );
