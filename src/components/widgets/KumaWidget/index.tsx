@@ -316,13 +316,27 @@ const KumaWidget: React.FC<Props> = ({ width, height, config }) => {
       );
     }
 
+    const compactError = isCompact && !isShort;
+
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 p-3 text-center text-sm text-muted-foreground">
+      <div className={cn(
+        'flex h-full flex-col items-center justify-center text-center text-muted-foreground',
+        compactError ? 'gap-1.5 p-2 text-xs' : 'gap-2 p-3 text-sm',
+      )}>
         <XCircle className="h-5 w-5 text-red-500" />
-        <span className="max-w-full break-words">{error}</span>
+        <span className={cn('max-w-full break-words', compactError && 'line-clamp-2')}>
+          {error}
+        </span>
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <Button variant="secondary" size="sm" onClick={fetchData}>Retry</Button>
-          {!readOnly && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className={cn(compactError && 'h-7 px-2 text-xs')}
+            onClick={fetchData}
+          >
+            Retry
+          </Button>
+          {!compactError && !readOnly && (
             <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
               Settings
             </Button>
