@@ -22,6 +22,26 @@ const readStoredServicesConfig = async (page: Page, widgetId: string) => (
   }, widgetId)
 );
 
+const readStoredService = async (page: Page, widgetId: string, serviceName: string) => (
+  page.evaluate(({ currentWidgetId, targetServiceName }) => {
+    const configs = JSON.parse(localStorage.getItem('boxento-widget-configs') || '{}');
+    const config = configs[currentWidgetId] || {};
+    const service = (config.services ?? []).find((item: {
+      category?: string;
+      description?: string;
+      icon?: string;
+      name: string;
+    }) => item.name === targetServiceName);
+    return service
+      ? {
+          category: service.category,
+          description: service.description,
+          icon: service.icon,
+        }
+      : null;
+  }, { currentWidgetId: widgetId, targetServiceName: serviceName })
+);
+
 test('keeps compact services cards within a mobile two-column widget', async ({ page }) => {
   await page.setViewportSize({ width: 430, height: 932 });
   await seedDashboard(page, {
@@ -77,6 +97,7 @@ test('persists services settings changes from the tablet dialog flow', async ({ 
   const serviceToAdd = {
     category: 'Media',
     description: 'Photo backup',
+    icon: 'Play',
     name: 'Immich',
     url: 'https://immich.test',
   } as const;
@@ -123,8 +144,10 @@ test('persists services settings changes from the tablet dialog flow', async ({ 
 
   await page.locator('#service-name').fill(serviceToAdd.name);
   await page.locator('#service-url').fill(serviceToAdd.url);
-  await page.locator('#service-desc').fill(serviceToAdd.description);
   await page.locator('#service-category').fill(serviceToAdd.category);
+  await page.getByText('Optional details').click();
+  await page.locator('#service-desc').fill(serviceToAdd.description);
+  await page.locator('#service-icon').fill(serviceToAdd.icon);
   await page.getByRole('button', { name: 'Add Service', exact: true }).click();
 
   await expect(settingsDialog).toContainText(serviceToAdd.name);
@@ -140,6 +163,11 @@ test('persists services settings changes from the tablet dialog flow', async ({ 
     showStatus: true,
     checkInterval: updatedCheckInterval,
     serviceNames: remainingServiceNames,
+  });
+  await expect.poll(async () => readStoredService(page, 'services-tablet', serviceToAdd.name)).toEqual({
+    category: serviceToAdd.category,
+    description: serviceToAdd.description,
+    icon: serviceToAdd.icon,
   });
 
   await page.reload();
