@@ -14,6 +14,7 @@ export interface YearProgressConfig {
   showDaysLeft?: boolean;
   onUpdate?: (config: YearProgressConfig) => void;
   onDelete?: () => void;
+  readOnly?: boolean;
   [key: string]: unknown; // Add index signature to satisfy Record<string, unknown>
 }
 

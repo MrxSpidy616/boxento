@@ -1,6 +1,60 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Calendar, Cloud, Clock, Link, StickyNote, CheckSquare, Timer, DollarSign, BookOpen, Video, Rss, Github, Plane, Globe } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Activity,
+  Bot,
+  BookMarked,
+  BookOpen,
+  Calendar,
+  CheckSquare,
+  Clock,
+  Cloud,
+  DollarSign,
+  DoorOpen,
+  Film,
+  GitBranch,
+  Globe,
+  Home,
+  Lightbulb,
+  Link,
+  PiggyBank,
+  Plane,
+  Plus,
+  QrCode,
+  Rss,
+  Search,
+  Server,
+  StickyNote,
+  Thermometer,
+  Timer,
+  Video,
+  type LucideIcon,
+} from 'lucide-react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '@/components/ui/input-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { WidgetConfig } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface WidgetSelectorProps {
   isOpen: boolean;
@@ -10,177 +64,283 @@ interface WidgetSelectorProps {
   widgetCategories: { [category: string]: WidgetConfig[] };
 }
 
+type CategoryOption = {
+  id: string;
+  name: string;
+  count: number;
+};
+
+const ICONS: Record<string, LucideIcon> = {
+  Activity,
+  BookMarked,
+  BookOpen,
+  Bot,
+  Calendar,
+  CheckSquare,
+  Clock,
+  Cloud,
+  DollarSign,
+  DoorOpen,
+  Film,
+  Github: GitBranch,
+  Globe,
+  Home,
+  Lightbulb,
+  Link,
+  PiggyBank,
+  Plane,
+  QrCode,
+  Rss,
+  Server,
+  StickyNote,
+  Thermometer,
+  Timer,
+  Video,
+};
+
+const createCategoryId = (category: string) => (
+  category.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+);
+
+const getWidgetSearchText = (widget: WidgetConfig) => (
+  `${widget.name} ${widget.description ?? ''} ${widget.category ?? ''}`.toLowerCase()
+);
+
 /**
  * Widget Selector Component
- * 
- * Provides a modal interface for searching and adding widgets to the dashboard
- * 
- * @component
- * @param {WidgetSelectorProps} props - Component props
- * @returns {React.ReactElement | null} Widget selector modal or null if closed
+ *
+ * Provides a modal interface for searching and adding widgets to the dashboard.
  */
-const WidgetSelector = ({ 
-  isOpen, 
-  onClose, 
-  onAddWidget, 
+const WidgetSelector = ({
+  isOpen,
+  onClose,
+  onAddWidget,
   widgetRegistry,
-  widgetCategories
+  widgetCategories,
 }: WidgetSelectorProps): React.ReactElement | null => {
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all');
 
-  // Handle escape key press
-  useEffect(() => {
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (isOpen && event.key === 'Escape') {
-        onClose();
-      }
-    };
+  const categories = useMemo<CategoryOption[]>(() => {
+    const categoryOptions = Object.entries(widgetCategories).map(([category, widgets]) => ({
+      id: createCategoryId(category),
+      name: category,
+      count: widgets.length,
+    }));
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscapeKey);
+    categoryOptions.sort((a, b) => a.name.localeCompare(b.name));
+
+    return [
+      { id: 'all', name: 'All Widgets', count: widgetRegistry.length },
+      ...categoryOptions,
+    ];
+  }, [widgetCategories, widgetRegistry.length]);
+
+  const widgetsByCategoryId = useMemo(() => {
+    const entries = Object.entries(widgetCategories).map(([category, widgets]) => [
+      createCategoryId(category),
+      widgets,
+    ] as const);
+
+    return new Map<string, WidgetConfig[]>([
+      ['all', widgetRegistry],
+      ...entries,
+    ]);
+  }, [widgetCategories, widgetRegistry]);
+
+  const trimmedSearchQuery = searchQuery.trim().toLowerCase();
+  const selectedCategory = categories.find((category) => category.id === selectedCategoryId) ?? categories[0];
+  const scopedWidgets = widgetsByCategoryId.get(selectedCategoryId) ?? widgetRegistry;
+  const visibleWidgets = useMemo(() => {
+    if (!trimmedSearchQuery) {
+      return scopedWidgets;
     }
 
-    return () => {
-      document.removeEventListener('keydown', handleEscapeKey);
-    };
-  }, [isOpen, onClose]);
+    return widgetRegistry.filter((widget) => getWidgetSearchText(widget).includes(trimmedSearchQuery));
+  }, [scopedWidgets, trimmedSearchQuery, widgetRegistry]);
+  const resultLabel = trimmedSearchQuery
+    ? `${visibleWidgets.length} result${visibleWidgets.length === 1 ? '' : 's'}`
+    : `${selectedCategory.count} widget${selectedCategory.count === 1 ? '' : 's'}`;
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setSearchQuery(e.target.value);
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery('');
+      setSelectedCategoryId('all');
+    }
+  }, [isOpen]);
+
+  const renderWidgetIcon = (icon?: string): React.ReactElement => {
+    const Icon = icon ? ICONS[icon] : undefined;
+    return Icon ? <Icon /> : <Plus />;
   };
 
-  const filteredWidgets = searchQuery 
-    ? widgetRegistry.filter(widget => 
-        widget.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (widget.description && widget.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (widget.category && widget.category.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : [];
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onClose();
+    }
+  };
+
+  const handleAddWidget = (widgetType: string) => {
+    onAddWidget(widgetType);
+  };
+
+  const renderWidgetCard = (widget: WidgetConfig): React.ReactElement => (
+    <Button
+      key={widget.type}
+      type="button"
+      variant="outline"
+      size="none"
+      className="group h-full min-h-[96px] w-full justify-start rounded-2xl border-border/70 bg-card p-3 text-left shadow-none hover:border-foreground/20 hover:bg-muted/40 sm:p-4"
+      onClick={() => handleAddWidget(widget.type)}
+      aria-label={`Add ${widget.name} widget`}
+    >
+      <span className="flex h-full min-w-0 flex-1 items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground group-hover:text-foreground">
+          {renderWidgetIcon(widget.icon)}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-2">
+          <span className="min-w-0 truncate text-sm font-medium text-foreground">
+            {widget.name}
+          </span>
+          {widget.description ? (
+            <span className="line-clamp-2 text-xs leading-5 text-muted-foreground">
+              {widget.description}
+            </span>
+          ) : null}
+        </span>
+      </span>
+    </Button>
+  );
 
   if (!isOpen) return null;
-  
+
   return (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex justify-center items-center z-50 p-2 sm:p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-black rounded-xl shadow-2xl dark:shadow-xl dark:shadow-black/40 w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden flex flex-col border border-gray-200 dark:border-[#1c1c1e]" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-4 sm:p-5 md:p-6 border-b border-gray-200 dark:border-[#1c1c1e]">
-          <h3 className="text-lg sm:text-xl font-bold text-gray-800 dark:text-white">Add Widget</h3>
-          <button 
-            onClick={onClose} 
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-[#1c1c1e] transition-colors duration-200"
-            aria-label="Close widget selector"
-          >
-            <X size={20} className="dark:text-white" />
-          </button>
-        </div>
-        
-        <div className="relative p-4 sm:p-5 md:p-6 border-b border-gray-200 dark:border-[#1c1c1e]">
-          <input
-            type="text"
-            placeholder="Search widgets..."
-            value={searchQuery}
-            onChange={handleSearchChange}
-            className="w-full h-10 rounded-md border border-gray-300 dark:border-[#2c2c2e] bg-white dark:bg-[#1c1c1e] px-3 py-2 text-sm ring-offset-background dark:text-white dark:placeholder:text-[#8e8e93] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/70 dark:focus-visible:ring-blue-400/50 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-black"
-            aria-label="Search widgets"
-            autoFocus
-          />
-        </div>
-        
-        {searchQuery ? (
-          <div className="p-4 sm:p-5 md:p-6 overflow-y-auto flex-1 dark:bg-black">
-            <h4 className="text-base font-semibold text-gray-700 dark:text-[#f5f5f7] mb-2">Search Results</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-              {filteredWidgets.length > 0 ? (
-                filteredWidgets.map(widget => (
-                  <button
-                    key={widget.type}
-                    className="flex items-center gap-3 p-4 border border-gray-100 dark:border-[#2c2c2e] rounded-lg bg-white dark:bg-[#1c1c1e] transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-[#2c2c2e] hover:border-blue-200 dark:hover:border-[#3c3c3e] hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30"
-                    onClick={() => onAddWidget(widget.type)}
-                    aria-label={`Add ${widget.name} widget`}
-                  >
-                    <div className="flex items-center justify-center w-11 h-11 rounded-lg bg-blue-100 dark:bg-[#1c1c54] text-blue-600 dark:text-blue-300">
-                      {(() => {
-                        switch (widget.icon) {
-                          case 'Calendar': return <Calendar size={16} />;
-                          case 'Cloud': return <Cloud size={16} />;
-                          case 'Clock': return <Clock size={16} />;
-                          case 'Link': return <Link size={16} />;
-                          case 'StickyNote': return <StickyNote size={16} />;
-                          case 'CheckSquare': return <CheckSquare size={16} />;
-                          case 'Timer': return <Timer size={16} />;
-                          case 'DollarSign': return <DollarSign size={16} />;
-                          case 'BookOpen': return <BookOpen size={16} />;
-                          case 'Video': return <Video size={16} />;
-                          case 'Rss': return <Rss size={16} />;
-                          case 'Github': return <Github size={16} />;
-                          case 'Plane': return <Plane size={16} />;
-                          case 'Globe': return <Globe size={16} />;
-                          default: return <Plus size={16} />;
-                        }
-                      })()}
-                    </div>
-                    <div className="flex flex-col flex-1 pt-1">
-                      <div className="text-sm text-gray-900 dark:text-[#f5f5f7]">{widget.name}</div>
-                      {widget.description && (
-                        <div className="text-xs text-gray-500 dark:text-[#8e8e93] mt-0.5">{widget.description}</div>
-                      )}
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="col-span-full text-center py-8 text-gray-500 dark:text-[#8e8e93] text-sm">No widgets found matching "{searchQuery}"</div>
-              )}
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="grid max-h-[min(760px,calc(100vh-1rem))] gap-0 overflow-hidden p-0 sm:max-w-[980px]"
+      >
+        <DialogHeader className="px-4 pb-3 pt-4 sm:px-6 sm:pt-6">
+          <div className="flex flex-col gap-3 pr-10 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-col gap-1">
+              <DialogTitle className="text-xl">Add Widget</DialogTitle>
+              <DialogDescription>
+                Choose a widget, search by name, or browse by category.
+              </DialogDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Badge variant="secondary">{widgetRegistry.length} widgets</Badge>
+              <Badge variant="outline">{categories.length - 1} categories</Badge>
             </div>
           </div>
-        ) : (
-          <div className="p-4 sm:p-5 md:p-6 overflow-y-auto flex-1 dark:bg-black">
-            {Object.entries(widgetCategories).map(([category, widgets]) => (
-              <div key={category} className="mb-8">
-                <h4 className="text-base font-semibold text-gray-700 dark:text-[#f5f5f7] mb-2">{category}</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-                  {widgets.map(widget => (
-                    <button
-                      key={widget.type}
-                      className="flex items-center gap-3 p-4 border border-gray-100 dark:border-[#2c2c2e] rounded-lg bg-white dark:bg-[#1c1c1e] transition-all duration-200 cursor-pointer hover:bg-blue-50 dark:hover:bg-[#2c2c2e] hover:border-blue-200 dark:hover:border-[#3c3c3e] hover:shadow-md dark:hover:shadow-lg dark:hover:shadow-black/20 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:focus:ring-blue-400/30"
-                      onClick={() => onAddWidget(widget.type)}
-                      aria-label={`Add ${widget.name} widget`}
-                    >
-                      <div className="flex items-center justify-center w-11 h-11 rounded-lg bg-blue-100 dark:bg-[#1c1c54] text-blue-600 dark:text-blue-300">
-                        {(() => {
-                          switch (widget.icon) {
-                            case 'Calendar': return <Calendar size={16} />;
-                            case 'Cloud': return <Cloud size={16} />;
-                            case 'Clock': return <Clock size={16} />;
-                            case 'Link': return <Link size={16} />;
-                            case 'StickyNote': return <StickyNote size={16} />;
-                            case 'CheckSquare': return <CheckSquare size={16} />;
-                            case 'Timer': return <Timer size={16} />;
-                            case 'DollarSign': return <DollarSign size={16} />;
-                            case 'BookOpen': return <BookOpen size={16} />;
-                            case 'Video': return <Video size={16} />;
-                            case 'Rss': return <Rss size={16} />;
-                            case 'Github': return <Github size={16} />;
-                            case 'Plane': return <Plane size={16} />;
-                            case 'Globe': return <Globe size={16} />;
-                            default: return <Plus size={16} />;
-                          }
-                        })()}
-                      </div>
-                      <div className="flex flex-col flex-1 pt-1 text-left">
-                        <div className="text-sm text-gray-900 dark:text-[#f5f5f7]">{widget.name}</div>
-                        {widget.description && (
-                          <div className="text-xs text-gray-500 dark:text-[#8e8e93] mt-0.5">{widget.description}</div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+        </DialogHeader>
+
+        <div className="flex min-h-0 flex-col gap-4 px-4 pb-4 sm:px-6 sm:pb-6">
+          <InputGroup className="h-10">
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="text"
+              placeholder="Search widgets..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Search widgets"
+              autoFocus
+            />
+            {searchQuery ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="xs"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear widget search"
+                >
+                  Clear
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
+
+          <div className="min-h-0 overflow-hidden rounded-2xl border border-border/70 bg-background">
+            <div className="grid min-h-0 grid-rows-[auto_1fr] md:grid-cols-[220px_minmax(0,1fr)] md:grid-rows-1">
+              <div className="border-b border-border/70 bg-muted/30 p-3 md:border-b-0 md:border-r">
+                <ScrollArea className="max-h-[132px] md:h-[520px] md:max-h-none">
+                  <div className="flex gap-2 md:flex-col">
+                    {categories.map((category) => {
+                      const active = !trimmedSearchQuery && category.id === selectedCategoryId;
+
+                      return (
+                        <button
+                          key={category.id}
+                          type="button"
+                          className={cn(
+                            'flex h-9 min-w-fit items-center justify-between gap-3 rounded-xl px-3 text-left text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/30 md:w-full',
+                            active && 'font-medium text-foreground'
+                          )}
+                          onClick={() => {
+                            setSelectedCategoryId(category.id);
+                            setSearchQuery('');
+                          }}
+                          aria-pressed={active}
+                        >
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span
+                              className={cn(
+                                'h-4 w-0.5 rounded-full bg-transparent',
+                                active && 'bg-muted-foreground'
+                              )}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{category.name}</span>
+                          </span>
+                          <Badge variant="outline" className="ml-2">
+                            {category.count}
+                          </Badge>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
               </div>
-            ))}
+
+              <div className="flex min-h-0 flex-col">
+                <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-foreground">
+                      {trimmedSearchQuery ? 'Search Results' : selectedCategory.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground">{resultLabel}</div>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[min(50vh,460px)] min-h-0">
+                  <div className="p-4 pt-0">
+                    {visibleWidgets.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {visibleWidgets.map(renderWidgetCard)}
+                      </div>
+                    ) : (
+                      <Empty className="min-h-[280px] border-0">
+                        <EmptyHeader>
+                          <EmptyMedia variant="icon">
+                            <Search />
+                          </EmptyMedia>
+                          <EmptyTitle>No widgets found</EmptyTitle>
+                          <EmptyDescription>
+                            No widgets match "{searchQuery}". Try a widget name, category, or
+                            the job you want the widget to do.
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
+                    )}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default WidgetSelector; 
+export default WidgetSelector;

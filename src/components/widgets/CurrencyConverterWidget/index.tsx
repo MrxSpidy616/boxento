@@ -1,20 +1,16 @@
 import React from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter
-} from '../../ui/dialog';
 import { Input } from '@/components/ui/input';
 import WidgetHeader from '../common/WidgetHeader';
+import { WidgetSettingsDialog, WidgetSettingsDialogFooter } from '../common/WidgetSettingsDialog';
 import { Button } from '../../ui/button';
 import { Label } from '../../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
-import { useSharedCredential } from '@/lib/sharedCredentials';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  SelectGroup
+} from '../../ui/select';
 import { Switch } from "../../ui/switch";
 import { Checkbox } from "../../ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "../../ui/alert";
 import type { CurrencyConverterWidgetProps, CurrencyConverterWidgetConfig } from './types';
 import { AlertCircle, BadgeCent } from 'lucide-react';
 
@@ -158,36 +154,28 @@ const POPULAR_CURRENCIES = [
   'KRW', 'SGD', 'NOK', 'MXN', 'INR', 'RUB', 'ZAR', 'TRY', 'BRL', 'TWD'
 ];
 
-// Custom hook for fetching exchange rates
-const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'USD', autoRefresh: boolean = false, refreshInterval: number = 60) => {
+// Custom hook for fetching exchange rates - now uses free Frankfurter API (no key needed)
+const useExchangeRates = (baseCurrency: string = 'USD', autoRefresh: boolean = false, refreshInterval: number = 60) => {
   const [rates, setRates] = React.useState<{[key: string]: number}>({});
   const [loading, setLoading] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = React.useState<Date | null>(null);
-  
+
   // More robust fetchRates function with better error handling and debugging
   const fetchRates = React.useCallback(async () => {
     // Clear previous errors when starting a new fetch
     setError(null);
     setLoading(true);
-    
-    if (!apiKey) {
-      setError('API key is required');
-      setLoading(false);
-      return;
-    }
-    
+
     try {
-      // Use the app ID and base currency to construct the URL
-      const url = `https://openexchangerates.org/api/latest.json?app_id=${apiKey || ''}`;
-      
+      // Use our server-side proxy for currency rates (no API key needed)
+      const url = `/api/currency?base=${baseCurrency}`;
+
       const response = await fetch(url);
-      
+
       // Check if the response is OK
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          setError('Invalid API key. Please check your API key and try again.');
-        } else if (response.status === 429) {
+        if (response.status === 429) {
           setError('Rate limit exceeded. Please try again later.');
         } else {
           setError(`API error: ${response.status} ${response.statusText}`);
@@ -195,9 +183,9 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
         setLoading(false);
         return;
       }
-      
+
       const data = await response.json();
-      
+
       // Check if we have rates in the response
       if (!data.rates) {
         setError('Invalid response from API. Please try again.');
@@ -207,37 +195,33 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
       setRates(data.rates);
       setLastUpdated(new Date());
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to fetch rates. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
-  }, [apiKey]);
-  
-  // Initial fetch and when api key or base currency changes
+  }, [baseCurrency]);
+
+  // Initial fetch when base currency changes
   React.useEffect(() => {
-    if (apiKey) {
-      fetchRates();
-    } else {
-      setError('API key is required');
-    }
-  }, [apiKey, baseCurrency, fetchRates]);
-  
+    fetchRates();
+  }, [baseCurrency, fetchRates]);
+
   // Auto-refresh
   React.useEffect(() => {
-    if (!autoRefresh || !apiKey) return;
-    
+    if (!autoRefresh) return;
+
     const intervalId = setInterval(() => {
       fetchRates();
     }, refreshInterval * 60 * 1000);
-    
+
     return () => clearInterval(intervalId);
-  }, [autoRefresh, refreshInterval, fetchRates, apiKey]);
-  
-  return { 
-    rates, 
-    loading, 
-    error, 
+  }, [autoRefresh, refreshInterval, fetchRates]);
+
+  return {
+    rates,
+    loading,
+    error,
     lastUpdated,
     refetch: fetchRates
   };
@@ -249,7 +233,7 @@ const useExchangeRates = (apiKey: string | undefined, baseCurrency: string = 'US
  */
 enum WidgetSizeCategory {
   SMALL = 'small',         // 2x2
-  WIDE_SMALL = 'wideSmall', // 3x2 
+  WIDE_SMALL = 'wideSmall', // 3x2
   TALL_SMALL = 'tallSmall', // 2x3
   MEDIUM = 'medium',       // 3x3
   WIDE_MEDIUM = 'wideMedium', // 4x3
@@ -259,33 +243,42 @@ enum WidgetSizeCategory {
 
 /**
  * Currency Converter Widget Component
- * 
+ *
  * A widget that allows users to convert between currencies using Open Exchange Rates API.
- * 
+ *
  * @param {CurrencyConverterWidgetProps} props - Component props
  * @returns {JSX.Element} Widget component
  */
 const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width, height, config = {} }) => {
+  // --- Size-tier detection ---
+  const isTiny = width === 1 && height === 1;
+  const isShort = height === 1 && width > 1;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
+
   const [amount, setAmount] = React.useState('1');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [activeTab, setActiveTab] = React.useState('general');
   const [showSettings, setShowSettings] = React.useState(false);
-  const [localConfig, setLocalConfig] = React.useState<CurrencyConverterWidgetConfig>({
+
+  const mergedConfig = React.useMemo<CurrencyConverterWidgetConfig>(() => ({
     title: 'Currency Converter',
     baseCurrency: 'USD',
     targetCurrencies: ['EUR', 'GBP', 'JPY'],
-    useSharedCredential: false,
     autoRefresh: false,
     refreshInterval: 60,
     ...config
-  });
+  }), [config]);
 
-  // Access shared credentials
-  const { credential: sharedApiKey, updateCredential: updateSharedApiKey } = useSharedCredential('openexchangerates-api');
+  const [localConfig, setLocalConfig] = React.useState<CurrencyConverterWidgetConfig>(mergedConfig);
 
-  // Use exchange rates hook
+  // Keep local config in sync when props change
+  React.useEffect(() => {
+    setLocalConfig(mergedConfig);
+  }, [mergedConfig]);
+
+  // Use exchange rates hook - no API key needed anymore
   const { rates, loading, error, refetch } = useExchangeRates(
-    localConfig.useSharedCredential ? sharedApiKey || undefined : localConfig.apiKey,
     localConfig.baseCurrency,
     localConfig.autoRefresh,
     localConfig.refreshInterval
@@ -297,213 +290,188 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
     setAmount(value);
   };
 
-  // Save settings
-  const saveSettings = () => {
-    if (localConfig.useSharedCredential && sharedApiKey) {
-      updateSharedApiKey(sharedApiKey);
+  // Reset local config draft back to persisted values
+  const resetSettingsDraft = React.useCallback(() => {
+    setLocalConfig(mergedConfig);
+    setActiveTab('general');
+    setSearchQuery('');
+  }, [mergedConfig]);
+
+  // Handle dialog open/close -- reset draft when closing
+  const handleSettingsOpenChange = React.useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      resetSettingsDraft();
     }
-    
+    setShowSettings(nextOpen);
+  }, [resetSettingsDraft]);
+
+  // Cancel button handler
+  const handleCancelSettings = React.useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
+
+  // Save settings
+  const saveSettings = React.useCallback(() => {
     if (config?.onUpdate) {
       config.onUpdate(localConfig);
     }
-    
+
     setShowSettings(false);
+    // Refetch with new settings
     setTimeout(() => {
-      if (localConfig.useSharedCredential ? sharedApiKey : localConfig.apiKey) {
-        refetch();
-      }
-    }, 1500);
-  };
+      refetch();
+    }, 500);
+  }, [config, localConfig, refetch]);
 
   // Handle widget deletion
-  const handleDelete = () => {
+  const handleDelete = React.useCallback(() => {
     if (config?.onDelete) {
       config.onDelete();
     }
     setShowSettings(false);
-  };
+  }, [config]);
 
   // Render settings dialog
   const renderSettings = () => (
-    <Dialog open={showSettings} onOpenChange={setShowSettings}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Currency Converter Settings</DialogTitle>
-        </DialogHeader>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="general">General</TabsTrigger>
-            <TabsTrigger value="currencies">Currencies</TabsTrigger>
-            <TabsTrigger value="advanced">Advanced</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="general" className="space-y-4 py-4">
-            <div className="space-y-4">
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="title-input">Widget Title</Label>
-                <Input
-                  id="title-input"
-                  value={localConfig.title || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-              
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="base-currency-select">Base Currency</Label>
-                <Select
-                  value={localConfig.baseCurrency || 'USD'}
-                  onValueChange={(value: string) => setLocalConfig(prev => ({ ...prev, baseCurrency: value }))}
-                >
-                  <SelectTrigger id="base-currency-select">
-                    <SelectValue placeholder="Select base currency" />
-                  </SelectTrigger>
-                  <SelectContent>
+    <WidgetSettingsDialog
+      open={showSettings}
+      onOpenChange={handleSettingsOpenChange}
+      title="Currency Converter Settings"
+      bodyClassName="flex flex-col gap-4 px-1"
+      footer={(
+        <WidgetSettingsDialogFooter
+          onDelete={config?.onDelete ? handleDelete : undefined}
+          onCancel={handleCancelSettings}
+          onSave={saveSettings}
+        />
+      )}
+    >
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="currencies">Currencies</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="general" className="pt-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="title-input">Widget Title</Label>
+              <Input
+                id="title-input"
+                value={localConfig.title || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({ ...prev, title: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="base-currency-select">Base Currency</Label>
+              <Select
+                value={localConfig.baseCurrency || 'USD'}
+                onValueChange={(value: string) => setLocalConfig(prev => ({ ...prev, baseCurrency: value }))}
+              >
+                <SelectTrigger id="base-currency-select" className="w-full">
+                  <SelectValue placeholder="Select base currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
                     {POPULAR_CURRENCIES.map(code => (
                       <SelectItem key={code} value={code}>
                         {code} - {CURRENCIES[code as keyof typeof CURRENCIES]?.name}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="currencies" className="space-y-4 py-4">
-            <div className="space-y-4">
-              <div className="grid w-full items-center gap-1.5">
-                <div className="flex justify-between items-center">
-                  <Label>Target Currencies</Label>
-                  <span className="text-xs text-muted-foreground">
-                    Selected: {localConfig.targetCurrencies?.length || 0}
-                  </span>
-                </div>
-                
-                <Input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  placeholder="Search currencies..."
-                  className="mb-2"
-                />
-                
-                <div className="h-36 overflow-y-auto border rounded-md">
-                  <div className="grid grid-cols-2 gap-1 p-2">
-                    {POPULAR_CURRENCIES.map(code => (
-                      <div key={code} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`currency-${code}`}
-                          checked={localConfig.targetCurrencies?.includes(code) || false}
-                          onCheckedChange={(checked: boolean) => {
-                            const currentTargets = localConfig.targetCurrencies || [];
-                            setLocalConfig(prev => ({
-                              ...prev,
-                              targetCurrencies: checked
-                                ? [...currentTargets, code]
-                                : currentTargets.filter(c => c !== code)
-                            }));
-                          }}
-                        />
-                        <Label htmlFor={`currency-${code}`} className="text-sm">
-                          {code}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="advanced" className="space-y-4 py-4">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <Switch
-                  id="use-shared-credential"
-                  checked={localConfig.useSharedCredential || false}
-                  onCheckedChange={(checked: boolean) => setLocalConfig(prev => ({ ...prev, useSharedCredential: checked }))}
-                />
-                <Label htmlFor="use-shared-credential">Use Shared API Key</Label>
-              </div>
-
-              {localConfig.useSharedCredential ? (
-                <div className="grid w-full items-center gap-1.5">
-                  <Label>Shared API Key</Label>
-                  <Input
-                    type="password"
-                    value={sharedApiKey || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateSharedApiKey(e.target.value)}
-                    placeholder="Enter shared API key"
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Get your free API key at <a href="https://openexchangerates.org/signup" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">openexchangerates.org</a>
-                  </p>
-                </div>
-              ) : (
-                <div className="grid w-full items-center gap-1.5">
-                  <Label>Private API Key</Label>
-                  <Input
-                    type="password"
-                    value={localConfig.apiKey || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                    placeholder="Enter your Open Exchange Rates API key"
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Get your free API key at <a href="https://openexchangerates.org/signup" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">openexchangerates.org</a>
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center space-x-3">
-                <Switch
-                  id="auto-refresh"
-                  checked={localConfig.autoRefresh || false}
-                  onCheckedChange={(checked: boolean) => setLocalConfig(prev => ({ ...prev, autoRefresh: checked }))}
-                />
-                <Label htmlFor="auto-refresh">Auto Refresh</Label>
-              </div>
-              
-              {localConfig.autoRefresh && (
-                <div className="grid grid-cols-2 items-center gap-2">
-                  <Label>Refresh Interval (minutes)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="1440"
-                    value={localConfig.refreshInterval || 60}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({
-                      ...prev,
-                      refreshInterval: parseInt(e.target.value) || 60
-                    }))}
-                  />
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
-        
-        <DialogFooter>
-          <div className="flex justify-between w-full">
-            {config?.onDelete && (
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                aria-label="Delete this widget"
-              >
-                Delete
-              </Button>
-            )}
-            <Button
-              variant="default"
-              onClick={saveSettings}
-            >
-              Save
-            </Button>
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </TabsContent>
+
+        <TabsContent value="currencies" className="pt-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-2">
+              <Label>Target Currencies</Label>
+              <span className="text-sm text-muted-foreground">
+                {localConfig.targetCurrencies?.length || 0} selected
+              </span>
+            </div>
+
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              placeholder="Search currencies..."
+            />
+
+            <div className="h-36 overflow-y-auto rounded-2xl border border-border/60 p-2">
+              <div className="grid grid-cols-2 gap-2">
+                {POPULAR_CURRENCIES.map(code => (
+                  <div key={code} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`currency-${code}`}
+                      checked={localConfig.targetCurrencies?.includes(code) || false}
+                      onCheckedChange={(checked) => {
+                        const currentTargets = localConfig.targetCurrencies || [];
+                        const isChecked = checked === true;
+
+                        setLocalConfig(prev => ({
+                          ...prev,
+                          targetCurrencies: isChecked
+                            ? [...currentTargets, code]
+                            : currentTargets.filter(c => c !== code)
+                        }));
+                      }}
+                    />
+                    <Label htmlFor={`currency-${code}`} className="text-sm">
+                      {code}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="advanced" className="pt-4">
+          <div className="flex flex-col gap-4">
+            <Alert>
+              <BadgeCent />
+              <AlertTitle>No API Key Required</AlertTitle>
+              <AlertDescription>
+                Currency rates are provided automatically. Just select your currencies above.
+              </AlertDescription>
+            </Alert>
+
+            <div className="flex items-center gap-3">
+              <Switch
+                id="auto-refresh"
+                checked={localConfig.autoRefresh || false}
+                onCheckedChange={(checked: boolean) => setLocalConfig(prev => ({ ...prev, autoRefresh: checked }))}
+              />
+              <Label htmlFor="auto-refresh">Auto Refresh</Label>
+            </div>
+
+            {localConfig.autoRefresh && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="refresh-interval-input">Refresh Interval (minutes)</Label>
+                <Input
+                  id="refresh-interval-input"
+                  type="number"
+                  min="1"
+                  max="1440"
+                  value={localConfig.refreshInterval || 60}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({
+                    ...prev,
+                    refreshInterval: parseInt(e.target.value) || 60
+                  }))}
+                />
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </WidgetSettingsDialog>
   );
 
   /**
@@ -527,10 +495,166 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
     }
   };
 
-  // Render content based on widget size
+  // --- 1x1 Icon view ---
+  const renderTinyView = () => {
+    const primaryCurrency = localConfig.targetCurrencies?.[0];
+    const rate = primaryCurrency ? (rates[primaryCurrency] || 0) : 0;
+    const baseSymbol = CURRENCIES[localConfig.baseCurrency as keyof typeof CURRENCIES]?.symbol || localConfig.baseCurrency;
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-0.5 text-center">
+        <span className="text-lg font-semibold leading-none text-foreground">
+          {baseSymbol}{rate ? rate.toFixed(2) : '--'}
+        </span>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {primaryCurrency || localConfig.baseCurrency}
+        </span>
+      </div>
+    );
+  };
+
+  // --- Nx1 Ribbon view ---
+  const renderRibbonView = () => {
+    const currencies = (localConfig.targetCurrencies || []).slice(0, Math.min(3, Math.max(2, width)));
+    const numericAmount = parseFloat(amount) || 0;
+
+    return (
+      <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
+        <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-foreground dark:bg-white/[0.06]">
+          {CURRENCIES[localConfig.baseCurrency as keyof typeof CURRENCIES]?.symbol || ''}{numericAmount || 1} {localConfig.baseCurrency}
+        </span>
+        {currencies.map(currency => {
+          const rate = rates[currency] || 0;
+          const value = (numericAmount * rate).toFixed(2);
+          return (
+            <span
+              key={currency}
+              className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 tabular-nums text-foreground dark:bg-white/[0.06]"
+            >
+              {CURRENCIES[currency as keyof typeof CURRENCIES]?.symbol}{value} {currency}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // --- 6x6+ App view ---
+  const renderAppView = () => {
+    const currencies = localConfig.targetCurrencies || [];
+    const numericAmount = parseFloat(amount) || 0;
+    // For the conversion matrix, show a subset
+    const matrixCurrencies = [localConfig.baseCurrency || 'USD', ...currencies.slice(0, 5)];
+
+    return (
+      <div className="flex h-full flex-col gap-3 p-3 overflow-y-auto">
+        {/* Drag handle header */}
+        <div className="flex items-center widget-drag-handle cursor-move">
+          <h2 className="text-base font-semibold text-foreground">{localConfig.title || 'Currency Converter'}</h2>
+        </div>
+        {/* Amount input + base currency selector */}
+        <div className="flex gap-2">
+          <div className="flex flex-1 border rounded-md overflow-hidden">
+            <Input
+              type="text"
+              value={amount}
+              onChange={handleAmountChange}
+              className="flex-grow border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+              aria-label={`Amount in ${localConfig.baseCurrency}`}
+            />
+          </div>
+          <Select
+            value={localConfig.baseCurrency || 'USD'}
+            onValueChange={(value: string) => {
+              setLocalConfig(prev => ({ ...prev, baseCurrency: value }));
+              if (config?.onUpdate) {
+                config.onUpdate({ ...localConfig, baseCurrency: value });
+              }
+            }}
+          >
+            <SelectTrigger className="w-[120px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+              {POPULAR_CURRENCIES.map(code => (
+                <SelectItem key={code} value={code}>
+                  {CURRENCIES[code as keyof typeof CURRENCIES]?.symbol} {code}
+                </SelectItem>
+              ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Currency rate grid */}
+        <div className="grid grid-cols-3 gap-2">
+          {currencies.map(currency => {
+            const rate = rates[currency] || 0;
+            const value = (numericAmount * rate).toFixed(2);
+            return (
+              <div key={currency} className="flex flex-col items-center justify-center bg-card text-card-foreground rounded-md p-3 border shadow-sm">
+                <span className="text-xl font-semibold tabular-nums">
+                  {CURRENCIES[currency as keyof typeof CURRENCIES]?.symbol}{value}
+                </span>
+                <span className="text-xs font-medium text-muted-foreground">{currency}</span>
+                <span className="text-[10px] text-muted-foreground mt-0.5">
+                  1 {localConfig.baseCurrency} = {rate.toFixed(4)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Conversion matrix table */}
+        {currencies.length > 0 && (
+          <div className="mt-1">
+            <h4 className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Conversion Matrix</h4>
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="p-1.5 text-left font-medium text-muted-foreground">From / To</th>
+                    {matrixCurrencies.map(code => (
+                      <th key={code} className="p-1.5 text-right font-medium text-muted-foreground">{code}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {matrixCurrencies.map(fromCurrency => {
+                    const fromRate = fromCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[fromCurrency] ?? 0);
+                    return (
+                      <tr key={fromCurrency} className="border-t">
+                        <td className="p-1.5 font-medium">{fromCurrency}</td>
+                        {matrixCurrencies.map(toCurrency => {
+                          const toRate = toCurrency === (localConfig.baseCurrency || 'USD') ? 1 : (rates[toCurrency] ?? 0);
+                          const crossRate = fromCurrency === toCurrency ? 1 : (fromRate === 0 || toRate === 0) ? 0 : toRate / fromRate;
+                          return (
+                            <td key={toCurrency} className="p-1.5 text-right tabular-nums text-muted-foreground">
+                              {crossRate === 0 && fromCurrency !== toCurrency ? '--' : crossRate.toFixed(4)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render content based on widget size -- isTiny -> isShort -> isApp -> existing size category
   const renderContent = () => {
+    if (isTiny) return renderTinyView();
+    if (isShort) return renderRibbonView();
+    if (isApp) return renderAppView();
+
     const sizeCategory = getWidgetSizeCategory(width, height);
-    
+
     switch (sizeCategory) {
       case WidgetSizeCategory.LARGE:
         return renderLargeView();
@@ -767,61 +891,56 @@ const CurrencyConverterWidget: React.FC<CurrencyConverterWidgetProps> = ({ width
 
   // Main render
   return (
-    <div className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title={localConfig.title || 'Currency Converter'} 
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      
-      <div className="flex-grow overflow-hidden">
-        {error && (error.includes('API key is required') || error.includes('Invalid API key')) ? (
-          // Specific view for API key error
-          <div className="h-full flex flex-col items-center justify-center text-center">
-            {/* Use DollarSign icon from Lucide with consistent styling (gray color) */}
-            <BadgeCent size={24} className="text-gray-400 mb-3" strokeWidth={1.5} />
-            {/* Consistent text styling */}
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-              {error.includes('Invalid') ? 'Invalid API key.' : 'API key required for exchange rates.'}
-            </p>
-            {/* Consistent button styling */}
-            <Button
-              size="sm"
-              onClick={() => setShowSettings(true)}
-              variant="outline"
-            >
-              Configure API Key
-            </Button>
-          </div>
-        ) : error ? (
-          // General error view
-          <div className="h-full flex flex-col items-center justify-center text-center p-4">
-            {/* Use AlertCircle icon for errors */}
-            <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
-            {/* Consistent error text styling */}
-            <p className="text-sm text-red-500 dark:text-red-400 mb-3">
-              {error}
-            </p>
-            {/* Consistent button styling */}
-            <Button
-              size="sm"
-              onClick={refetch} // Use refetch from the hook
-            >
-              Retry
-            </Button>
-          </div>
+    <div className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!isTiny && !isApp && (
+        <WidgetHeader
+          title={localConfig.title || 'Currency Converter'}
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isShort}
+        />
+      )}
+
+      <div className={`flex-grow overflow-hidden ${isTiny ? 'p-2' : isShort ? 'p-1.5' : ''}`}>
+        {error ? (
+          // Error view - compact for tiny
+          isTiny ? (
+            <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+              <AlertCircle size={16} className="text-red-500" strokeWidth={1.5} />
+              <span className="text-[10px] text-red-500">Error</span>
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-4">
+              <AlertCircle size={40} className="text-red-500 mb-3" strokeWidth={1.5} />
+              <p className="text-sm text-red-500 dark:text-red-400 mb-3">
+                {error}
+              </p>
+              <Button
+                size="sm"
+                onClick={refetch}
+              >
+                Retry
+              </Button>
+            </div>
+          )
         ) : loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="animate-spin h-6 w-6 rounded-full border-2 border-primary border-t-transparent"></div>
-          </div>
+          isTiny ? (
+            <div className="flex h-full items-center justify-center">
+              <div className="animate-spin h-4 w-4 rounded-full border-2 border-primary border-t-transparent"></div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-spin h-6 w-6 rounded-full border-2 border-primary border-t-transparent"></div>
+            </div>
+          )
         ) : (
           renderContent()
         )}
       </div>
 
       {/* Settings dialog */}
-      {renderSettings()}
+      {!readOnly && renderSettings()}
     </div>
   );
 };
 
-export default CurrencyConverterWidget; 
+export default CurrencyConverterWidget;

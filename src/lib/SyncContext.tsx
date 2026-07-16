@@ -1,9 +1,22 @@
 import { onSnapshot, doc, collection } from 'firebase/firestore';
-import { ReactNode, createContext, useContext, useState, useEffect, Component, type ErrorInfo } from 'react';
+import { ReactNode, createContext, useContext, useState, useEffect, useRef, useCallback, Component, type ErrorInfo } from 'react';
+import { toast } from 'sonner';
 import { useAuth } from './useAuth';
 import { db } from './firebase';
 
 type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
+
+// Debounce utility for localStorage updates
+function debounce<T extends (...args: Parameters<T>) => void>(
+  fn: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
 
 interface SyncContextProps {
   isSyncing: boolean;
@@ -63,63 +76,140 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  
+
+  // Track pending sync updates to batch status changes
+  const pendingSyncsRef = useRef(new Set<string>());
+  // Track retry attempts
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track if we've shown an error toast for this error session
+  const errorToastShownRef = useRef(false);
+
+  // Debounced localStorage writers (300ms delay to batch rapid updates)
+  const debouncedWriteLayouts = useCallback(
+    debounce((data: unknown) => {
+      localStorage.setItem('boxento-layouts', JSON.stringify(data));
+    }, 300),
+    []
+  );
+
+  const debouncedWriteWidgets = useCallback(
+    debounce((data: unknown) => {
+      localStorage.setItem('boxento-widgets', JSON.stringify(data));
+    }, 300),
+    []
+  );
+
+  const debouncedWriteConfigs = useCallback(
+    debounce((data: unknown) => {
+      localStorage.setItem('boxento-widget-configs', JSON.stringify(data));
+    }, 300),
+    []
+  );
+
+  // Debounced sync status updater to batch multiple listener updates
+  const debouncedUpdateSyncStatus = useCallback(
+    debounce(() => {
+      if (pendingSyncsRef.current.size === 0) {
+        // If we were in error state, show recovery toast
+        if (errorToastShownRef.current) {
+          toast.success('Sync restored', {
+            description: 'Your data is now syncing again.',
+            duration: 3000,
+          });
+          errorToastShownRef.current = false;
+        }
+        setLastSyncTime(new Date());
+        setSyncStatus('success');
+        setIsSyncing(false);
+        setSyncError(null);
+        retryCountRef.current = 0;
+      }
+    }, 100),
+    []
+  );
+
+  // Handle sync error with toast and retry
+  const handleSyncError = useCallback((errorMessage: string, source: string) => {
+    console.error(`Error syncing ${source}:`, errorMessage);
+    setSyncError(`Error syncing ${source}: ${errorMessage}`);
+    setSyncStatus('error');
+    setIsSyncing(false);
+
+    // Only show toast once per error session
+    if (!errorToastShownRef.current) {
+      errorToastShownRef.current = true;
+      toast.error('Sync failed', {
+        description: 'Your changes are saved locally. Will retry automatically.',
+        duration: 5000,
+      });
+    }
+
+    // Retry logic: retry up to 3 times with exponential backoff
+    if (retryCountRef.current < 3) {
+      const delay = Math.pow(2, retryCountRef.current) * 1000; // 1s, 2s, 4s
+      retryCountRef.current++;
+
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+
+      retryTimeoutRef.current = setTimeout(() => {
+        // Trigger a re-render to re-establish listeners
+        setSyncStatus('syncing');
+        setIsSyncing(true);
+      }, delay);
+    }
+  }, []);
+
+  const markSyncComplete = useCallback((syncType: string) => {
+    pendingSyncsRef.current.delete(syncType);
+    debouncedUpdateSyncStatus();
+  }, [debouncedUpdateSyncStatus]);
+
   // Set up listeners for Firestore data changes
   useEffect(() => {
     if (!authContext?.currentUser || !db) return;
-    
+
     setSyncStatus('syncing');
     setIsSyncing(true);
-    
+    pendingSyncsRef.current = new Set(['layouts', 'widgets', 'configs']);
+
     let layoutsUnsubscribe: () => void = () => {};
     let widgetsUnsubscribe: () => void = () => {};
     let widgetConfigsUnsubscribe: () => void = () => {};
-    
+
     try {
       // Listen for layouts changes
       layoutsUnsubscribe = onSnapshot(
         doc(db, 'users', authContext.currentUser.uid, 'dashboard', 'layouts'),
         (doc) => {
           if (doc.exists()) {
-            // Update localStorage as a fallback - store direct data, not wrapped in 'layouts'
-            localStorage.setItem('boxento-layouts', JSON.stringify(doc.data()));
-            
-            setLastSyncTime(new Date());
-            setSyncStatus('success');
-            setIsSyncing(false);
-            setSyncError(null);
+            // Debounced localStorage update
+            debouncedWriteLayouts(doc.data());
+            markSyncComplete('layouts');
           }
         },
         (error) => {
-          console.error('Error syncing layouts:', error);
-          setSyncError(`Error syncing layouts: ${error.message}`);
-          setSyncStatus('error');
-          setIsSyncing(false);
+          handleSyncError(error.message, 'layouts');
         }
       );
-      
+
       // Listen for widgets collection changes
       widgetsUnsubscribe = onSnapshot(
         doc(db, 'users', authContext.currentUser.uid, 'dashboard', 'widget-list'),
         (doc) => {
           if (doc.exists()) {
-            // Update localStorage as a fallback
-            localStorage.setItem('boxento-widgets', JSON.stringify(doc.data().widgets));
-            
-            setLastSyncTime(new Date());
-            setSyncStatus('success');
-            setIsSyncing(false);
-            setSyncError(null);
+            // Debounced localStorage update
+            debouncedWriteWidgets(doc.data().widgets);
+            markSyncComplete('widgets');
           }
         },
         (error) => {
-          console.error('Error syncing widgets:', error);
-          setSyncError(`Error syncing widgets: ${error.message}`);
-          setSyncStatus('error');
-          setIsSyncing(false);
+          handleSyncError(error.message, 'widgets');
         }
       );
-      
+
       try {
         // Listen for widget configurations
         widgetConfigsUnsubscribe = onSnapshot(
@@ -130,48 +220,38 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             snapshot.forEach((doc) => {
               configs[doc.id] = doc.data().config;
             });
-            
-            // Update localStorage as a fallback
-            localStorage.setItem('boxento-widget-configs', JSON.stringify(configs));
-            
-            setLastSyncTime(new Date());
-            setSyncStatus('success');
-            setIsSyncing(false);
-            setSyncError(null);
+
+            // Debounced localStorage update
+            debouncedWriteConfigs(configs);
+            markSyncComplete('configs');
           },
           (error) => {
-            console.error('Error syncing widget configurations:', error);
-            setSyncError(`Error syncing widget configurations: ${error.message}`);
-            setSyncStatus('error');
-            setIsSyncing(false);
+            handleSyncError(error.message, 'widget configurations');
           }
         );
       } catch (configError: unknown) {
         const errorMessage = configError instanceof Error ? configError.message : 'Unknown error';
-        console.error('Error setting up widget configs listener:', configError);
-        setSyncError(`Error setting up sync: ${errorMessage}`);
-        setSyncStatus('error');
-        setIsSyncing(false);
+        handleSyncError(errorMessage, 'setup');
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Error setting up Firestore listeners:', error);
-      setSyncError(`Error setting up sync: ${errorMessage}`);
-      setSyncStatus('error');
-      setIsSyncing(false);
+      handleSyncError(errorMessage, 'setup');
     }
-    
-    // Cleanup listeners
+
+    // Cleanup listeners and retry timeout
     return () => {
       try {
         layoutsUnsubscribe();
         widgetsUnsubscribe();
         widgetConfigsUnsubscribe();
+        if (retryTimeoutRef.current) {
+          clearTimeout(retryTimeoutRef.current);
+        }
       } catch (error: unknown) {
         console.error('Error cleaning up Firestore listeners:', error);
       }
     };
-  }, [authContext]);
+  }, [authContext, debouncedWriteLayouts, debouncedWriteWidgets, debouncedWriteConfigs, markSyncComplete, handleSyncError]);
   
   return (
     <SyncContext.Provider value={{ isSyncing, lastSyncTime, syncError, syncStatus }}>

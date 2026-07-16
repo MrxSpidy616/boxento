@@ -3,8 +3,6 @@ name: Docker Image CI/CD
 on:
   push:
     branches: [ "main" ]
-    # Publish semver tags as releases
-    tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "main" ]
 
@@ -37,19 +35,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata (tags, labels) for Docker
+      # Extract metadata (tags, labels) for Docker.
+      # Release tags and `latest` are published by release.yml so Docker
+      # users only get `latest` from an intentional release.
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=schedule
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=sha
 
       # Build and push Docker image with Buildx
@@ -64,22 +60,3 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
-
-      # Optional: Install cosign for image signing
-      # Only attempt signing if explicitly enabled via repository secret
-      - name: Install cosign
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[sign]')
-        uses: sigstore/cosign-installer@v3.3.0
-        with:
-          cosign-release: 'v2.1.1'
-
-      # Optional: Sign the images
-      # Only attempt signing if explicitly enabled
-      - name: Sign the published Docker image
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[sign]')
-        continue-on-error: true
-        env:
-          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST} 

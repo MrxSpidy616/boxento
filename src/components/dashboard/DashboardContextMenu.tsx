@@ -9,17 +9,19 @@ import {
   ContextMenuLabel
 } from '@/components/ui/context-menu';
 import { AppSettingsModal } from '@/components/settings/AppSettingsModal';
-import { 
-  Plus, 
-  Settings
+import {
+  Plus,
+  Settings2,
+  LayoutGrid
 } from 'lucide-react';
 
 interface DashboardContextMenuProps {
   children: React.ReactNode;
   onAddWidget: () => void;
+  onAutoArrange?: () => void;
 }
 
-export function DashboardContextMenu({ children, onAddWidget }: DashboardContextMenuProps) {
+export function DashboardContextMenu({ children, onAddWidget, onAutoArrange }: DashboardContextMenuProps) {
   const [showAppSettings, setShowAppSettings] = useState(false);
 
   // Listen for the custom event to open app settings
@@ -48,8 +50,8 @@ export function DashboardContextMenu({ children, onAddWidget }: DashboardContext
           }}
         >
           <ContextMenuGroup>
-            <ContextMenuItem 
-              onClick={onAddWidget} 
+            <ContextMenuItem
+              onClick={onAddWidget}
               className="cursor-pointer group py-2.5 px-3 text-sm hover:bg-primary/10 focus:bg-primary/10 transition-colors data-[highlighted]:bg-primary/10 context-menu-highlight"
             >
               <div className="flex items-center">
@@ -59,6 +61,19 @@ export function DashboardContextMenu({ children, onAddWidget }: DashboardContext
                 <span>Add Widget</span>
               </div>
             </ContextMenuItem>
+            {onAutoArrange && (
+              <ContextMenuItem
+                onClick={onAutoArrange}
+                className="cursor-pointer group py-2.5 px-3 text-sm hover:bg-primary/10 focus:bg-primary/10 transition-colors data-[highlighted]:bg-primary/10 context-menu-highlight"
+              >
+                <div className="flex items-center">
+                  <div className="bg-primary/10 rounded-full p-1.5 mr-3 group-hover:bg-primary/20 group-focus:bg-primary/20 transition-colors">
+                    <LayoutGrid className="h-4 w-4 text-primary" />
+                  </div>
+                  <span>Auto-arrange</span>
+                </div>
+              </ContextMenuItem>
+            )}
           </ContextMenuGroup>
           
           <ContextMenuSeparator className="my-1.5 opacity-50" />
@@ -73,7 +88,7 @@ export function DashboardContextMenu({ children, onAddWidget }: DashboardContext
             >
               <div className="flex items-center">
                 <div className="bg-primary/10 rounded-full p-1.5 mr-3 group-hover:bg-primary/20 group-focus:bg-primary/20 transition-colors">
-                  <Settings className="h-4 w-4 text-primary" />
+                  <Settings2 className="h-4 w-4 text-primary" />
                 </div>
                 <span>App Settings</span>
               </div>

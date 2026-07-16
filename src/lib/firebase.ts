@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 // Firebase configuration from environment variables
@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // Check if required Firebase config is present
-const hasValidConfig = 
+const hasValidConfig =
   import.meta.env.VITE_FIREBASE_API_KEY &&
   import.meta.env.VITE_FIREBASE_AUTH_DOMAIN &&
   import.meta.env.VITE_FIREBASE_PROJECT_ID;
@@ -25,6 +25,19 @@ const app = hasValidConfig ? (getApps().length ? getApp() : initializeApp(fireba
 const auth: Auth | null = app ? getAuth(app) : null;
 const db: Firestore | null = app ? getFirestore(app) : null;
 const storage: FirebaseStorage | null = app ? getStorage(app) : null;
+
+// Enable offline persistence for Firestore
+if (db) {
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled in one tab at a time
+      console.warn('Firestore persistence failed: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      // The current browser doesn't support persistence
+      console.warn('Firestore persistence not supported in this browser');
+    }
+  });
+}
 
 // Export a flag to check if Firebase is initialized
 export const isFirebaseInitialized = Boolean(app);

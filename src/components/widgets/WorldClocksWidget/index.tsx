@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { Trash, GripVertical } from 'lucide-react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Trash, GripVertical, Sun, Moon } from 'lucide-react'
 import WidgetHeader from '../../widgets/common/WidgetHeader'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -19,18 +20,41 @@ import {
   CardTitle,
 } from '../../ui/card'
 
+const timezoneOffsetFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+const getTimezoneOffsetFormatter = (timezone: string): Intl.DateTimeFormat => {
+  const cached = timezoneOffsetFormatterCache.get(timezone);
+  if (cached) {
+    return cached;
+  }
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    timeZoneName: 'shortOffset',
+  });
+  timezoneOffsetFormatterCache.set(timezone, formatter);
+  return formatter;
+};
+
 /**
  * World Clocks Widget Component
- * 
+ *
  * Displays the current time in multiple timezones.
  * Allows adding, editing, and removing timezones.
  * Supports different layouts based on widget dimensions (minimum size 2x2).
- * 
+ *
  * @component
  * @param {WorldClocksWidgetProps} props - Component props
  * @returns {JSX.Element} World Clocks widget component
  */
 const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, config }) => {
+  // ── Size detection ──────────────────────────────────────────────
+  const isTiny    = width === 1 && height === 1
+  const isShort   = height === 1 && width > 1          // Nx1 ribbon
+  const isCompact = !isTiny && !isShort && (width <= 2 || height <= 2)
+  const isApp     = width >= 6 && height >= 6           // 6x6+ full dashboard
+  const readOnly  = Boolean(config?.readOnly)
+
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [timezones, setTimezones] = useState<TimezoneItem[]>(config?.timezones || [
     { id: 1, name: 'New York, USA', timezone: 'America/New_York' },
@@ -44,19 +68,21 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   const [isSearching, setIsSearching] = useState<boolean>(false)
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null)
   const [dragOverItemIndex, setDragOverItemIndex] = useState<number | null>(null)
+  // Snapshot of timezones when settings opens – used for cancel/reset
+  const [savedTimezones, setSavedTimezones] = useState<TimezoneItem[]>(timezones)
   const widgetRef = useRef<HTMLDivElement | null>(null)
-  
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
     }, 1000)
-    
+
     return () => clearInterval(timer)
   }, [])
 
   /**
    * Formats a date for a specific timezone
-   * 
+   *
    * @param {Date} date - Date to format
    * @param {string} timezone - IANA timezone identifier
    * @returns {string} Formatted time string
@@ -77,8 +103,24 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   }
 
   /**
+   * Formats a date string for a specific timezone (e.g. "Fri, Mar 13")
+   */
+  const formatDateLine = (date: Date, timezone: string): string => {
+    try {
+      return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        timeZone: timezone
+      });
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * Gets the relative date for a timezone (e.g., "Today", "Tomorrow")
-   * 
+   *
    * @param {Date} date - Date to check
    * @param {string} timezone - IANA timezone identifier
    * @returns {string} Relative date string
@@ -92,14 +134,14 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         day: 'numeric',
         timeZone: timezone
       };
-      
+
       const dateInTimezone = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
       const localDate = new Date();
-      
+
       // Compare the date in the target timezone with the local date
       const targetDay = dateInTimezone.getDate();
       const localDay = localDate.getDate();
-      
+
       if (targetDay === localDay) {
         return 'Today';
       } else if (targetDay === localDay + 1) {
@@ -117,27 +159,27 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Gets the time difference between local time and a timezone
-   * 
+   *
    * @param {string} timezone - IANA timezone identifier
    * @returns {string} Time difference string (e.g., "+3h")
    */
   const getTimeDiff = (timezone: string): string => {
     try {
       const localDate = new Date();
-      
+
       // Get the target timezone's current time
       const targetDate = new Date(localDate.toLocaleString('en-US', { timeZone: timezone }));
-      
+
       // Calculate the time difference in hours
       let hoursDiff = (targetDate.getHours() - localDate.getHours());
-      
+
       // Adjust for day boundary crossings
       if (hoursDiff > 12) {
         hoursDiff -= 24;
       } else if (hoursDiff < -12) {
         hoursDiff += 24;
       }
-      
+
       // Format the difference
       if (hoursDiff === 0) {
         return 'Same time';
@@ -152,16 +194,100 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   }
 
   /**
+   * Determines whether it is daytime (6am-6pm) in a given timezone
+   */
+  const isDaytime = (date: Date, timezone: string): boolean => {
+    try {
+      const tzDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+      const hour = tzDate.getHours();
+      return hour >= 6 && hour < 18;
+    } catch {
+      return true;
+    }
+  }
+
+  const clampValue = (value: number, min: number, max: number): number => (
+    Math.min(max, Math.max(min, value))
+  );
+
+  const interpolate = (start: number, end: number, progress: number): number => (
+    start + (end - start) * progress
+  );
+
+  const getAreaScale = (minArea: number, maxArea: number): number => (
+    clampValue((width * height - minArea) / (maxArea - minArea), 0, 1)
+  );
+
+  const getCityLabel = (name: string): string => name.split(',')[0].trim();
+
+  const getRegionLabel = (name: string): string => name.split(',').slice(1).join(',').trim();
+
+  const getTinyCityLabel = (name: string): string => {
+    const city = getCityLabel(name);
+    if (city.length <= 6) {
+      return city;
+    }
+
+    const region = getRegionLabel(name);
+    if (/city$/i.test(city) && region && region.length <= 8) {
+      return region;
+    }
+
+    return getCityCode(name);
+  };
+
+  const getCityCode = (name: string): string => {
+    const city = getCityLabel(name);
+    const words = city.split(/\s+/).filter(Boolean);
+
+    if (words.length > 1) {
+      return words.map(word => word[0]).join('').slice(0, 3).toUpperCase();
+    }
+
+    return city.slice(0, 3).toUpperCase();
+  };
+
+  const getTimezoneOffsetLabel = (timezone: string): string => {
+    try {
+      const offsetPart = getTimezoneOffsetFormatter(timezone)
+        .formatToParts(currentTime)
+        .find(part => part.type === 'timeZoneName')?.value;
+
+      if (!offsetPart) {
+        return getTimeDiff(timezone);
+      }
+
+      return offsetPart === 'GMT' ? 'GMT+0' : offsetPart;
+    } catch {
+      return getTimeDiff(timezone);
+    }
+  };
+
+  const getTimezoneDisplay = (timezoneItem: TimezoneItem) => {
+    const formattedTime = formatTime(currentTime, timezoneItem.timezone);
+    const [timeWithSeconds = '12:00:00', period = ''] = formattedTime.split(' ');
+
+    return {
+      city: getCityLabel(timezoneItem.name),
+      time: timeWithSeconds.split(':').slice(0, 2).join(':'),
+      period,
+      diff: getTimeDiff(timezoneItem.timezone),
+      relativeDate: getRelativeDate(currentTime, timezoneItem.timezone),
+      dateLine: formatDateLine(currentTime, timezoneItem.timezone),
+    };
+  };
+
+  /**
    * Removes a timezone from the list
-   * 
+   *
    * @param {number} id - The id of the timezone to remove
    */
   const removeTimezone = (id: number): void => {
     const updatedTimezones = timezones.filter(tz => tz.id !== id);
-    
+
     // Update state
     setTimezones(updatedTimezones);
-    
+
     // Save using onUpdate callback to persist
     if (config?.onUpdate) {
       config.onUpdate({
@@ -173,7 +299,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Searches for cities and their timezones based on input
-   * 
+   *
    * @param {string} searchTerm - The city name to search for
    */
   const searchCities = (searchTerm: string): void => {
@@ -181,9 +307,9 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       setSearchResults([]);
       return;
     }
-    
+
     setIsSearching(true);
-    
+
     // Comprehensive list of cities and their timezones
     // This is a much more extensive list than the original 10 cities
     const cityDatabase = [
@@ -203,7 +329,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Seattle', country: 'USA', timezone: 'America/Los_Angeles' },
       { city: 'Atlanta', country: 'USA', timezone: 'America/New_York' },
       { city: 'Calgary', country: 'Canada', timezone: 'America/Edmonton' },
-      
+
       // Europe
       { city: 'London', country: 'UK', timezone: 'Europe/London' },
       { city: 'Paris', country: 'France', timezone: 'Europe/Paris' },
@@ -225,7 +351,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Warsaw', country: 'Poland', timezone: 'Europe/Warsaw' },
       { city: 'Budapest', country: 'Hungary', timezone: 'Europe/Budapest' },
       { city: 'Zurich', country: 'Switzerland', timezone: 'Europe/Zurich' },
-      
+
       // Asia & Pacific
       { city: 'Tokyo', country: 'Japan', timezone: 'Asia/Tokyo' },
       { city: 'Shanghai', country: 'China', timezone: 'Asia/Shanghai' },
@@ -247,7 +373,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Kuala Lumpur', country: 'Malaysia', timezone: 'Asia/Kuala_Lumpur' },
       { city: 'Osaka', country: 'Japan', timezone: 'Asia/Tokyo' },
       { city: 'Brisbane', country: 'Australia', timezone: 'Australia/Brisbane' },
-      
+
       // Africa & Middle East
       { city: 'Cairo', country: 'Egypt', timezone: 'Africa/Cairo' },
       { city: 'Johannesburg', country: 'South Africa', timezone: 'Africa/Johannesburg' },
@@ -258,7 +384,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Abu Dhabi', country: 'UAE', timezone: 'Asia/Dubai' },
       { city: 'Riyadh', country: 'Saudi Arabia', timezone: 'Asia/Riyadh' },
       { city: 'Tel Aviv', country: 'Israel', timezone: 'Asia/Tel_Aviv' },
-      
+
       // South America
       { city: 'São Paulo', country: 'Brazil', timezone: 'America/Sao_Paulo' },
       { city: 'Buenos Aires', country: 'Argentina', timezone: 'America/Argentina/Buenos_Aires' },
@@ -268,41 +394,41 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
       { city: 'Santiago', country: 'Chile', timezone: 'America/Santiago' },
       { city: 'Caracas', country: 'Venezuela', timezone: 'America/Caracas' },
     ];
-    
+
     // Filter results based on search term (case insensitive)
-    const results = cityDatabase.filter(item => 
+    const results = cityDatabase.filter(item =>
       item.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.country.toLowerCase().includes(searchTerm.toLowerCase())
     ).slice(0, 10); // Limit to 10 results for performance
-    
+
     setSearchResults(results);
     setIsSearching(false);
   };
 
   /**
    * Selects a city from search results and adds it as a timezone
-   * 
+   *
    * @param {Object} cityData - The selected city data with timezone
    */
   const selectCity = (cityData: {city: string, country: string, timezone: string}): void => {
     // Format the display name to include the country
     const displayName = `${cityData.city}, ${cityData.country}`;
-    
+
     // Clear search results
     setSearchResults([]);
     setCitySearchInput('');
-    
+
     // Directly add the timezone after selection
     const newId = Math.max(0, ...timezones.map(tz => tz.id || 0)) + 1;
-    const updatedTimezones = [...timezones, { 
-      id: newId, 
-      name: displayName, 
-      timezone: cityData.timezone 
+    const updatedTimezones = [...timezones, {
+      id: newId,
+      name: displayName,
+      timezone: cityData.timezone
     }];
-    
+
     // Update state
     setTimezones(updatedTimezones);
-    
+
     // Save using onUpdate callback to persist
     if (config?.onUpdate) {
       config.onUpdate({
@@ -313,8 +439,8 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   /**
-   * Renders an elegant analog clock for a timezone
-   * 
+   * Renders a Bauhaus-inspired minimal analog clock
+   *
    * @param {string} timezone - IANA timezone identifier
    * @param {number} [size=80] - Size of the clock in pixels
    * @param {boolean} [isDarkMode=false] - Whether to use dark mode colors
@@ -324,130 +450,221 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     try {
       // Get the current time in the specified timezone
       const date = new Date(currentTime.toLocaleString('en-US', { timeZone: timezone }));
-      
+
       // Calculate the angles for the clock hands
       const seconds = date.getSeconds();
       const minutes = date.getMinutes();
       const hours = date.getHours() % 12;
-      
-      const secondAngle = (seconds / 60) * 360;
+      const isNight = !isDaytime(currentTime, timezone);
+      const useDarkDial = isDarkMode || isNight;
+
+      // Smooth second hand movement
+      const secondAngle = ((seconds) / 60) * 360;
       const minuteAngle = ((minutes + seconds / 60) / 60) * 360;
       const hourAngle = ((hours + minutes / 60) / 12) * 360;
-      
+
       // Calculate dimensions
       const center = size / 2;
-      const radius = size / 2 - 2; // Slightly smaller to fit within SVG
-      
-      // Calculate hand lengths
-      const secondHandLength = radius * 0.85;
-      const minuteHandLength = radius * 0.75;
-      const hourHandLength = radius * 0.5;
-      
-      // Determine colors based on theme
-      const isDarkTheme = isDarkMode;
-      const clockFaceColor = 'transparent'; // Transparent background
-      const clockBorderColor = isDarkTheme ? '#475569' : '#cbd5e1'; // More subtle border
-      const hourMarkerColor = isDarkTheme ? '#94a3b8' : '#94a3b8'; // Consistent subtle markers
-      const hourHandColor = isDarkTheme ? '#f1f5f9' : '#334155'; // More contrast for hour hand
-      const minuteHandColor = isDarkTheme ? '#e2e8f0' : '#475569'; // Slightly lighter minute hand
-      const secondHandColor = isDarkTheme ? '#38bdf8' : '#3b82f6'; // Accent color for second hand
-      
+      const radius = size / 2 - 2.5;
+      const showFullNumerals = size >= 96;
+      const showCardinalNumerals = !showFullNumerals && size >= 46;
+      const tickCount = size >= 56 ? 60 : 12;
+
+      // Hand lengths tuned for a Bauhaus-style dial: long, light, and precise.
+      const hourHandLength = radius * 0.48;
+      const minuteHandLength = radius * 0.74;
+      const secondHandLength = radius * 0.82;
+
+      const dialFill = useDarkDial ? '#0f172a' : '#ffffff';
+      const dialColor = useDarkDial ? '#64748b' : '#dbe1ea';
+      const majorTickColor = useDarkDial ? '#e2e8f0' : '#7a859b';
+      const minorTickColor = useDarkDial ? '#64748b' : '#c4cad6';
+      const numeralColor = useDarkDial ? '#dbeafe' : '#44506a';
+      const handColor = useDarkDial ? '#f8fafc' : '#0f172a';
+      const handHighlightColor = useDarkDial ? '#94a3b8' : '#ffffff';
+      const secondHandColor = '#ef4444';
+      const hourStroke = Math.max(2, size * 0.046);
+      const minuteStroke = Math.max(1.35, size * 0.028);
+      const secondStroke = Math.max(0.85, size * 0.012);
+
       return (
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="clock transition-all duration-300">
-          {/* Clock face - subtle border, no fill */}
-          <circle 
-            cx={center} 
-            cy={center} 
-            r={radius} 
-            fill={clockFaceColor} 
-            stroke={clockBorderColor} 
-            strokeWidth="0.5"
-            className="transition-all duration-300"
+        <svg
+          width={size}
+          height={size}
+          viewBox={`0 0 ${size} ${size}`}
+          className="clock overflow-visible"
+          data-clock-period={isNight ? 'night' : 'day'}
+          aria-hidden="true"
+        >
+          <circle
+            cx={center}
+            cy={center}
+            r={radius * 0.96}
+            fill={dialFill}
+            stroke={dialColor}
+            strokeWidth={Math.max(0.55, size * 0.009)}
+            opacity={useDarkDial ? 1 : 0.96}
           />
-          
-          {/* Hour markers - only at 12, 3, 6, 9 */}
-          {[0, 3, 6, 9].map((hour) => {
-            const angle = (hour * 30) * (Math.PI / 180);
-            const x1 = center + (radius - 6) * Math.sin(angle);
-            const y1 = center - (radius - 6) * Math.cos(angle);
-            const x2 = center + radius * Math.sin(angle);
-            const y2 = center - radius * Math.cos(angle);
-            
+
+          {Array.from({ length: tickCount }, (_, index) => {
+            const minuteIndex = tickCount === 60 ? index : index * 5;
+            const isFive = minuteIndex % 5 === 0;
+            const isQuarter = minuteIndex % 15 === 0;
+            const angle = minuteIndex * 6 * (Math.PI / 180);
+            const tickOuter = radius * 0.93;
+            const tickInner = radius * (isQuarter ? 0.72 : isFive ? 0.78 : 0.86);
+            const x1 = center + tickInner * Math.sin(angle);
+            const y1 = center - tickInner * Math.cos(angle);
+            const x2 = center + tickOuter * Math.sin(angle);
+            const y2 = center - tickOuter * Math.cos(angle);
+
             return (
-              <line 
-                key={hour} 
-                x1={x1} 
-                y1={y1} 
-                x2={x2} 
-                y2={y2} 
-                stroke={hourMarkerColor} 
-                strokeWidth={1} 
-                className="transition-all duration-300"
+              <line
+                key={index}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={isFive ? majorTickColor : minorTickColor}
+                strokeWidth={
+                  isQuarter
+                    ? Math.max(1.45, size * 0.032)
+                    : isFive
+                      ? Math.max(1.05, size * 0.021)
+                      : Math.max(0.5, size * 0.009)
+                }
+                strokeLinecap="round"
+                opacity={isFive ? 0.95 : 0.7}
               />
             );
           })}
-          
-          {/* Subtle dots for other hour markers */}
-          {[1, 2, 4, 5, 7, 8, 10, 11].map((hour) => {
-            const angle = (hour * 30) * (Math.PI / 180);
-            const x = center + (radius - 2) * Math.sin(angle);
-            const y = center - (radius - 2) * Math.cos(angle);
-            
-            return (
-              <circle
-                key={hour}
-                cx={x}
-                cy={y}
-                r="0.5"
-                fill={hourMarkerColor}
-                className="transition-all duration-300"
-              />
-            );
-          })}
-          
-          {/* Hour hand - thinner, more elegant */}
-          <line 
-            x1={center} 
-            y1={center} 
-            x2={center + hourHandLength * Math.sin(hourAngle * (Math.PI / 180))} 
-            y2={center - hourHandLength * Math.cos(hourAngle * (Math.PI / 180))} 
-            stroke={hourHandColor} 
-            strokeWidth="1.5" 
-            strokeLinecap="round" 
-            className="transition-all duration-300"
+
+          {showFullNumerals ? (
+            <>
+              {Array.from({ length: 12 }, (_, index) => {
+                const hour = index === 0 ? 12 : index;
+                const angle = hour * 30 * (Math.PI / 180);
+                const numeralRadius = radius * 0.6;
+
+                return {
+                  label: String(hour),
+                  x: center + numeralRadius * Math.sin(angle),
+                  y: center - numeralRadius * Math.cos(angle),
+                };
+              }).map(({ label, x, y }) => (
+                <text
+                  key={label}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={numeralColor}
+                  fontSize={Math.max(7.5, size * 0.155)}
+                  fontWeight={500}
+                >
+                  {label}
+                </text>
+              ))}
+            </>
+          ) : showCardinalNumerals ? (
+            <>
+              {[
+                { label: '12', x: center, y: center - radius * 0.56 },
+                { label: '3', x: center + radius * 0.58, y: center + size * 0.012 },
+                { label: '6', x: center, y: center + radius * 0.66 },
+                { label: '9', x: center - radius * 0.58, y: center + size * 0.012 },
+              ].map(({ label, x, y }) => (
+                <text
+                  key={label}
+                  x={x}
+                  y={y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill={numeralColor}
+                  fontSize={Math.max(7, size * 0.15)}
+                  fontWeight={500}
+                >
+                  {label}
+                </text>
+              ))}
+            </>
+          ) : null}
+
+          <g transform={`rotate(${hourAngle}, ${center}, ${center})`}>
+            <line
+              x1={center}
+              y1={center + radius * 0.06}
+              x2={center}
+              y2={center - hourHandLength}
+              stroke={handColor}
+              strokeWidth={hourStroke}
+              strokeLinecap="round"
+            />
+            <line
+              x1={center}
+              y1={center - radius * 0.02}
+              x2={center}
+              y2={center - hourHandLength * 0.82}
+              stroke={handHighlightColor}
+              strokeWidth={Math.max(0.55, hourStroke * 0.28)}
+              strokeLinecap="round"
+              opacity={isDarkMode ? 0.18 : 0.72}
+            />
+          </g>
+
+          <g transform={`rotate(${minuteAngle}, ${center}, ${center})`}>
+            <line
+              x1={center}
+              y1={center + radius * 0.12}
+              x2={center}
+              y2={center - minuteHandLength}
+              stroke={handColor}
+              strokeWidth={minuteStroke}
+              strokeLinecap="round"
+            />
+            <line
+              x1={center}
+              y1={center - radius * 0.02}
+              x2={center}
+              y2={center - minuteHandLength * 0.9}
+              stroke={handHighlightColor}
+              strokeWidth={Math.max(0.45, minuteStroke * 0.28)}
+              strokeLinecap="round"
+              opacity={isDarkMode ? 0.16 : 0.7}
+            />
+          </g>
+
+          <g transform={`rotate(${secondAngle}, ${center}, ${center})`}>
+            <line
+              x1={center}
+              y1={center + radius * 0.2}
+              x2={center}
+              y2={center - secondHandLength}
+              stroke={secondHandColor}
+              strokeWidth={secondStroke}
+              strokeLinecap="round"
+            />
+            <circle
+              cx={center}
+              cy={center + radius * 0.17}
+              r={Math.max(0.8, size * 0.015)}
+              fill={secondHandColor}
+            />
+          </g>
+
+          <circle
+            cx={center}
+            cy={center}
+            r={Math.max(2.3, size * 0.048)}
+            fill={useDarkDial ? '#020617' : '#ffffff'}
+            stroke={handColor}
+            strokeWidth={Math.max(1.2, size * 0.028)}
           />
-          
-          {/* Minute hand - thinner, more elegant */}
-          <line 
-            x1={center} 
-            y1={center} 
-            x2={center + minuteHandLength * Math.sin(minuteAngle * (Math.PI / 180))} 
-            y2={center - minuteHandLength * Math.cos(minuteAngle * (Math.PI / 180))} 
-            stroke={minuteHandColor} 
-            strokeWidth="1" 
-            strokeLinecap="round" 
-            className="transition-all duration-300"
-          />
-          
-          {/* Second hand - accent color, very thin */}
-          <line 
-            x1={center} 
-            y1={center} 
-            x2={center + secondHandLength * Math.sin(secondAngle * (Math.PI / 180))} 
-            y2={center - secondHandLength * Math.cos(secondAngle * (Math.PI / 180))} 
-            stroke={secondHandColor} 
-            strokeWidth="0.5" 
-            strokeLinecap="round" 
-            className="transition-all duration-300"
-          />
-          
-          {/* Center dot - smaller, more subtle */}
-          <circle 
-            cx={center} 
-            cy={center} 
-            r="1.5" 
-            fill={secondHandColor} 
-            className="transition-all duration-300"
+          <circle
+            cx={center}
+            cy={center}
+            r={Math.max(1.2, size * 0.022)}
+            fill={handColor}
           />
         </svg>
       );
@@ -459,285 +676,559 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the compact view optimized for 1x1 grid size
-   * 
+   *
    * @returns {React.ReactElement} Compact view optimized for 1x1 grid size
    */
   const renderCompactView = (): React.ReactElement => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
     const mainTimezone = timezones[0] || { id: 0, name: 'Local', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
-    const timeString = formatTime(currentTime, mainTimezone.timezone).split(':').slice(0, 2).join(':');
-    const period = formatTime(currentTime, mainTimezone.timezone).split(' ')[1];
-    
+
     return (
-      <div className="flex flex-col items-center justify-center h-full p-2">
-        <div className="text-2xl font-bold leading-none">
-          {timeString}
+      <div className="flex h-full flex-col items-center justify-center gap-0.5 overflow-hidden text-center">
+        <div className="flex items-center justify-center">
+          {renderClock(mainTimezone.timezone, 40, isDarkMode)}
         </div>
-        <div className="text-xs leading-tight mt-0.5 font-medium text-center">
-          {mainTimezone.name}
+        <div className="max-w-full truncate text-[10px] font-semibold leading-[1.15] text-foreground">
+          {getTinyCityLabel(mainTimezone.name)}
         </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400 leading-none">
-          {period}
+      </div>
+    );
+  };
+
+  const renderNarrowView = (): React.ReactElement => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const mainTimezone = timezones[0] || { id: 0, name: 'Local', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    const display = getTimezoneDisplay(mainTimezone);
+    const clockSize = height >= 3 ? 56 : 44;
+
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 overflow-hidden px-1.5 py-2 text-center">
+        <div className="flex shrink-0 items-center justify-center">
+          {renderClock(mainTimezone.timezone, clockSize, isDarkMode)}
         </div>
+        <div className="max-w-full truncate text-sm font-semibold leading-tight text-foreground">
+          {getCityCode(mainTimezone.name)}
+        </div>
+        <div className="max-w-full truncate text-[10px] font-medium leading-tight text-muted-foreground">
+          {display.time}
+          <span className="ml-1 uppercase">{display.period}</span>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Nx1 Ribbon ──────────────────────────────────────────────────
+  /**
+   * Renders a horizontal ribbon for Nx1 (height === 1, width > 1) layouts.
+   * Shows the primary timezone time prominently, plus 2-3 others as chips.
+   */
+  const renderRibbonView = (): React.ReactElement => {
+    const mainTz = timezones[0] || { id: 0, name: 'Local', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+    const mainTime = formatTime(currentTime, mainTz.timezone).split(':').slice(0, 2).join(':');
+    const mainPeriod = formatTime(currentTime, mainTz.timezone).split(' ')[1];
+    const chipCount = Math.min(timezones.length - 1, width >= 4 ? 3 : width >= 3 ? 2 : 1);
+    const chipTimezones = timezones.slice(1, 1 + chipCount);
+    const tightRibbon = width <= 2;
+
+    if (tightRibbon) {
+      return (
+        <div className="flex h-full min-w-0 items-center justify-center gap-1.5 overflow-hidden px-2">
+          <div className="flex min-w-0 shrink-0 items-baseline gap-1">
+            <span className="text-sm font-semibold leading-tight text-foreground">
+              {mainTime}
+            </span>
+            <span className="text-[10px] font-medium uppercase text-muted-foreground">
+              {getCityCode(mainTz.name)}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-full items-center gap-2 overflow-hidden px-2 text-xs">
+        <div className="flex min-w-0 shrink-0 items-baseline gap-1">
+          <span className="text-base font-semibold leading-none text-foreground">
+            {mainTime}
+          </span>
+          <span className="text-[10px] font-medium uppercase text-muted-foreground">{mainPeriod}</span>
+        </div>
+        <span className="min-w-0 shrink truncate text-[11px] font-medium text-muted-foreground">
+          {getCityLabel(mainTz.name)}
+        </span>
+
+        {chipTimezones.length > 0 && (
+          <span className="h-4 w-px shrink-0 bg-border" />
+        )}
+
+        {chipTimezones.map((tz) => {
+          const t = formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':');
+          const p = formatTime(currentTime, tz.timezone).split(' ')[1];
+          const city = getCityLabel(tz.name);
+          return (
+            <span
+              key={tz.id}
+              className="flex min-w-0 shrink-0 items-baseline gap-1 rounded-full bg-muted px-2 py-1 text-foreground"
+            >
+              <span className="max-w-[4.25rem] truncate">{city}</span>
+              <span className="font-semibold">{t}</span>
+              <span className="text-[10px] uppercase text-muted-foreground">{p}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // ── 6x6+ App View ──────────────────────────────────────────────
+  /**
+   * Renders a scan-first board for 6x6+ "app" sizes.
+   * The large surface adds comparison and context without turning the widget
+   * into an analog-clock gallery.
+   */
+  const renderAppView = (): React.ReactElement => {
+    const cols = width >= 10 ? 4 : width >= 7 ? 3 : 2;
+
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <div className="widget-drag-handle flex cursor-move items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold text-foreground">World Clocks</h2>
+            <p className="text-xs text-muted-foreground">
+              {timezones.length} timezone{timezones.length === 1 ? '' : 's'} tracked
+            </p>
+          </div>
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSettings(true)}
+            >
+              Edit
+            </Button>
+          )}
+        </div>
+
+        <div
+          className="grid min-h-0 flex-1 gap-3 overflow-y-auto px-4 pb-4"
+          style={{
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gridAutoRows: 'minmax(104px, auto)',
+          }}
+        >
+          {timezones.map((tz) => {
+            const timeStr = formatTime(currentTime, tz.timezone);
+            const timeParts = timeStr.split(':').slice(0, 2).join(':');
+            const period = timeStr.split(' ')[1];
+            const dateLine = formatDateLine(currentTime, tz.timezone);
+            const diff = getTimeDiff(tz.timezone);
+            const day = isDaytime(currentTime, tz.timezone);
+            const DayNightIcon = day ? Sun : Moon;
+
+            return (
+              <div
+                key={tz.id}
+                className="flex min-w-0 flex-col justify-between rounded-lg border border-border/60 bg-muted/35 p-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-foreground">
+                    {tz.name}
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{dateLine}</span>
+                    <span className="h-3 w-px bg-border" aria-hidden="true" />
+                    <span>{diff}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div className="text-3xl font-semibold leading-none text-foreground">
+                    {timeParts}
+                    <span className="ml-1 text-sm font-medium uppercase text-muted-foreground">
+                      {period}
+                    </span>
+                  </div>
+                  <div className="mb-0.5 flex shrink-0 items-center gap-1 rounded-full bg-background/70 px-2 py-1 text-xs text-muted-foreground">
+                    <DayNightIcon className="h-3.5 w-3.5" />
+                    {day ? 'Day' : 'Night'}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderHeroClockView = (): React.ReactElement => {
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const primaryTimezone = timezones[0] || {
+      id: 0,
+      name: 'Local',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+    const primary = getTimezoneDisplay(primaryTimezone);
+    const secondaryTimezones = timezones.slice(1, 4);
+    const isNarrowHero = width <= 2 && height <= 2;
+    const layoutScale = getAreaScale(4, 10);
+    const heroClockSize = isNarrowHero ? 48 : Math.round(interpolate(54, 72, layoutScale));
+    const secondaryClockSize = isNarrowHero ? 31 : Math.round(interpolate(34, 46, layoutScale));
+    const primaryCitySize = isNarrowHero ? '1.08rem' : `${interpolate(1.35, 1.65, layoutScale)}rem`;
+
+    return (
+      <div className="flex h-full min-h-0 flex-col justify-center gap-2.5 overflow-hidden p-2.5">
+        <div className="flex min-h-0 items-center gap-2.5 px-2.5 py-1.5">
+          <div className="flex shrink-0 items-center justify-center">
+            {renderClock(primaryTimezone.timezone, heroClockSize, isDarkMode)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-medium text-muted-foreground">
+              {getTimezoneOffsetLabel(primaryTimezone.timezone)}
+            </div>
+            <div
+              className={`${isNarrowHero ? 'max-w-full whitespace-normal' : 'truncate'} font-semibold leading-tight text-foreground`}
+              style={{ fontSize: primaryCitySize, overflowWrap: 'anywhere' }}
+              title={primary.city}
+            >
+              {primary.city}
+            </div>
+            {!isNarrowHero ? (
+              <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {primary.time} {primary.period} · {primary.diff}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {secondaryTimezones.length ? (
+          <div className="grid shrink-0 grid-cols-3 gap-2">
+            {secondaryTimezones.map(tz => (
+              <div
+                key={tz.id}
+                className="flex min-w-0 flex-col items-center gap-1 px-1.5 py-1 text-center"
+              >
+                <div className="flex items-center justify-center">
+                  {renderClock(tz.timezone, secondaryClockSize, isDarkMode)}
+                </div>
+                <div className="max-w-full truncate text-sm font-semibold leading-none text-foreground">
+                  {getCityCode(tz.name)}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     );
   };
 
   /**
    * Renders the default view optimized for 2x2 grid size
-   * 
+   *
    * @returns {React.ReactElement} Default view optimized for 2x2 grid size
    */
   const renderDefaultView = (): React.ReactElement => {
     // For small number of timezones, use a cleaner layout
     if (timezones.length <= 2) {
       return (
-        <div className="grid grid-cols-1 gap-3 p-3 h-full transition-all duration-300">
-          {timezones.map(tz => (
-            <div key={tz.id} className="flex justify-between items-center h-full transition-all duration-300">
-              <div className="flex flex-col">
-                <div className="font-medium text-sm tracking-tight text-gray-800 dark:text-gray-200">{tz.name}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">{getTimeDiff(tz.timezone)}</div>
-              </div>
-              <div className="flex flex-col items-end">
-                <div className="text-2xl font-light tracking-tighter leading-tight">
-                  {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
+        <div className="flex h-full flex-col gap-2.5 p-2.5 transition-all duration-300">
+          {timezones.map(tz => {
+            const display = getTimezoneDisplay(tz);
+
+            return (
+              <div
+                key={tz.id}
+                className="flex min-h-0 flex-1 items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/35 px-2.5 py-2 transition-all duration-300"
+              >
+                <div className="min-w-0 flex-1">
+                  <div
+                    className="truncate font-semibold text-foreground"
+                    style={{ fontSize: '0.78rem', lineHeight: 1.15 }}
+                  >
+                    {display.city}
+                  </div>
+                  <div
+                    className="mt-1 text-muted-foreground"
+                    style={{ fontSize: '0.68rem', lineHeight: 1.1 }}
+                  >
+                    {display.diff}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 leading-none tracking-wide">
-                  {formatTime(currentTime, tz.timezone).split(' ')[1]}
+                <div className="shrink-0 text-right">
+                  <div
+                    className="font-light text-foreground"
+                    style={{ fontSize: '1.45rem', lineHeight: 1, letterSpacing: '-0.05em' }}
+                  >
+                    {display.time}
+                  </div>
+                  <div
+                    className="mt-1 uppercase text-muted-foreground"
+                    style={{ fontSize: '0.6rem', lineHeight: 1.1, letterSpacing: '0.14em' }}
+                  >
+                    {display.period}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       );
     }
-    
+
     // For 3+ timezones, use a more compact list view with scrolling
     return (
-      <div className="flex flex-col space-y-2 overflow-y-auto h-full py-2 px-3 transition-all duration-300">
-        {timezones.map(tz => (
-          <div key={tz.id} className="flex justify-between items-center py-1 transition-all duration-300">
-            <div className="flex flex-col min-w-0">
-              <div className="font-medium text-xs tracking-tight text-gray-800 dark:text-gray-200 truncate">{tz.name}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">{getTimeDiff(tz.timezone)}</div>
+      <div className="flex h-full flex-col gap-1.5 overflow-y-auto p-2.5 transition-all duration-300">
+        {timezones.map(tz => {
+          const display = getTimezoneDisplay(tz);
+
+          return (
+            <div
+              key={tz.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/30 px-2 py-1.5 transition-all duration-300"
+            >
+              <div className="min-w-0 flex-1">
+                <div
+                  className="truncate font-medium text-foreground"
+                  style={{ fontSize: '0.72rem', lineHeight: 1.15 }}
+                >
+                  {display.city}
+                </div>
+                <div
+                  className="mt-0.5 text-muted-foreground"
+                  style={{ fontSize: '0.62rem', lineHeight: 1.1 }}
+                >
+                  {display.diff}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <div
+                  className="font-light text-foreground"
+                  style={{ fontSize: '1.05rem', lineHeight: 1, letterSpacing: '-0.045em' }}
+                >
+                  {display.time}
+                </div>
+                <div
+                  className="uppercase text-muted-foreground"
+                  style={{ fontSize: '0.55rem', lineHeight: 1.1, letterSpacing: '0.12em' }}
+                >
+                  {display.period}
+                </div>
+              </div>
             </div>
-            <div className="text-base font-light tracking-tighter whitespace-nowrap ml-1">
-              {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              <span className="text-xs ml-0.5 text-gray-500 dark:text-gray-400 font-normal tracking-normal">
-                {formatTime(currentTime, tz.timezone).split(' ')[1]}
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
   /**
    * Renders the medium view optimized for 2x2 grid size with multiple timezones
-   * 
+   *
    * @returns {React.ReactElement} Medium view optimized for 2x2 grid size with multiple timezones
    */
   const renderMediumView = (): React.ReactElement => {
-    return (
-      <div className="grid grid-cols-2 gap-1 p-1 h-full overflow-y-auto">
-        {timezones.map(tz => (
-          <div key={tz.id} className="flex flex-col items-center justify-center p-1.5 bg-gray-50 dark:bg-slate-700 dark:bg-opacity-50 rounded">
-            <div className="text-base font-bold">
-              {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-            </div>
-            <div className="text-xs font-medium truncate w-full text-center">{tz.name}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{getTimeDiff(tz.timezone)}</div>
-          </div>
-        ))}
-      </div>
-    );
+    return renderHeroClockView();
   };
 
   /**
    * Renders the wide view optimized for 3x2 grid size
-   * 
+   *
    * @returns {React.ReactElement} Wide view optimized for 3x2 grid size
    */
   const renderWideView = (): React.ReactElement => {
+    const isShallow = height <= 2;
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
-    // For 1-3 timezones, show analog clocks
-    if (timezones.length <= 3) {
-      return (
-        <div className="grid grid-cols-3 gap-3 h-full transition-all duration-300">
-          {timezones.map(tz => (
-            <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-xs font-medium tracking-tight text-gray-800 dark:text-gray-200 mb-1 truncate w-full text-center">
-                {tz.name}
-              </div>
-              <div className="mb-0.5">
-                {renderClock(tz.timezone, 50, isDarkMode)}
-              </div>
-              <div className="text-base font-light tracking-tighter">
-                {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    
-    // For 4-6 timezones, show digital clocks in a 3x2 grid
-    if (timezones.length <= 6) {
-      return (
-        <div className="grid grid-cols-3 grid-rows-2 gap-x-3 gap-y-2 h-full transition-all duration-300">
-          {timezones.slice(0, 6).map(tz => (
-            <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-lg font-light tracking-tighter leading-none">
-                {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              </div>
-              <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
-                {tz.name}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
-                {getTimeDiff(tz.timezone)}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-    
-    // For 7+ timezones, use a more compact grid with scrolling
+    const columns = Math.min(timezones.length, width >= 6 ? 6 : width >= 4 ? 4 : 3);
+
     return (
-      <div className="grid grid-cols-3 auto-rows-min gap-x-3 gap-y-2 h-full overflow-y-auto transition-all duration-300">
-        {timezones.map(tz => (
-          <div key={tz.id} className="flex flex-col items-center justify-center py-1 transition-all duration-300">
-            <div className="text-base font-light tracking-tighter leading-none">
-              {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
+      <div
+        className={`grid h-full min-h-0 auto-rows-min content-start overflow-y-auto overflow-x-hidden ${isShallow ? 'gap-x-3 gap-y-2 px-3 py-1' : 'gap-3 px-3 py-2'}`}
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {timezones.map(tz => {
+          const display = getTimezoneDisplay(tz);
+
+          return (
+            <div key={tz.id} className="min-w-0 text-center">
+              {isShallow && (
+                <div className="mb-1 flex items-center justify-center">
+                  {renderClock(tz.timezone, width >= 4 ? 40 : 36, isDarkMode)}
+                </div>
+              )}
+              <div className={`${isShallow ? 'text-[1.18rem] leading-tight' : 'text-2xl leading-[1.12]'} truncate font-semibold text-foreground`}>
+                {display.time}
+              </div>
+              <div className={`${isShallow ? 'mt-0 text-[0.78rem]' : 'mt-1 text-sm'} truncate font-semibold leading-tight text-foreground`}>
+                {display.city}
+              </div>
+              <div className={`${isShallow ? 'mt-0 text-[0.68rem]' : 'mt-0.5 text-xs'} truncate font-medium leading-tight text-muted-foreground`}>
+                {display.diff}
+              </div>
             </div>
-            <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
-              {tz.name}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
-              {getTimeDiff(tz.timezone)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
   /**
    * Renders the tall view optimized for 2x3+ grid sizes
-   * 
+   *
    * @returns {React.ReactElement} Tall view optimized for 2x3+ grid sizes
    */
   const renderTallView = (): React.ReactElement => {
-    const isDarkMode = document.documentElement.classList.contains('dark');
-    
-    // For 1-4 timezones, show larger clocks with more details
     if (timezones.length <= 4) {
-      return (
-        <div className="grid grid-cols-2 gap-2 h-full transition-all duration-300">
-          {timezones.map(tz => (
-            <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-xs font-medium mb-0.5 truncate w-full text-center text-gray-800 dark:text-gray-200">
-                {tz.name}
-              </div>
-              <div className="mb-0.5">
-                {renderClock(tz.timezone, 50, isDarkMode)}
-              </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              </div>
-              <div className="text-xs text-gray-400 dark:text-gray-500">
-                {getTimeDiff(tz.timezone)}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
+      return renderHeroClockView();
     }
-    
+
+    const isDarkMode = document.documentElement.classList.contains('dark');
+
     // For 5+ timezones, use a compact layout with smaller clocks
     return (
-      <div className="grid grid-cols-2 auto-rows-min gap-1 h-full overflow-y-auto transition-all duration-300">
-        {timezones.map(tz => (
-          <div key={tz.id} className="flex items-center p-1 transition-all duration-300">
-            <div className="mr-1.5">
-              {renderClock(tz.timezone, 30, isDarkMode)}
-            </div>
-            <div className="flex flex-col min-w-0 flex-1">
-              <div className="text-xs font-medium truncate text-gray-800 dark:text-gray-200">{tz.name}</div>
-              <div className="text-xs font-bold">
-                {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
+      <div className="grid h-full grid-cols-2 auto-rows-min overflow-y-auto transition-all duration-300" style={{ gap: '0.55rem' }}>
+        {timezones.map(tz => {
+          const display = getTimezoneDisplay(tz);
+
+          return (
+            <div
+              key={tz.id}
+              className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-2 py-1.5 transition-all duration-300"
+            >
+              <div className="shrink-0">
+                {renderClock(tz.timezone, 32, isDarkMode)}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">{getTimeDiff(tz.timezone)}</div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className="truncate font-semibold text-foreground"
+                  style={{ fontSize: '0.72rem', lineHeight: 1.15 }}
+                >
+                  {display.city}
+                </div>
+                <div
+                  className="font-light text-foreground"
+                  style={{ fontSize: '0.95rem', lineHeight: 1.05, letterSpacing: '-0.04em' }}
+                >
+                  {display.time}
+                  <span
+                    className="ml-1 uppercase text-muted-foreground"
+                    style={{ fontSize: '0.55rem', lineHeight: 1, letterSpacing: '0.12em' }}
+                  >
+                    {display.period}
+                  </span>
+                </div>
+                <div
+                  className="mt-0.5 text-muted-foreground"
+                  style={{ fontSize: '0.6rem', lineHeight: 1.1 }}
+                >
+                  {display.diff}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
   /**
    * Renders the full view optimized for 4x4+ grid sizes
-   * 
+   *
    * @returns {React.ReactElement} Full view optimized for 4x4+ grid sizes
    */
   const renderFullView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+    const layoutScale = getAreaScale(16, 25);
+    const columns = timezones.length <= 4 ? 2 : 3;
+    const rows = Math.ceil(timezones.length / columns);
+    const clockSize = Math.round(interpolate(72, 84, layoutScale));
+    const gap = `${interpolate(0.8, 1.1, layoutScale)}rem`;
+    const cardPadding = `${interpolate(0.95, 1.2, layoutScale)}rem`;
+    const titleSize = `${interpolate(0.94, 1.08, layoutScale)}rem`;
+    const timeSize = interpolate(1.7, 2.05, layoutScale);
+    const metaSize = `${interpolate(0.68, 0.8, layoutScale)}rem`;
+
     return (
-      <div className="grid grid-cols-3 gap-3 h-full overflow-y-auto transition-all duration-300">
-        {timezones.map(tz => (
-          <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-            <div className="text-sm font-medium mb-1 text-gray-800 dark:text-gray-200 truncate w-full text-center">{tz.name}</div>
-            <div className="mb-2">
-              {renderClock(tz.timezone, 70, isDarkMode)}
+      <div
+        className="grid h-full min-h-0 overflow-y-auto transition-all duration-300"
+        style={{
+          gap,
+          gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+          gridTemplateRows: timezones.length <= 6 ? `repeat(${rows}, minmax(0, 1fr))` : undefined,
+        }}
+      >
+        {timezones.map(tz => {
+          const display = getTimezoneDisplay(tz);
+
+          return (
+            <div
+              key={tz.id}
+              className="flex min-h-0 flex-col items-center justify-between overflow-hidden rounded-2xl border border-border/60 bg-muted/35 text-center transition-all duration-300"
+              style={{ padding: cardPadding }}
+            >
+              <div
+                className="min-h-[1.8rem] w-full px-1 font-semibold text-foreground"
+                style={{ fontSize: titleSize, lineHeight: 1.15 }}
+              >
+                {display.city}
+              </div>
+              <div className="my-2">
+                {renderClock(tz.timezone, clockSize, isDarkMode)}
+              </div>
+              <div
+                className="font-light text-foreground"
+                style={{ fontSize: `${timeSize}rem`, lineHeight: 1, letterSpacing: '-0.055em' }}
+              >
+                {display.time}
+                <span
+                  className="ml-1 font-medium uppercase text-muted-foreground"
+                  style={{ fontSize: `${Math.max(0.78, timeSize * 0.42)}rem`, letterSpacing: '0.14em' }}
+                >
+                  {display.period}
+                </span>
+              </div>
+              <div
+                className="mt-1 text-muted-foreground"
+                style={{ fontSize: metaSize, lineHeight: 1.15, letterSpacing: '0.05em' }}
+              >
+                {display.relativeDate}
+              </div>
+              <div className="text-muted-foreground" style={{ fontSize: metaSize, lineHeight: 1.15 }}>
+                {display.diff}
+              </div>
             </div>
-            <div className="text-lg font-light tracking-tighter">
-              {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-              <span className="text-sm font-normal text-gray-500 dark:text-gray-400 ml-1">
-                {formatTime(currentTime, tz.timezone).split(' ')[1]}
-              </span>
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 tracking-wide">
-              {getRelativeDate(currentTime, tz.timezone)}
-            </div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 tracking-wide">
-              {getTimeDiff(tz.timezone)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };
 
   /**
-   * Renders the extra-wide view optimized for 6×2 or wider layouts
-   * 
-   * @returns {React.ReactElement} Extra-wide view optimized for 6×2 or wider layouts
+   * Renders the extra-wide view optimized for 6x2 or wider layouts
+   *
+   * @returns {React.ReactElement} Extra-wide view optimized for 6x2 or wider layouts
    */
   const renderExtraWideView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     // For 1-6 timezones, show in a single row with larger analog clocks
     if (timezones.length <= 6) {
       return (
         <div className="grid grid-cols-6 gap-3 h-full transition-all duration-300">
           {timezones.map(tz => (
             <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-              <div className="text-sm font-medium tracking-tight text-gray-800 dark:text-gray-200 mb-1 truncate w-full text-center">
-                {tz.name}
+              <div className="text-sm font-medium tracking-tight text-foreground mb-1 truncate w-full text-center">
+                {getCityLabel(tz.name)}
               </div>
               <div className="relative mb-1">
                 {renderClock(tz.timezone, 46, isDarkMode)}
               </div>
               <div className="font-light text-xl tracking-tighter leading-none">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
-                <span className="text-xs ml-1 text-gray-500 dark:text-gray-400 font-normal tracking-normal">
+                <span className="text-xs ml-1 text-muted-foreground font-normal tracking-normal">
                   {formatTime(currentTime, tz.timezone).split(' ')[1]}
                 </span>
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide mt-0.5">
+              <div className="text-xs text-muted-foreground tracking-wide mt-0.5">
                 {getTimeDiff(tz.timezone)}
               </div>
             </div>
@@ -745,8 +1236,8 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
-    // For 7-12 timezones, use a 6×2 grid layout
+
+    // For 7-12 timezones, use a 6x2 grid layout
     if (timezones.length <= 12) {
       return (
         <div className="grid grid-cols-6 grid-rows-2 gap-x-3 gap-y-1 h-full transition-all duration-300">
@@ -755,10 +1246,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               <div className="font-light text-lg tracking-tighter leading-none">
                 {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
               </div>
-              <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
-                {tz.name}
+              <div className="text-xs font-medium tracking-tight text-foreground truncate w-full text-center mt-0.5">
+                {getCityLabel(tz.name)}
               </div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+              <div className="text-xs text-muted-foreground tracking-wide">
                 {getTimeDiff(tz.timezone)}
               </div>
             </div>
@@ -766,7 +1257,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         </div>
       );
     }
-    
+
     // For 13+ timezones, use a scrollable 6-column grid
     return (
       <div className="grid grid-cols-6 auto-rows-min gap-x-3 gap-y-2 h-full overflow-y-auto transition-all duration-300">
@@ -775,10 +1266,10 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
             <div className="font-light text-lg tracking-tighter leading-none">
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
             </div>
-            <div className="text-xs font-medium tracking-tight text-gray-700 dark:text-gray-300 truncate w-full text-center mt-0.5">
-              {tz.name}
+            <div className="text-xs font-medium tracking-tight text-foreground truncate w-full text-center mt-0.5">
+              {getCityLabel(tz.name)}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+            <div className="text-xs text-muted-foreground tracking-wide">
               {getTimeDiff(tz.timezone)}
             </div>
           </div>
@@ -788,19 +1279,19 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   /**
-   * Renders the tall-wide view optimized for 2×3 or 2×4 grid sizes
-   * 
-   * @returns {React.ReactElement} Tall-wide view optimized for 2×3 or 2×4 grid sizes
+   * Renders the tall-wide view optimized for 2x3 or 2x4 grid sizes
+   *
+   * @returns {React.ReactElement} Tall-wide view optimized for 2x3 or 2x4 grid sizes
    */
   const renderTallWideView = (): React.ReactElement => {
     const isDarkMode = document.documentElement.classList.contains('dark');
-    
+
     return (
       <div className="grid grid-cols-2 gap-4 h-full transition-all duration-300">
         {timezones.map(tz => (
           <div key={tz.id} className="flex flex-col items-center justify-center h-full transition-all duration-300">
-            <div className="text-sm font-medium tracking-tight text-gray-800 dark:text-gray-200 mb-1 truncate w-full text-center">
-              {tz.name}
+            <div className="text-sm font-medium tracking-tight text-foreground mb-1 truncate w-full text-center">
+              {getCityLabel(tz.name)}
             </div>
             <div className="relative mb-1">
               {renderClock(tz.timezone, 70, isDarkMode)}
@@ -809,11 +1300,11 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
               {formatTime(currentTime, tz.timezone).split(':').slice(0, 2).join(':')}
             </div>
             <div className="flex items-center justify-center space-x-2 mt-1">
-              <div className="text-xs text-gray-500 dark:text-gray-400 tracking-wide">
+              <div className="text-xs text-muted-foreground tracking-wide">
                 {getTimeDiff(tz.timezone)}
               </div>
-              <div className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-              <div className="text-xs text-gray-500 dark:text-gray-400 leading-none tracking-wide">
+              <div className="w-1 h-1 bg-border rounded-full"></div>
+              <div className="text-xs text-muted-foreground leading-none tracking-wide">
                 {formatTime(currentTime, tz.timezone).split(' ')[1]}
               </div>
             </div>
@@ -825,57 +1316,78 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Renders the appropriate view for the current dimensions and timezone count
-   * 
+   *
    * @returns {React.ReactElement} The appropriate view for the current dimensions and timezone count
    */
   const renderContent = (): React.ReactElement => {
     if (timezones.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">No timezones added</p>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="px-3 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600"
-          >
-            Add Timezone
-          </button>
+          <p className="text-sm text-muted-foreground mb-2">No timezones added</p>
+          {!readOnly && (
+            <Button
+              size="sm"
+              onClick={() => setShowSettings(true)}
+            >
+              Add Timezone
+            </Button>
+          )}
         </div>
       );
     }
-    
-    // Single timezone for very small widgets
-    if (width === 1 && height === 1) {
+
+    // 1x1 tiny icon
+    if (isTiny) {
       return renderCompactView();
     }
-    
-    // Determine the best view based on dimensions and timezone count
-    
+
+    // 1xN narrow column: keep it to one primary clock.
+    if (width === 1) {
+      return renderNarrowView();
+    }
+
+    // Nx1 ribbon
+    if (isShort) {
+      return renderRibbonView();
+    }
+
+    // 6x6+ app dashboard
+    if (isApp) {
+      return renderAppView();
+    }
+
+    // ── Size routing ──────────────────────────────────────────────
+
+    if (timezones.length <= 4 && width <= 4 && height <= 4 && width >= 2 && height >= 2) {
+      return renderHeroClockView();
+    }
+
     // Full size widgets - use the most detailed view
     if (width >= 4 && height >= 4) {
       return renderFullView();
     }
-    
+
     // Extra-wide layout (6+ columns, 2 rows)
     if (width >= 6 && height === 2) {
       return renderExtraWideView();
     }
-    
+
     // Tall-wide layout (2 columns, 3-4 rows)
     if (width === 2 && (height === 3 || height === 4)) {
       return renderTallWideView();
     }
-    
+
     // Tall layout - 2x5+
     if (width === 2 && height >= 5) {
       // For many timezones in this layout, the tall view with compact list is best
       return renderTallView();
     }
-    
+
     // Wide layout - 3x2 to 5x2
     if (width >= 3 && height === 2) {
       return renderWideView();
     }
-    
+
     // Square 2x2 layout
     if (width === 2 && height === 2) {
       // Choose based on number of timezones
@@ -887,26 +1399,26 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         return renderDefaultView(); // Scrollable list for many timezones
       }
     }
-    
+
     // 3x3 and similar sizes
     if (width >= 3 && height >= 3) {
       return renderTallView();
     }
-    
+
     // For all other irregular sizes, choose based on aspect ratio
     if (width > height) {
       return renderWideView(); // Wider than tall
     } else if (height > width) {
       return renderTallView(); // Taller than wide
     }
-    
+
     // Default fallback for other dimensions
     return renderDefaultView();
   };
 
   /**
    * Handles the start of dragging a timezone item
-   * 
+   *
    * @param {number} index - The index of the item being dragged
    */
   const handleDragStart = (index: number) => {
@@ -915,7 +1427,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 
   /**
    * Handles dragging over another timezone item
-   * 
+   *
    * @param {number} index - The index of the item being dragged over
    */
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
@@ -930,19 +1442,19 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     if (draggedItemIndex !== null && dragOverItemIndex !== null) {
       // Create a copy of the current timezones
       const updatedTimezones = [...timezones];
-      
+
       // Save the dragged item
       const draggedItem = updatedTimezones[draggedItemIndex];
-      
+
       // Remove the dragged item from its original position
       updatedTimezones.splice(draggedItemIndex, 1);
-      
+
       // Insert the dragged item at the new position
       updatedTimezones.splice(dragOverItemIndex, 0, draggedItem);
-      
+
       // Update state with the new order
       setTimezones(updatedTimezones);
-      
+
       // Save using onUpdate callback to persist
       if (config?.onUpdate) {
         config.onUpdate({
@@ -951,7 +1463,7 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
         });
       }
     }
-    
+
     // Reset drag state
     setDraggedItemIndex(null);
     setDragOverItemIndex(null);
@@ -965,9 +1477,50 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
     setDragOverItemIndex(null);
   };
 
+  // ── Settings modal helpers ──────────────────────────────────────
+
+  /** Reset draft state back to the persisted snapshot */
+  const resetSettingsDraft = useCallback(() => {
+    setTimezones(savedTimezones);
+    setCitySearchInput('');
+    setSearchResults([]);
+  }, [savedTimezones]);
+
+  /** Called when the Dialog open state changes */
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    if (nextOpen) {
+      // Snapshot current timezones when opening
+      setSavedTimezones(timezones);
+    } else {
+      // Closing without save => revert
+      resetSettingsDraft();
+    }
+    setShowSettings(nextOpen);
+  }, [timezones, resetSettingsDraft]);
+
+  /** Cancel button handler */
+  const handleCancelSettings = useCallback(() => {
+    resetSettingsDraft();
+    setShowSettings(false);
+  }, [resetSettingsDraft]);
+
+  /** Save button handler */
+  const saveSettings = useCallback(() => {
+    if (config?.onUpdate) {
+      config.onUpdate({
+        ...config,
+        timezones: timezones
+      });
+    }
+    setSavedTimezones(timezones);
+    setShowSettings(false);
+    setCitySearchInput('');
+    setSearchResults([]);
+  }, [config, timezones]);
+
   /**
    * Renders the settings content
-   * 
+   *
    * @returns {React.ReactElement} Settings content
    */
   const renderSettingsContent = (): React.ReactElement => {
@@ -998,49 +1551,49 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   </div>
                 )}
               </div>
-              
+
               {searchResults.length > 0 && (
-                <div className="mt-1 border rounded-md overflow-hidden max-h-60 overflow-y-auto bg-white dark:bg-gray-800">
+                <div className="mt-1 border rounded-md overflow-hidden max-h-60 overflow-y-auto bg-card">
                   {searchResults.map((result, index) => (
                     <div
                       key={index}
-                      className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-0"
+                      className="px-3 py-2 hover:bg-accent cursor-pointer border-b border-border last:border-0"
                       onClick={() => selectCity(result)}
                     >
                       <div className="font-medium">{result.city}, {result.country}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{result.timezone}</div>
+                      <div className="text-xs text-muted-foreground">{result.timezone}</div>
                     </div>
                   ))}
                 </div>
               )}
-              
+
               {citySearchInput && searchResults.length === 0 && !isSearching && (
-                <div className="text-sm text-gray-500 mt-1 px-1">
+                <div className="text-sm text-muted-foreground mt-1 px-1">
                   No cities found. Try a different search term.
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
-        
+
         {timezones.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center justify-between">
                 <span>Current Timezones</span>
-                <div className="text-xs text-gray-500 font-normal">Drag to reorder</div>
+                <div className="text-xs text-muted-foreground font-normal">Drag to reorder</div>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {timezones.map((tz, index) => (
-                <div 
-                  key={tz.id} 
+                <div
+                  key={tz.id}
                   className={`flex justify-between items-center p-2 rounded-lg border ${
-                    draggedItemIndex === index 
-                      ? 'bg-gray-100 dark:bg-gray-700 border-blue-300 dark:border-blue-500 opacity-50' 
-                      : dragOverItemIndex === index 
-                        ? 'bg-gray-50 dark:bg-gray-800 border-blue-200 dark:border-blue-700' 
-                        : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    draggedItemIndex === index
+                      ? 'bg-muted border-primary opacity-50'
+                      : dragOverItemIndex === index
+                        ? 'bg-muted border-primary/50'
+                        : 'bg-muted border-border'
                   } transition-colors duration-150`}
                   draggable
                   onDragStart={() => handleDragStart(index)}
@@ -1049,19 +1602,19 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
                   onDragEnd={handleDragEnd}
                 >
                   <div className="flex items-center gap-2 flex-1 overflow-hidden">
-                    <div className="cursor-move flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <div className="cursor-move flex items-center justify-center text-muted-foreground hover:text-foreground">
                       <GripVertical size={16} />
                     </div>
                     <div className="overflow-hidden">
                       <div className="font-medium truncate">{tz.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{tz.timezone}</div>
+                      <div className="text-xs text-muted-foreground truncate">{tz.timezone}</div>
                     </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removeTimezone(tz.id)}
-                    className="text-gray-500 hover:text-red-500 ml-2 shrink-0"
+                    className="text-muted-foreground hover:text-destructive ml-2 shrink-0"
                   >
                     <Trash size={16} />
                   </Button>
@@ -1075,84 +1628,70 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
   };
 
   /**
-   * Renders the settings footer
-   * 
-   * @returns {React.ReactElement} Settings footer
+   * Renders the settings dialog
    */
-  const renderSettingsFooter = (): React.ReactElement => {
-    return (
-      <div className="flex justify-between w-full">
-        {config?.onDelete && (
-          <Button
-            variant="destructive"
-            onClick={() => {
-              if (config.onDelete) {
-                config.onDelete();
-              }
-            }}
-            aria-label="Delete this widget"
-          >
-            Delete
-          </Button>
-        )}
-        
-        <div className="flex justify-end">
-          <Button
-            variant="default"
-            onClick={() => {
-              // Explicitly save current timezone list to ensure persistence
-              if (config?.onUpdate) {
-                config.onUpdate({
-                  ...config,
-                  timezones: timezones
-                });
-              }
-              
-              setShowSettings(false);
-              setCitySearchInput('');
-              setSearchResults([]);
-            }}
-          >
-            Save
-          </Button>
+  const renderSettings = () => (
+    <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+      <DialogContent className="settings-dialog-content flex max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="gap-2 px-6 pt-6">
+          <DialogTitle>World Clocks Settings</DialogTitle>
+          <DialogDescription>
+            Add, remove, and reorder the timezones displayed by this widget.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 overflow-y-auto px-6 py-4">
+          {renderSettingsContent()}
         </div>
-      </div>
-    );
-  };
+
+        <DialogFooter className="flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            {config?.onDelete && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  if (config.onDelete) {
+                    config.onDelete();
+                  }
+                }}
+                aria-label="Delete this widget"
+              >
+                Delete Widget
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleCancelSettings}>
+              Cancel
+            </Button>
+            <Button variant="default" onClick={saveSettings}>
+              Save
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // ── Main return ─────────────────────────────────────────────────
+  const suppressHeader = isTiny || isApp;
+  const headerTitle = width === 1 ? undefined : 'World Clocks';
 
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title="World Clocks" 
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      
-      <div className="flex-1 overflow-hidden">
+    <div ref={widgetRef} className={`widget-container h-full flex flex-col ${isTiny ? 'widget-drag-handle' : ''}`}>
+      {!suppressHeader && (
+        <WidgetHeader
+          title={headerTitle}
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isCompact || isShort || width === 1 || height <= 2}
+        />
+      )}
+
+      <div className={`flex-1 overflow-hidden ${isTiny ? 'p-1.5' : ''}`}>
         {renderContent()}
       </div>
-      
-      {showSettings && (
-        <Dialog
-          open={showSettings}
-          onOpenChange={(open: boolean) => {
-            if (!open) {
-              setShowSettings(false);
-            }
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>World Clocks Settings</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              {renderSettingsContent()}
-            </div>
-            <DialogFooter>
-              {renderSettingsFooter()}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+
+      {!readOnly && renderSettings()}
     </div>
   );
 };
@@ -1160,4 +1699,4 @@ const WorldClocksWidget: React.FC<WorldClocksWidgetProps> = ({ width, height, co
 export default WorldClocksWidget;
 
 // Export types for use in other files
-export * from './types'; 
+export * from './types';

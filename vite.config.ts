@@ -2,6 +2,27 @@ import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { execSync } from 'child_process'
+
+// Get git commit hash for build versioning
+const getGitHash = () => {
+  if (process.env.VITE_BUILD_HASH) {
+    return process.env.VITE_BUILD_HASH
+  }
+
+  try {
+    return execSync('git rev-parse --short HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim()
+  } catch {
+    return 'unknown'
+  }
+}
+
+// Get build timestamp
+const getBuildTime = () => {
+  return new Date().toISOString()
+}
 
 // Helper function to get allowed hosts from environment or use defaults
 const getAllowedHosts = () => {
@@ -13,6 +34,8 @@ const getAllowedHosts = () => {
     '.docker.internal',
     // OrbStack domains
     '.orb.local',
+    // Tailscale domains
+    '.ts.net',
     // Allow all subdomains of these base domains
     'boxento-dev.boxento.orb.local',
     'boxento-prod.boxento.orb.local',
@@ -27,6 +50,10 @@ const getAllowedHosts = () => {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    __BUILD_HASH__: JSON.stringify(getGitHash()),
+    __BUILD_TIME__: JSON.stringify(getBuildTime()),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -38,6 +65,12 @@ export default defineConfig({
         target: 'https://mindicador.cl',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/mindicador/, ''),
+        secure: false
+      },
+      '/api/ollama': {
+        target: 'http://localhost:11434',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/ollama/, '/api'),
         secure: false
       }
     },
@@ -68,17 +101,24 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             return 'vendor';
           }
-          
+
           // App.tsx in its own chunk due to size
           if (id.includes('/App.tsx')) {
             return 'app';
           }
-          
-          // Components in their own chunk
+
+          // Let widget components be lazy-loaded into their own chunks
+          // Do NOT include them in ui-components
+          if (id.includes('/components/widgets/') && !id.includes('/common/')) {
+            // Return undefined to let Rollup handle chunking via dynamic imports
+            return undefined;
+          }
+
+          // Other components (UI, auth, etc.) in their own chunk
           if (id.includes('/components/')) {
             return 'ui-components';
           }
-          
+
           // Library files (including contexts) in their own chunk
           if (id.includes('/lib/') || id.includes('/utils/')) {
             return 'lib';

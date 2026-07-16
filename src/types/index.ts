@@ -23,6 +23,7 @@ export interface WidgetProps<T extends Record<string, unknown> = Record<string, 
   config?: T & {
     onDelete?: () => void;
     onUpdate?: (config: T) => void;
+    readOnly?: boolean;
   };
   [key: string]: unknown;
 }

@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react'
-import { ExternalLink, Plus, Trash, Edit } from 'lucide-react'
-import WidgetHeader from '../../widgets/common/WidgetHeader'
+import React, { useState, useRef, useMemo } from 'react'
+import { ExternalLink, Plus, Trash, Edit, Search, Globe, X, Pencil, Trash2, FolderOpen } from 'lucide-react'
+import { WidgetSettingsDialog, WidgetSettingsDialogFooter } from '../../widgets/common/WidgetSettingsDialog'
+import { WidgetShell } from '../../widgets/common/WidgetShell'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,17 @@ import { Button } from '../../ui/button'
 import { Label } from '../../ui/label'
 import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+
+// Sanitize URLs to prevent javascript: and data: protocol injection
+const sanitizeUrl = (url: string): string => {
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') return parsed.href;
+    return '#';
+  } catch {
+    return '#';
+  }
+};
 
 /**
  * Fetches metadata from a URL including title and favicon
@@ -93,6 +105,16 @@ const fetchUrlMetadata = async (url: string): Promise<{ title: string; favicon: 
   }
 };
 
+type AppDialogMode = 'add' | 'edit' | 'details';
+
+const createEmptyAppLink = (): LinkItem => ({
+  id: 0,
+  title: '',
+  url: '',
+  favicon: '',
+  category: '',
+});
+
 /**
  * QuickLinks Widget Component
  * 
@@ -104,15 +126,23 @@ const fetchUrlMetadata = async (url: string): Promise<{ title: string; favicon: 
  * @param {QuickLinksWidgetProps} props - Component props
  * @returns {JSX.Element} QuickLinks widget component
  */
-const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
+const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ width, height, config }) => {
+  const isTiny = width === 1 && height === 1;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
   const [links, setLinks] = useState<LinkItem[]>(config?.links || []);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [editingLink, setEditingLink] = useState<LinkItem | null>(null);
   const [newLinkUrl, setNewLinkUrl] = useState<string>('');
   const [isLoading] = useState<boolean>(false);
   const newLinkInputRef = useRef<HTMLInputElement | null>(null);
-  const widgetRef = useRef<HTMLDivElement | null>(null);
   const [loadingLinkIds, setLoadingLinkIds] = useState<number[]>([]);
+
+  // App-mode state
+  const [appSearchQuery, setAppSearchQuery] = useState('');
+  const [selectedLinkId, setSelectedLinkId] = useState<number | null>(null);
+  const [appEditingLink, setAppEditingLink] = useState<LinkItem | null>(null);
+  const [appDialogMode, setAppDialogMode] = useState<AppDialogMode | null>(null);
 
   // Widget settings state
   const [displayMode, setDisplayMode] = useState<'regular' | 'compact'>(config?.displayMode || 'regular');
@@ -125,7 +155,6 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
     if (config) {
       const shouldUpdateLinks = config.links && JSON.stringify(config.links) !== JSON.stringify(links);
       if (shouldUpdateLinks) {
-        console.log('Updating links from config:', config.links);
         setLinks(config.links);
       }
       
@@ -140,7 +169,8 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
         setShowFavicons(config.showFavicons);
       }
     }
-  }, [config]); // Depend on entire config object
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- sync local widget state only when upstream config changes
+  }, [config]);
 
   /**
    * Adds or updates a link in the links collection
@@ -196,6 +226,15 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
     
     // Update state
     setLinks(updatedLinks);
+    if (selectedLinkId === id) {
+      setSelectedLinkId(null);
+    }
+    if (appEditingLink?.id === id) {
+      setAppEditingLink(null);
+    }
+    if ((selectedLinkId === id || appEditingLink?.id === id) && appDialogMode) {
+      setAppDialogMode(null);
+    }
     
     // Save using onUpdate callback to persist
     if (config?.onUpdate) {
@@ -235,6 +274,15 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
           customTitle
         });
       }, 0);
+    }
+    setShowSettings(false);
+  }
+
+  const resetSettings = () => {
+    if (config) {
+      setDisplayMode(config.displayMode || 'regular');
+      setShowFavicons(config.showFavicons !== false);
+      setCustomTitle(config.customTitle || 'Quick Links');
     }
     setShowSettings(false);
   }
@@ -368,27 +416,495 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
     }
   };
 
+  // ─── App-mode helpers ─────────────────────────────────────────────────
+  const filteredLinks = useMemo(() => {
+    if (!appSearchQuery.trim()) return links;
+    const q = appSearchQuery.toLowerCase();
+    return links.filter(
+      l =>
+        l.title.toLowerCase().includes(q) ||
+        l.url.toLowerCase().includes(q) ||
+        (l.category && l.category.toLowerCase().includes(q))
+    );
+  }, [links, appSearchQuery]);
+
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    links.forEach(l => { if (l.category) cats.add(l.category); });
+    return Array.from(cats).sort();
+  }, [links]);
+
+  const selectedLink = useMemo(
+    () => links.find(l => l.id === selectedLinkId) ?? null,
+    [links, selectedLinkId]
+  );
+
+  const openAppAddDialog = () => {
+    setAppEditingLink(createEmptyAppLink());
+    setSelectedLinkId(null);
+    setAppDialogMode('add');
+  };
+
+  const openAppEditDialog = (link: LinkItem) => {
+    setAppEditingLink({ ...link });
+    setSelectedLinkId(link.id);
+    setAppDialogMode('edit');
+  };
+
+  const openAppDetailsDialog = (linkId: number) => {
+    setSelectedLinkId(linkId);
+    setAppEditingLink(null);
+    setAppDialogMode('details');
+  };
+
+  const closeAppDialog = () => {
+    setAppDialogMode(null);
+    setAppEditingLink(null);
+  };
+
+  const handleAppAddLink = async () => {
+    if (!appEditingLink || !appEditingLink.url.trim()) return;
+    const normalizedUrl = appEditingLink.url.startsWith('http')
+      ? appEditingLink.url
+      : `https://${appEditingLink.url}`;
+
+    let title = appEditingLink.title;
+    let favicon = appEditingLink.favicon;
+    try {
+      const urlObj = new URL(normalizedUrl);
+      if (!favicon) favicon = `https://icons.duckduckgo.com/ip3/${urlObj.hostname}.ico`;
+      if (!title) title = urlObj.hostname;
+    } catch {
+      if (!title) title = normalizedUrl;
+      if (!favicon) favicon = '';
+    }
+
+    const newId = Math.max(0, ...links.map(l => l.id), 0) + 1;
+    const newLink: LinkItem = {
+      id: appEditingLink.id || newId,
+      url: normalizedUrl,
+      title,
+      favicon,
+      category: appEditingLink.category || undefined,
+    };
+
+    let updatedLinks: LinkItem[];
+    if (appEditingLink.id) {
+      updatedLinks = links.map(l => (l.id === appEditingLink.id ? newLink : l));
+    } else {
+      updatedLinks = [...links, newLink];
+    }
+
+    const previousLinks = links;
+    setLinks(updatedLinks);
+
+    // Persist
+    try {
+      if (config?.onUpdate) {
+        await Promise.resolve(config.onUpdate({ ...config, links: updatedLinks }));
+      }
+    } catch (error) {
+      console.error('Error updating quick links:', error);
+      setLinks(previousLinks);
+      return;
+    }
+
+    setSelectedLinkId(newLink.id);
+    closeAppDialog();
+
+    // Fetch metadata in background
+    try {
+      const metadata = await fetchUrlMetadata(normalizedUrl);
+      if (metadata.title !== title) {
+        const enriched = { ...newLink, title: metadata.title, favicon: metadata.favicon };
+        const enrichedLinks = updatedLinks.map(l => (l.id === newLink.id ? enriched : l));
+        setLinks(enrichedLinks);
+        if (config?.onUpdate) {
+          await Promise.resolve(config.onUpdate({ ...config, links: enrichedLinks }));
+        }
+      }
+    } catch { /* best-effort */ }
+  };
+
+  // ─── App view (6x6+) ────────────────────────────────────────────────
+  const renderAppView = () => {
+    return (
+      <div className="flex h-full flex-col">
+        {/* Top bar */}
+        <div className="flex items-center gap-3 py-2">
+          <div
+            data-testid="quick-links-header"
+            className="widget-drag-handle flex shrink-0 cursor-move items-center gap-2 rounded-md px-1 py-0.5"
+          >
+            <h2 className="text-lg font-semibold text-foreground">
+              {customTitle}
+            </h2>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {filteredLinks.length} / {links.length} links
+            </span>
+          </div>
+          <div className="relative min-w-0 max-w-md flex-1">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              value={appSearchQuery}
+              onChange={e => setAppSearchQuery(e.target.value)}
+              placeholder="Search links..."
+              className="pl-8 pr-8"
+            />
+            {appSearchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Clear search"
+                onClick={() => setAppSearchQuery('')}
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+              >
+                <X size={14} />
+              </Button>
+            )}
+          </div>
+          {!readOnly && (
+            <Button
+              size="sm"
+              onClick={openAppAddDialog}
+              className="shrink-0"
+            >
+              <Plus size={14} className="mr-1" />
+              Add Link
+            </Button>
+          )}
+        </div>
+
+        <div className="flex-1 overflow-y-auto pt-2">
+          {filteredLinks.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+              <Globe size={32} className="mb-2 opacity-60" />
+              <p className="text-sm">
+                {appSearchQuery ? 'No links match your search' : 'No links yet. Add your first bookmark!'}
+              </p>
+              {!readOnly && !appSearchQuery && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openAppAddDialog}
+                  className="mt-4"
+                >
+                  <Plus size={14} className="mr-1" />
+                  Add Link
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div
+              className="grid gap-3"
+              style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+            >
+              {filteredLinks.map(link => (
+                <div
+                  key={link.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openAppDetailsDialog(link.id)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openAppDetailsDialog(link.id);
+                    }
+                  }}
+                  className={`group relative flex cursor-pointer flex-col rounded-lg border p-3 text-left transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                    selectedLinkId === link.id
+                      ? 'border-blue-400 bg-blue-50 shadow-sm dark:border-blue-500 dark:bg-blue-900/20'
+                      : 'border-border bg-card hover:border-border'
+                  }`}
+                >
+                  {!readOnly && (
+                    <div className="absolute right-2 top-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={e => {
+                          e.stopPropagation();
+                          openAppEditDialog(link);
+                        }}
+                        aria-label={`Edit ${link.title}`}
+                      >
+                        <Pencil size={12} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                        onClick={e => {
+                          e.stopPropagation();
+                          removeLink(link.id);
+                        }}
+                        aria-label={`Delete ${link.title}`}
+                      >
+                        <Trash2 size={12} />
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2.5">
+                    {showFavicons && link.favicon && (
+                      <img
+                        src={link.favicon}
+                        alt=""
+                        className="h-5 w-5 shrink-0 rounded"
+                        loading="lazy"
+                      />
+                    )}
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {link.title}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 truncate text-xs text-muted-foreground">
+                    {link.url}
+                  </p>
+                  {link.category && (
+                    <span className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      <FolderOpen size={10} />
+                      {link.category}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <Dialog
+          open={appDialogMode !== null}
+          onOpenChange={(open: boolean) => {
+            if (!open) {
+              closeAppDialog();
+            }
+          }}
+        >
+          {(appDialogMode === 'add' || appDialogMode === 'edit') && appEditingLink ? (
+            <DialogContent className="settings-dialog-content sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{appDialogMode === 'add' ? 'Add Link' : 'Edit Link'}</DialogTitle>
+              </DialogHeader>
+              <form
+                className="space-y-4"
+                onSubmit={event => {
+                  event.preventDefault();
+                  void handleAppAddLink();
+                }}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="app-link-url">URL</Label>
+                  <Input
+                    id="app-link-url"
+                    type="text"
+                    inputMode="url"
+                    value={appEditingLink.url}
+                    onChange={e => setAppEditingLink({ ...appEditingLink, url: e.target.value })}
+                    placeholder="https://example.com"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="app-link-title">Title</Label>
+                  <Input
+                    id="app-link-title"
+                    type="text"
+                    value={appEditingLink.title}
+                    onChange={e => setAppEditingLink({ ...appEditingLink, title: e.target.value })}
+                    placeholder="Auto-detected from URL"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="app-link-category">Category</Label>
+                  <Input
+                    id="app-link-category"
+                    type="text"
+                    value={appEditingLink.category || ''}
+                    onChange={e => setAppEditingLink({ ...appEditingLink, category: e.target.value })}
+                    placeholder="e.g. Work, Social, News"
+                    list="app-link-categories"
+                  />
+                  {categories.length > 0 && (
+                    <datalist id="app-link-categories">
+                      {categories.map(category => (
+                        <option key={category} value={category} />
+                      ))}
+                    </datalist>
+                  )}
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={closeAppDialog}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={!appEditingLink.url.trim()}>
+                    {appDialogMode === 'add' ? 'Add Link' : 'Save'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          ) : appDialogMode === 'details' && selectedLink ? (
+            <DialogContent className="settings-dialog-content sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Link Details</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  {showFavicons && selectedLink.favicon && (
+                    <img
+                      src={selectedLink.favicon}
+                      alt=""
+                      className="h-10 w-10 rounded"
+                      loading="lazy"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-semibold text-foreground">
+                      {selectedLink.title}
+                    </p>
+                    {selectedLink.category && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <FolderOpen size={10} />
+                        {selectedLink.category}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>URL</Label>
+                  <a
+                    href={sanitizeUrl(selectedLink.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block truncate text-sm text-blue-600 hover:underline dark:text-blue-400"
+                  >
+                    {selectedLink.url}
+                  </a>
+                </div>
+                <DialogFooter>
+                  <a
+                    href={sanitizeUrl(selectedLink.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+                  >
+                    <ExternalLink size={14} />
+                    Open
+                  </a>
+                  {!readOnly && (
+                    <Button variant="outline" onClick={() => openAppEditDialog(selectedLink)}>
+                      <Pencil size={14} className="mr-1" />
+                      Edit
+                    </Button>
+                  )}
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          ) : null}
+        </Dialog>
+      </div>
+    );
+  };
+
   /**
    * Renders the main content of the widget
    */
   const renderContent = () => {
+    const isShort = height === 1 && width > 1;
+    const isCompactLayout = displayMode === 'compact' || width <= 2 || height <= 2;
+    const previewLinks = links.slice(0, Math.min(links.length, Math.max(2, width + 1)));
+    const firstLink = links[0];
+
+    // App mode takes priority after tiny/short detection
+    if (isApp) return renderAppView();
+
+    if (links.length === 0) {
+      if (isTiny) {
+        return (
+          <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+            <div className="text-lg font-semibold leading-none text-foreground">0</div>
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">links</div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex h-full flex-col items-center justify-center text-center text-muted-foreground">
+          <p className="text-xs">No links yet</p>
+          {!isTiny && (
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => startEdit(null)}
+              className="mt-2 text-xs"
+            >
+              Add link
+            </Button>
+          )}
+        </div>
+      );
+    }
+
+    if (isTiny && firstLink) {
+      return (
+        <a
+          href={sanitizeUrl(firstLink.url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-full flex-col items-center justify-center gap-1 text-center text-foreground"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          <div className="text-lg font-semibold leading-none">{links.length}</div>
+          <div className="text-[10px] uppercase tracking-wide text-muted-foreground">links</div>
+        </a>
+      );
+    }
+
+    if (isShort) {
+      return (
+        <div className="flex h-full items-center gap-2 overflow-x-auto px-1 text-xs">
+          <span className="shrink-0 rounded-full bg-black/[0.04] px-2 py-1 font-medium text-foreground dark:bg-white/[0.06]">
+            {links.length} links
+          </span>
+          {previewLinks.map(link => (
+            <a
+              key={link.id}
+              href={sanitizeUrl(link.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex shrink-0 items-center gap-2 rounded-full border border-black/5 bg-white/80 px-2.5 py-1.5 text-foreground ring-1 ring-black/5 transition-colors hover:bg-black/[0.04] dark:border-white/10 dark:bg-black/20 dark:ring-white/10 ${
+                loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
+              }`}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              {showFavicons && (
+                <img src={link.favicon} alt="" className="h-3.5 w-3.5 rounded-sm" loading="lazy" />
+              )}
+              <span className="max-w-[8rem] truncate">{loadingLinkIds.includes(link.id) ? 'Loading...' : link.title}</span>
+            </a>
+          ))}
+        </div>
+      );
+    }
+
     return (
       <div className="h-full flex flex-col">
         <div className="flex-grow overflow-y-auto">
-          {links.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-gray-400">
-              <p>No links yet. Add one below!</p>
-            </div>
-          ) : displayMode === 'compact' ? (
+          {isCompactLayout ? (
             // Compact view - slim single-column layout with smaller elements
             <div className="space-y-1 pr-1">
               {links.map(link => (
                 <a 
                   key={link.id}
-                  href={link.url} 
+                  href={sanitizeUrl(link.url)} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`flex items-center p-1 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group ${
+                  className={`flex items-center p-1 rounded-md hover:bg-accent transition-all relative text-foreground group ${
                     loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
                   }`}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
@@ -408,30 +924,34 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
                     {loadingLinkIds.includes(link.id) ? 'Loading...' : link.title}
                   </span>
                   <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity ml-1">
-                    <button 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         startEdit(link);
                       }}
-                      className="p-0.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                       aria-label={`Edit ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Edit size={10} />
-                    </button>
-                    <button 
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 text-muted-foreground hover:text-destructive"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         removeLink(link.id);
                       }}
-                      className="p-0.5 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
                       aria-label={`Remove ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Trash size={10} />
-                    </button>
+                    </Button>
                   </div>
                 </a>
               ))}
@@ -440,19 +960,19 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
             // Regular view - standard list with normal spacing
             <div className="space-y-2 pr-1">
               {links.map(link => (
-                <a 
+                <a
                   key={link.id}
-                  href={link.url} 
-                  target="_blank" 
+                  href={sanitizeUrl(link.url)}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 dark:hover:bg-opacity-50 transition-all relative text-gray-800 dark:text-gray-100 group ${
+                  className={`flex items-center p-2.5 rounded-lg hover:bg-accent transition-all relative text-foreground group ${
                     loadingLinkIds.includes(link.id) ? 'opacity-50' : ''
                   }`}
                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   aria-label={`Visit ${link.title} at ${link.url}`}
                 >
                   {showFavicons && (
-                    <img 
+                    <img
                       src={link.favicon}
                       alt=""
                       className={`w-4 h-4 mr-2.5 ${
@@ -465,31 +985,35 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
                     {loadingLinkIds.includes(link.id) ? 'Loading...' : link.title}
                   </span>
                   <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         startEdit(link);
                       }}
-                      className="p-1 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                       aria-label={`Edit ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Edit size={14} />
-                    </button>
-                    <button 
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
                         e.stopPropagation();
                         removeLink(link.id);
                       }}
-                      className="p-1 text-gray-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400"
                       aria-label={`Remove ${link.title} link`}
                       disabled={loadingLinkIds.includes(link.id)}
                     >
                       <Trash size={14} />
-                    </button>
-                    <ExternalLink size={14} className="text-gray-400" />
+                    </Button>
+                    <ExternalLink size={14} className="text-muted-foreground" />
                   </div>
                 </a>
               ))}
@@ -497,132 +1021,120 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
           )}
         </div>
 
-        {/* Integrated add link form */}
-        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-          <form 
-            onSubmit={handleQuickAdd}
-            className="flex items-center gap-2"
+        {/* Integrated add link form - hidden on small sizes */}
+        {isCompactLayout ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => startEdit(null)}
+            className="mt-2 text-xs"
           >
-            <Input
-              ref={newLinkInputRef}
-              type="url"
-              value={newLinkUrl}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewLinkUrl(e.target.value)}
-              placeholder="Paste a URL and press Enter..."
-              className="flex-grow"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
-              disabled={!newLinkUrl.trim() || isLoading}
-              aria-label="Add link"
+            <Plus className="w-3 h-3 mr-1" />
+            Add Link
+          </Button>
+        ) : (
+          <div className="mt-3 pt-3 border-t border-border">
+            <form
+              onSubmit={handleQuickAdd}
+              className="flex items-center gap-2"
             >
-              <Plus size={20} />
-            </button>
-          </form>
-        </div>
+              <Input
+                ref={newLinkInputRef}
+                type="url"
+                value={newLinkUrl}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewLinkUrl(e.target.value)}
+                placeholder="Paste a URL and press Enter..."
+                className="flex-grow"
+                disabled={isLoading}
+              />
+              <Button
+                type="submit"
+                variant="ghost"
+                size="icon"
+                disabled={!newLinkUrl.trim() || isLoading}
+                aria-label="Add link"
+              >
+                <Plus size={20} />
+              </Button>
+            </form>
+          </div>
+        )}
       </div>
     );
   };
 
   return (
-    <div 
-      ref={widgetRef} 
-      className="widget-container h-full flex flex-col"
+    <WidgetShell
+      title={customTitle}
+      isTiny={isTiny}
+      hideHeader={isApp}
+      compactHeader={width === 1 || height === 1}
+      onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+      contentClassName={isTiny ? 'p-2' : isApp ? '' : 'pt-1'}
     >
-      <WidgetHeader 
-        title={customTitle}
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      <div className="flex-1 overflow-hidden p-3">
-        {renderContent()}
-      </div>
-      
+      {renderContent()}
+
       {/* Settings Dialog */}
       {showSettings && (
-        <Dialog
+        <WidgetSettingsDialog
           open={showSettings}
           onOpenChange={(open: boolean) => {
             if (!open) {
-              setShowSettings(false);
+              resetSettings();
+              return;
             }
+            setShowSettings(true);
           }}
+          title="Quick Links Settings"
+          bodyClassName="flex flex-col gap-4 px-1"
+          footer={(
+            <WidgetSettingsDialogFooter
+              onDelete={config?.onDelete ? () => config.onDelete?.() : undefined}
+              onCancel={resetSettings}
+              onSave={saveSettings}
+            />
+          )}
         >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Quick Links Settings</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-2 mt-2">
-              <div className="space-y-2">
-                <Label htmlFor="widget-title">Title</Label>
-                <Input 
-                  id="widget-title"
-                  value={customTitle} 
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomTitle(e.target.value)}
-                  placeholder="Quick Links"
-                />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="widget-title">Title</Label>
+            <Input
+              id="widget-title"
+              value={customTitle}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomTitle(e.target.value)}
+              placeholder="Quick Links"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Display Mode</Label>
+            <RadioGroup value={displayMode} onValueChange={(val: string) => setDisplayMode(val as 'regular' | 'compact')}>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="regular" id="regular-view" />
+                <Label htmlFor="regular-view" className="flex items-center">
+                  Regular View
+                </Label>
               </div>
-              
-              <div className="space-y-2">
-                <Label>Display Mode</Label>
-                <RadioGroup value={displayMode} onValueChange={(val: string) => setDisplayMode(val as 'regular' | 'compact')}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="regular" id="regular-view" />
-                    <Label htmlFor="regular-view" className="flex items-center">
-                      Regular View
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="compact" id="compact-view" />
-                    <Label htmlFor="compact-view" className="flex items-center">
-                      Compact View
-                    </Label>
-                  </div>
-                </RadioGroup>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="compact" id="compact-view" />
+                <Label htmlFor="compact-view" className="flex items-center">
+                  Compact View
+                </Label>
               </div>
-              
-              <div className="space-y-2">
-                <Label>Show Favicons</Label>
-                <div className="flex items-center space-x-2">
-                  <Switch 
-                    checked={showFavicons}
-                    onCheckedChange={setShowFavicons}
-                    id="show-favicons"
-                  />
-                  <Label htmlFor="show-favicons">Show website icons</Label>
-                </div>
-              </div>
+            </RadioGroup>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Show Favicons</Label>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={showFavicons}
+                onCheckedChange={setShowFavicons}
+                id="show-favicons"
+              />
+              <Label htmlFor="show-favicons">Show website icons</Label>
             </div>
-            
-            <DialogFooter>
-              {/* Remove pt-6 border-t border-gray-100 dark:border-gray-800 classes */}
-              <div className="flex justify-between w-full">
-                <div>
-                  {config?.onDelete && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => {
-                        if (config.onDelete) {
-                          config.onDelete();
-                        }
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  )}
-                </div>
-                <Button
-                  variant="default"
-                  onClick={saveSettings}
-                >
-                  Save
-                </Button>
-              </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </WidgetSettingsDialog>
       )}
 
       {/* Edit Link Dialog */}
@@ -635,7 +1147,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
             }
           }}
         >
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="settings-dialog-content sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Edit Link</DialogTitle>
             </DialogHeader>
@@ -683,7 +1195,7 @@ const QuickLinksWidget: React.FC<QuickLinksWidgetProps> = ({ config }) => {
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </WidgetShell>
   )
 }
 

@@ -16,7 +16,8 @@ export interface UFWidgetConfig {
   refreshInterval?: number;
   onUpdate?: (config: UFWidgetConfig) => void;
   onDelete?: () => void;
-  [key: string]: unknown; // Index signature to satisfy Record<string, unknown>
+  readOnly?: boolean;
+  [key: string]: unknown;
 }
 
 /**

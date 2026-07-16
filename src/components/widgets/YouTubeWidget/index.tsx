@@ -1,712 +1,570 @@
-import * as React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
-} from '../../ui/dialog';
+  DialogFooter,
+} from '@/components/ui/dialog';
 import WidgetHeader from '../common/WidgetHeader';
-import { YouTubeWidgetProps, YouTubeWidgetConfig } from './types';
-import { Button } from '../../ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../ui/tabs';
-import { Label } from '../../ui/label';
-import { Input } from '../../ui/input';
-import { Checkbox } from '../../ui/checkbox';
-// Add Youtube icon import
-import { Youtube } from 'lucide-react';
+import { YouTubeWidgetConfig, YouTubeWidgetProps } from './types';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Play, PlaySquare, ExternalLink, Settings2 } from 'lucide-react';
+
+const PLAY_BUTTON_CHROME_CLASS = 'rounded-full bg-black/75 text-white shadow-lg';
+
+const defaultConfig: YouTubeWidgetConfig = {
+  title: 'YouTube',
+  videoId: '',
+  autoplay: false,
+  showControls: true,
+  mute: false,
+};
 
 /**
- * Size categories for widget content rendering
- * This enum provides clear naming for different widget dimensions
+ * Extract YouTube video ID from various URL formats or a bare ID.
  */
-enum WidgetSizeCategory {
-  SMALL = 'small',         // 2x2
-  WIDE_SMALL = 'wideSmall', // 3x2 
-  TALL_SMALL = 'tallSmall', // 2x3
-  MEDIUM = 'medium',       // 3x3
-  WIDE_MEDIUM = 'wideMedium', // 4x3
-  TALL_MEDIUM = 'tallMedium', // 3x4
-  LARGE = 'large'          // 4x4
-}
+const extractVideoId = (input: string): string | null => {
+  if (!input) return null;
+  const trimmed = input.trim();
+  // Direct 11-character ID
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+  // URL patterns
+  const regex = /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|shorts\/))([a-zA-Z0-9_-]{11})/;
+  const match = trimmed.match(regex);
+  return match ? match[1] : null;
+};
 
-/**
- * YouTube Widget Component
- * 
- * This widget allows users to embed and watch YouTube videos directly
- * in their Boxento dashboard.
- * 
- * @param {YouTubeWidgetProps} props - Component props
- * @returns {JSX.Element} Widget component
- */
 const YouTubeWidget: React.FC<YouTubeWidgetProps> = ({ width, height, config }) => {
-  // Default configuration
-  const defaultConfig: YouTubeWidgetConfig = {
-    title: 'YouTube Video',
-    videoId: 'dQw4w9WgXcQ', // Default video (Rick Astley - Never Gonna Give You Up)
-    autoplay: false,
-    showControls: true,
-    mute: false
-  };
+  // --- Size detection (icon -> widget -> app spectrum) ---
+  const isTiny = width === 1 && height === 1;
+  const isShort = height === 1 && width > 1;
+  const isCompact = width <= 2 || height <= 2;
+  const isWide = width >= 4;
+  const isTall = height >= 4;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
 
-  // Component state
-  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [localConfig, setLocalConfig] = useState<YouTubeWidgetConfig>({
     ...defaultConfig,
-    ...config
+    ...config,
   });
-  const [embedError, setEmbedError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [embedMode, setEmbedMode] = useState<'iframe' | 'direct-link'>('iframe');
-  
-  // Use a ref for expanded state to prevent re-renders
-  const isExpandedRef = useRef<boolean>(!!config?._expandedView);
-  // Mirror in state for forcing re-renders when actually needed
-  const [isExpanded, setIsExpanded] = useState<boolean>(isExpandedRef.current);
-  
-  // Static instance ID to use as a stable iframe key
-  const instanceIdRef = useRef<string>(`youtube-${Math.random().toString(36).substring(2, 9)}`);
-  
-  // Refs for the widget container and iframe
-  const widgetRef = useRef<HTMLDivElement | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  
-  // Update local config when props config changes, but don't update expanded state
-  useEffect(() => {
-    setLocalConfig((prevConfig: YouTubeWidgetConfig) => ({
-      ...prevConfig,
-      ...config
-    }));
-  }, [config]);
-  
-  // Get YouTube embed URL
-  const getYouTubeEmbedUrl = () => {
-    const { videoId, autoplay, showControls, mute } = localConfig;
-    
-    if (!videoId) return '';
-    
-    // Sanitize videoId to prevent XSS
-    const sanitizedVideoId = encodeURIComponent(videoId);
-    
-    const params = new URLSearchParams();
-    
-    if (autoplay) params.append('autoplay', '1');
-    if (!showControls) params.append('controls', '0');
-    if (mute) params.append('mute', '1');
-    
-    // Always add these parameters for better embedding
-    params.append('rel', '0'); // Don't show related videos
-    params.append('modestbranding', '1'); // Minimal YouTube branding
-    params.append('origin', window.location.origin); // Add origin for security
-    params.append('enablejsapi', '1'); // Enable JavaScript API
-    params.append('widget_referrer', window.location.href); // Add referrer
-    
-    return `https://www.youtube.com/embed/${sanitizedVideoId}?${params.toString()}`;
-  };
-  
-  // Toggle expanded state
-  const toggleExpanded = (expanded: boolean) => {
-    isExpandedRef.current = expanded;
-    setIsExpanded(expanded);
-  };
-  
-  // Handle thumbnail click
-  const handleThumbnailClick = () => {
-    if (embedMode === 'direct-link') {
-      window.open(getDirectYouTubeUrl(), '_blank', 'noopener,noreferrer');
-    } else {
-      toggleExpanded(true);
-    }
-  };
-  
-  // Handle back button click
-  const handleBackButtonClick = () => {
-    toggleExpanded(false);
-  };
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [videoTitle, setVideoTitle] = useState<string | null>(null);
+  const [urlInput, setUrlInput] = useState(localConfig.videoId || '');
+  const [urlError, setUrlError] = useState<string | null>(null);
 
-  // Get direct YouTube URL
-  const getDirectYouTubeUrl = (): string => {
-    const { videoId } = localConfig;
-    if (!videoId) return '';
-    // Sanitize videoId to prevent XSS
-    const sanitizedVideoId = encodeURIComponent(videoId);
-    return `https://www.youtube.com/watch?v=${sanitizedVideoId}`;
-  };
-  
-  // Toggle embedding mode
-  const toggleEmbedMode = () => {
-    setEmbedMode(prev => prev === 'iframe' ? 'direct-link' : 'iframe');
-    setEmbedError(null);
-  };
-  
-  // Handle iframe load event
-  const handleIframeLoad = () => {
-    setIsLoading(false);
-    setEmbedError(null);
-  };
-  
-  // Handle iframe error event
-  const handleIframeError = () => {
-    setIsLoading(false);
-    setEmbedError('Could not load the YouTube video. Please check your internet connection or try the direct link option.');
-  };
-  
-  // Move state hooks to component level
-  const [videoIdFeedback, setVideoIdFeedback] = useState<{type: 'success' | 'error' | 'info' | null, message: string | null}>({
-    type: null,
-    message: null
-  });
-  
-  const [activeTab, setActiveTab] = useState('general');
-  
-  // Validate video ID or URL input
-  const validateYouTubeInput = React.useCallback((input: string) => {
-    if (!input.trim()) {
-      setVideoIdFeedback({
-        type: 'info',
-        message: 'Please enter a YouTube URL or video ID'
-      });
-      return;
-    }
-    
-    if (input.includes('youtu')) {
-      const id = extractYouTubeId(input);
-      if (id) {
-        setVideoIdFeedback({
-          type: 'success',
-          message: 'Valid YouTube URL detected'
-        });
-      } else {
-        setVideoIdFeedback({
-          type: 'error',
-          message: 'Could not extract a valid YouTube video ID from this URL'
-        });
-      }
-    } else if (input.length === 11 && /^[a-zA-Z0-9_-]{11}$/.test(input)) {
-      setVideoIdFeedback({
-        type: 'success',
-        message: 'Valid YouTube video ID format'
-      });
-    } else {
-      setVideoIdFeedback({
-        type: 'error',
-        message: 'This doesn\'t look like a valid YouTube video ID (should be 11 characters)'
-      });
+  // Snapshot for revert on cancel
+  const configSnapshotRef = useRef<YouTubeWidgetConfig>(localConfig);
+
+  // Sync with external config changes
+  useEffect(() => {
+    setLocalConfig(prev => ({ ...prev, ...config }));
+  }, [config]);
+
+  // Fetch video title via oEmbed when videoId changes
+  const fetchTitle = useCallback(async (videoId: string) => {
+    try {
+      const resp = await fetch(
+        `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}&format=json`
+      );
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.title) setVideoTitle(data.title);
+    } catch {
+      // Silently fail — title is a nice-to-have
     }
   }, []);
-  
-  // Move useEffect to component level
+
   useEffect(() => {
     if (localConfig.videoId) {
-      validateYouTubeInput(localConfig.videoId);
-    }
-  }, [localConfig.videoId, validateYouTubeInput]);
-  
-  // Extract YouTube ID from various URL formats
-  const extractYouTubeId = (url: string): string | null => {
-    // Regular YouTube URL pattern - remove unnecessary escapes
-    const regExp = /^.*(youtu.be\/|v\/|e\/|u\/\w+\/|embed\/|v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    
-    return (match && match[2].length === 11) ? match[2] : null;
-  };
-  
-  // Process YouTube URL input
-  const handleYouTubeUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    setIsLoading(true);
-    
-    // Clear any previous errors when changing the URL
-    setEmbedError(null);
-    
-    // If it looks like a URL, try to extract the ID
-    if (url.includes('youtu')) {
-      const id = extractYouTubeId(url);
-      if (id) {
-        setLocalConfig({...localConfig, videoId: id});
-      } else {
-        // If not a valid URL but might be direct ID, just use the value
-        setLocalConfig({...localConfig, videoId: url});
-      }
+      fetchTitle(localConfig.videoId);
     } else {
-      // If not YouTube URL format, assume it's a direct video ID
-      setLocalConfig({...localConfig, videoId: url});
+      setVideoTitle(null);
+    }
+  }, [localConfig.videoId, fetchTitle]);
+
+  // Build embed URL
+  const getEmbedUrl = (videoId: string) => {
+    const params = new URLSearchParams();
+    if (localConfig.autoplay) params.append('autoplay', '1');
+    if (!localConfig.showControls) params.append('controls', '0');
+    if (localConfig.mute) params.append('mute', '1');
+    params.append('rel', '0');
+    params.append('modestbranding', '1');
+    params.append('origin', window.location.origin);
+    return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
+  };
+
+  const getThumbnailUrl = (videoId: string) =>
+    `https://img.youtube.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg`;
+
+  const getWatchUrl = (videoId: string) =>
+    `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+
+  // Persist config changes
+  const saveSettings = () => {
+    // Process URL input to extract video ID
+    const id = extractVideoId(urlInput);
+    const updatedConfig = {
+      ...localConfig,
+      videoId: id || urlInput,
+    };
+    if (config?.onUpdate) {
+      config.onUpdate(updatedConfig);
+    }
+    setLocalConfig(updatedConfig);
+    setShowSettings(false);
+  };
+
+  const handleSettingsOpenChange = (open: boolean) => {
+    if (open) {
+      configSnapshotRef.current = { ...localConfig };
+      setUrlInput(localConfig.videoId || '');
+      setUrlError(null);
+    } else {
+      // Revert on close without save
+      setLocalConfig(configSnapshotRef.current);
+    }
+    setShowSettings(open);
+  };
+
+  const handleUrlInputChange = (value: string) => {
+    setUrlInput(value);
+    if (!value.trim()) {
+      setUrlError(null);
+      return;
+    }
+    const id = extractVideoId(value);
+    if (id) {
+      setUrlError(null);
+    } else {
+      setUrlError('Could not detect a valid YouTube video ID');
     }
   };
 
-  // Small view (2x2) - Show thumbnail with play button
-  const renderSmallView = () => {
-    const { videoId } = localConfig;
-    
-    if (!videoId) {
-      return renderEmptyState();
-    }
-    
-    // If we're in expanded view, show the player even in small size
-    if (isExpanded) {
-      return renderYouTubeEmbed();
-    }
-    
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-center">
-        <div className="relative w-full aspect-video max-h-full overflow-hidden rounded-lg cursor-pointer" 
-             onClick={handleThumbnailClick}>
-          <img 
-            src={`https://img.youtube.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg`} 
-            alt="Video thumbnail" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-red-600 rounded-full w-12 h-12 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-            </div>
-          </div>
-        </div>
-        <p className="mt-2 text-sm truncate w-full">
-          {embedMode === 'direct-link' ? 'Click to open on YouTube' : 'Click to play'}
-        </p>
-      </div>
-    );
-  };
-  
-  // Wide small view (3x2) - Show thumbnail with play button and title
-  const renderWideSmallView = () => {
-    const { videoId, title } = localConfig;
-    
-    if (!videoId) {
-      return renderEmptyState();
-    }
-    
-    // If we're in expanded view, show the player even in small size
-    if (isExpanded) {
-      return renderYouTubeEmbed();
-    }
-    
-    return (
-      <div className="h-full flex flex-col">
-        <div className="relative w-full aspect-video max-h-full overflow-hidden rounded-lg cursor-pointer" 
-             onClick={handleThumbnailClick}>
-          <img 
-            src={`https://img.youtube.com/vi/${encodeURIComponent(videoId)}/mqdefault.jpg`} 
-            alt="Video thumbnail" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-red-600 rounded-full w-12 h-12 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-            </div>
-          </div>
-        </div>
-        <p className="mt-2 text-sm truncate">{title || 'YouTube Video'}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {embedMode === 'direct-link' ? 'Click to open on YouTube' : 'Click to play'}
-        </p>
-      </div>
-    );
-  };
+  // --- Setup prompt when no video configured ---
+  const renderSetup = () => (
+    <div className="flex-1 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+      <Settings2 className="h-8 w-8" />
+      <p className="text-sm">Configure a YouTube video</p>
+      {!readOnly && (
+        <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+          Open Settings
+        </Button>
+      )}
+    </div>
+  );
 
-  // Render YouTube embed
-  const renderYouTubeEmbed = () => {
-    const { videoId, title } = localConfig;
-    
-    if (!videoId) {
-      return renderEmptyState();
-    }
-    
-    // If using direct link mode
-    if (embedMode === 'direct-link') {
+  // --- Size-specific renderers ---
+
+  // 1x1 ICON: YouTube play icon or thumbnail
+  const renderTiny = () => {
+    if (!localConfig.videoId) {
       return (
-        <div className="h-full flex flex-col items-center justify-center text-center p-4">
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600 mb-3">
-            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path>
-            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
-          </svg>
-          <h3 className="text-lg font-medium">{title || 'YouTube Video'}</h3>
-          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            Click below to watch on YouTube
-          </p>
-          <div className="flex flex-col space-y-2">
-            <a 
-              href={getDirectYouTubeUrl()} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors flex items-center justify-center"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-              Open in YouTube
-            </a>
-            <button
-              onClick={toggleEmbedMode}
-              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              Try Embedded Player
-            </button>
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <PlaySquare className="h-5 w-5 text-muted-foreground" />
         </div>
       );
     }
-    
-    // Check if this is a small widget in expanded view
-    const isSmallExpandedWidget = 
-      (width <= 2 && height <= 2) || 
-      (width === 3 && height === 2);
-    
-    // Regular iframe embed
     return (
-      <div className="h-full flex flex-col relative">
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100/70 dark:bg-gray-800/70 z-10">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-        
-        {embedError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100/80 dark:bg-gray-800/80 z-10 p-4">
-            <div className="text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-red-500 mb-2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-              </svg>
-              <p className="text-sm text-red-600 dark:text-red-400">{embedError}</p>
-              <div className="flex flex-wrap justify-center gap-2 mt-2">
-                <button 
-                  onClick={() => setShowSettings(true)}
-                  className="text-xs text-blue-600 dark:text-blue-400 underline"
-                >
-                  Change Video
-                </button>
-                <button 
-                  onClick={toggleEmbedMode}
-                  className="text-xs text-blue-600 dark:text-blue-400 underline"
-                >
-                  Try Direct Link
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Back button for small widgets in expanded mode */}
-        {isSmallExpandedWidget && isExpanded && (
-          <button 
-            onClick={handleBackButtonClick}
-            className="absolute top-2 left-2 z-10 p-1 bg-black/50 hover:bg-black/70 text-white rounded-full"
-            aria-label="Back to thumbnail"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"></polyline>
-            </svg>
-          </button>
-        )}
-        
-        <div className="w-full flex-grow overflow-hidden rounded-lg">
-          <iframe
-            ref={iframeRef}
-            src={getYouTubeEmbedUrl()}
-            title="YouTube video player"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
-            className="w-full h-full"
-            onLoad={handleIframeLoad}
-            onError={handleIframeError}
-            key={`${instanceIdRef.current}-${localConfig.videoId}`}
-          />
+      <Button type="button" variant="ghost" size="none"
+        className="flex-1 flex items-center justify-center relative overflow-hidden rounded"
+        onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
+        title={videoTitle || 'Play on YouTube'}
+      >
+        <img
+          src={getThumbnailUrl(localConfig.videoId)}
+          alt=""
+          className="media-outline absolute inset-0 w-full h-full object-cover"
+        />
+        <div className={`relative z-10 p-1 ${PLAY_BUTTON_CHROME_CLASS}`}>
+          <Play className="h-3 w-3 text-white fill-white" />
         </div>
-        
-        {title && <p className="mt-2 text-sm truncate">{title}</p>}
-      </div>
+      </Button>
     );
   };
-  
-  // Render content based on widget size
-  const renderContent = () => {
-    const sizeCategory = getWidgetSizeCategory(width, height);
-    
-    switch (sizeCategory) {
-      case WidgetSizeCategory.SMALL:
-        return renderSmallView();
-      case WidgetSizeCategory.WIDE_SMALL:
-        return renderWideSmallView();
-      case WidgetSizeCategory.TALL_SMALL:
-      case WidgetSizeCategory.MEDIUM:
-      case WidgetSizeCategory.WIDE_MEDIUM:
-      case WidgetSizeCategory.TALL_MEDIUM:
-      case WidgetSizeCategory.LARGE:
-        return renderYouTubeEmbed();
-      default:
-        return renderSmallView();
+
+  // Nx1 RIBBON: title + play button horizontally
+  const renderShort = () => {
+    if (!localConfig.videoId) {
+      return (
+        <div className="flex-1 flex items-center gap-2 px-1 text-xs text-muted-foreground">
+          <PlaySquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate">No video configured</span>
+        </div>
+      );
     }
-  };
-  
-  // Empty state when no video ID is provided
-  const renderEmptyState = () => {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-4">
-        {/* Use Youtube icon from Lucide with consistent styling (red color) */}
-        <Youtube size={40} className="text-red-500 dark:text-red-400 mb-3" strokeWidth={1.5} />
-        {/* Consistent text styling */}
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-          No YouTube video configured.
-        </p>
-        {/* Consistent button styling */}
-        <Button
-          size="sm"
-          onClick={() => setShowSettings(true)} 
+      <div className="flex-1 flex items-center gap-2 overflow-hidden px-1">
+        <Button type="button" variant="ghost" size="none"
+          onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
+          className="shrink-0 relative rounded overflow-hidden"
+          style={{ width: Math.max(width * 20, 48), height: '100%' }}
         >
-          Configure Video
+          <img
+            src={getThumbnailUrl(localConfig.videoId)}
+            alt=""
+            className="media-outline w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className={`p-0.5 ${PLAY_BUTTON_CHROME_CLASS}`}>
+              <Play className="h-3 w-3 text-white fill-white" />
+            </div>
+          </div>
+        </Button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium">{videoTitle || localConfig.title || 'YouTube Video'}</p>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
+          className="shrink-0 h-auto p-0 text-muted-foreground hover:text-foreground"
+          title="Open on YouTube"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
         </Button>
       </div>
     );
   };
 
-  /**
-   * Determines the appropriate size category based on width and height
-   * 
-   * @param width - Widget width in grid units
-   * @param height - Widget height in grid units
-   * @returns The corresponding WidgetSizeCategory
-   */
-  const getWidgetSizeCategory = (width: number, height: number): WidgetSizeCategory => {
-    if (width >= 4 && height >= 4) {
-      return WidgetSizeCategory.LARGE;
-    } else if (width >= 4 && height >= 3) {
-      return WidgetSizeCategory.WIDE_MEDIUM;
-    } else if (width >= 3 && height >= 4) {
-      return WidgetSizeCategory.TALL_MEDIUM;
-    } else if (width >= 3 && height >= 3) {
-      return WidgetSizeCategory.MEDIUM;
-    } else if (width >= 3 && height >= 2) {
-      return WidgetSizeCategory.WIDE_SMALL;
-    } else if (width >= 2 && height >= 3) {
-      return WidgetSizeCategory.TALL_SMALL;
-    } else {
-      return WidgetSizeCategory.SMALL;
-    }
-  };
+  // Compact (2x2): thumbnail with play overlay, click to play inline
+  const renderCompact = () => {
+    if (!localConfig.videoId) return renderSetup();
 
-  // Save settings
-  const saveSettings = () => {
-    // If we're in a small widget and returning to thumbnail view, preserve that state
-    const updatedConfig = {
-      ...localConfig,
-    };
-    
-    if (config?.onUpdate) {
-      config.onUpdate(updatedConfig);
+    if (isPlaying) {
+      return (
+        <div className="flex-1 overflow-hidden rounded-lg">
+          <iframe
+            src={getEmbedUrl(localConfig.videoId)}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+            className="w-full h-full"
+          />
+        </div>
+      );
     }
-    setShowSettings(false);
-  };
-  
-  // Updated Settings Dialog to include debug mode and embed mode toggle
-  const renderSettings = () => {
+
     return (
-      <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>YouTube Widget Settings</DialogTitle>
-          </DialogHeader>
-          
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="playback">Playback Options</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="general" className="space-y-4 py-4">
-              {/* Title setting */}
-              <div className="space-y-2">
-                <Label htmlFor="title-input">Widget Title</Label>
-                <Input
-                  id="title-input"
-                  type="text"
-                  value={localConfig.title || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
-                    setLocalConfig({...localConfig, title: e.target.value})
-                  }
-                />
-              </div>
-              
-              {/* YouTube Video URL or ID */}
-              <div className="space-y-2">
-                <Label htmlFor="video-input">YouTube Video URL or ID</Label>
-                <Input
-                  id="video-input"
-                  type="text"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={localConfig.videoId || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    handleYouTubeUrlChange(e);
-                    setVideoIdFeedback({type: 'info', message: 'Checking...'});
-                  }}
-                  className={
-                    videoIdFeedback.type === 'error' 
-                      ? 'border-red-300 focus:border-red-400 focus:ring-red-500 dark:border-red-700 dark:bg-red-900/20' 
-                      : videoIdFeedback.type === 'success'
-                      ? 'border-green-300 focus:border-green-400 focus:ring-green-500 dark:border-green-700 dark:bg-green-900/20'
-                      : ''
-                  }
-                  aria-invalid={videoIdFeedback.type === 'error'}
-                  aria-describedby="video-feedback"
-                />
-                {videoIdFeedback.message && (
-                  <p 
-                    id="video-feedback"
-                    className={`text-xs ${
-                      videoIdFeedback.type === 'error' 
-                        ? 'text-red-600 dark:text-red-400' 
-                        : videoIdFeedback.type === 'success'
-                        ? 'text-green-600 dark:text-green-400'
-                        : 'text-gray-500 dark:text-gray-400'
-                    }`}
-                  >
-                    {videoIdFeedback.message}
-                  </p>
-                )}
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Examples: https://www.youtube.com/watch?v=dQw4w9WgXcQ or dQw4w9WgXcQ
-                </p>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="playback" className="space-y-4 py-4">
-              {/* Autoplay toggle */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="autoplay-toggle"
-                  checked={localConfig.autoplay || false}
-                  onCheckedChange={(checked: boolean) => {
-                    // If enabling autoplay, suggest enabling mute as well for better compatibility
-                    setLocalConfig({
-                      ...localConfig, 
-                      autoplay: checked,
-                      // Automatically enable mute when autoplay is enabled to help with browser autoplay policies
-                      mute: checked ? true : localConfig.mute
-                    });
-                  }}
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label htmlFor="autoplay-toggle">
-                    Autoplay video
-                    {localConfig.autoplay && (
-                      <span className="ml-1 text-xs text-amber-600 dark:text-amber-400">
-                        (requires mute in most browsers)
-                      </span>
-                    )}
-                  </Label>
-                </div>
-              </div>
-              
-              {/* Mute toggle */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="mute-toggle"
-                  checked={localConfig.mute || false}
-                  onCheckedChange={(checked: boolean) => 
-                    setLocalConfig({...localConfig, mute: checked})
-                  }
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label htmlFor="mute-toggle">
-                    Mute video
-                    {localConfig.autoplay && !localConfig.mute && (
-                      <span className="ml-1 text-xs text-red-600 dark:text-red-400">
-                        (required for autoplay to work)
-                      </span>
-                    )}
-                  </Label>
-                </div>
-              </div>
-              
-              {/* Show controls toggle */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="controls-toggle"
-                  checked={localConfig.showControls !== false}
-                  onCheckedChange={(checked: boolean) => 
-                    setLocalConfig({...localConfig, showControls: checked})
-                  }
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label htmlFor="controls-toggle">
-                    Show video controls
-                  </Label>
-                </div>
-              </div>
-              
-              {/* Add embed mode toggle */}
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="embed-mode-toggle"
-                  checked={embedMode === 'direct-link'}
-                  onCheckedChange={() => setEmbedMode(prev => prev === 'iframe' ? 'direct-link' : 'iframe')}
-                />
-                <div className="grid gap-1.5 leading-none">
-                  <Label htmlFor="embed-mode-toggle">
-                    Use direct link to YouTube (instead of embedded player)
-                  </Label>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <DialogFooter>
-            <div className="flex justify-between w-full">
-              {config?.onDelete && (
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (config.onDelete) {
-                      config.onDelete();
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
-              <Button
-                variant="default"
-                onClick={() => {
-                  saveSettings();
-                  setShowSettings(false);
-                }}
-              >
-                Save
-              </Button>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Button type="button" variant="ghost" size="none"
+          className="flex-1 relative overflow-hidden rounded-lg cursor-pointer"
+          onClick={() => setIsPlaying(true)}
+        >
+          <img
+            src={getThumbnailUrl(localConfig.videoId)}
+            alt={videoTitle || 'Video thumbnail'}
+            className="media-outline w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <div className={`p-2 ${PLAY_BUTTON_CHROME_CLASS}`}>
+              <Play className="h-5 w-5 text-white fill-white" />
             </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </Button>
+        <p className="mt-1 text-[10px] truncate text-muted-foreground">
+          {videoTitle || localConfig.title || 'Click to play'}
+        </p>
+      </div>
     );
   };
 
-  // Main render
-  return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col relative">
-      <WidgetHeader 
-        title={localConfig.title || defaultConfig.title} 
-        onSettingsClick={() => setShowSettings(true)}
-      />
-      
-      <div className="flex-grow p-4 overflow-hidden">
-        {renderContent()}
+  // Default (3x3 WIDGET): embedded player with title
+  const renderDefault = () => {
+    if (!localConfig.videoId) return renderSetup();
+
+    if (isPlaying) {
+      return (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-hidden rounded-lg">
+            <iframe
+              src={getEmbedUrl(localConfig.videoId)}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+              className="w-full h-full"
+            />
+          </div>
+          {videoTitle && (
+            <p className="mt-1.5 text-xs font-medium truncate">{videoTitle}</p>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Button type="button" variant="ghost" size="none"
+          className="flex-1 relative overflow-hidden rounded-lg cursor-pointer"
+          onClick={() => setIsPlaying(true)}
+        >
+          <img
+            src={getThumbnailUrl(localConfig.videoId)}
+            alt={videoTitle || 'Video thumbnail'}
+            className="media-outline w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+            <div className={`p-3 ${PLAY_BUTTON_CHROME_CLASS}`}>
+              <Play className="h-6 w-6 text-white fill-white" />
+            </div>
+          </div>
+        </Button>
+        <div className="mt-1.5 min-w-0">
+          <p className="text-sm font-medium truncate">{videoTitle || localConfig.title || 'YouTube Video'}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
+            className="h-auto p-0 text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 mt-0.5"
+          >
+            <ExternalLink className="h-3 w-3" /> Open on YouTube
+          </Button>
+        </div>
       </div>
-      
-      {/* Settings dialog */}
-      {renderSettings()}
+    );
+  };
+
+  // Panel (4x4-5x5): larger player with video info sidebar
+  const renderPanel = () => {
+    if (!localConfig.videoId) return renderSetup();
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-hidden rounded-lg">
+          <iframe
+            src={getEmbedUrl(localConfig.videoId)}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+            className="w-full h-full"
+          />
+        </div>
+        <div className="mt-2 flex items-start justify-between gap-3 min-w-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold truncate">{videoTitle || localConfig.title || 'YouTube Video'}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              ID: {localConfig.videoId}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
+          >
+            <ExternalLink className="h-3.5 w-3.5 mr-1" />
+            YouTube
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  // App (6x6+): full player with info panel, open-on-YouTube, large controls
+  const renderApp = () => {
+    if (!localConfig.videoId) return renderSetup();
+
+    return (
+      <div className="flex h-full gap-4">
+        {/* Main player area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 overflow-hidden rounded-lg bg-black">
+            <iframe
+              src={getEmbedUrl(localConfig.videoId)}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"
+              className="w-full h-full"
+            />
+          </div>
+          <div className="mt-3 min-w-0 widget-drag-handle cursor-move">
+            <h2 className="text-base font-semibold truncate">
+              {videoTitle || localConfig.title || 'YouTube Video'}
+            </h2>
+          </div>
+        </div>
+
+        {/* Side panel with video info */}
+        <div className="w-1/3 max-w-[280px] border-l pl-4 flex flex-col overflow-y-auto">
+          <h3 className="text-sm font-semibold mb-3">Video Info</h3>
+
+          <div className="space-y-3 text-sm">
+            <div>
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Title</span>
+              <p className="mt-0.5 font-medium">{videoTitle || localConfig.title || 'Untitled'}</p>
+            </div>
+
+            <div>
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Video ID</span>
+              <p className="mt-0.5 font-mono text-xs break-all">{localConfig.videoId}</p>
+            </div>
+
+            <div>
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Playback</span>
+              <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                <p>Autoplay: {localConfig.autoplay ? 'On' : 'Off'}</p>
+                <p>Controls: {localConfig.showControls !== false ? 'Shown' : 'Hidden'}</p>
+                <p>Muted: {localConfig.mute ? 'Yes' : 'No'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto pt-4 space-y-2">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.open(getWatchUrl(localConfig.videoId!), '_blank', 'noopener,noreferrer')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open on YouTube
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // --- Settings modal ---
+  const renderSettings = () => (
+    <Dialog open={showSettings} onOpenChange={handleSettingsOpenChange}>
+      <DialogContent className="settings-dialog-content sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{localConfig.title || 'YouTube'} Settings</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="yt-title">Title</Label>
+            <Input
+              id="yt-title"
+              value={localConfig.title || ''}
+              onChange={(e) =>
+                setLocalConfig(prev => ({ ...prev, title: e.target.value }))
+              }
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="yt-url">YouTube Video URL or ID</Label>
+            <Input
+              id="yt-url"
+              placeholder="https://www.youtube.com/watch?v=... or video ID"
+              value={urlInput}
+              onChange={(e) => handleUrlInputChange(e.target.value)}
+            />
+            {urlError && (
+              <p className="text-xs text-red-500 mt-1">{urlError}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Paste a YouTube URL or an 11-character video ID
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="yt-autoplay">Autoplay</Label>
+            <Switch
+              id="yt-autoplay"
+              checked={localConfig.autoplay ?? false}
+              onCheckedChange={(checked) =>
+                setLocalConfig(prev => ({
+                  ...prev,
+                  autoplay: checked,
+                  // Auto-enable mute when autoplay is turned on (browser policy)
+                  mute: checked ? true : prev.mute,
+                }))
+              }
+            />
+          </div>
+          {localConfig.autoplay && (
+            <p className="text-xs text-muted-foreground -mt-2 ml-1">
+              Most browsers require mute for autoplay to work
+            </p>
+          )}
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="yt-mute">Mute</Label>
+            <Switch
+              id="yt-mute"
+              checked={localConfig.mute ?? false}
+              onCheckedChange={(checked) =>
+                setLocalConfig(prev => ({ ...prev, mute: checked }))
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="yt-controls">Show player controls</Label>
+            <Switch
+              id="yt-controls"
+              checked={localConfig.showControls !== false}
+              onCheckedChange={(checked) =>
+                setLocalConfig(prev => ({ ...prev, showControls: checked }))
+              }
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <div className="flex justify-between w-full">
+            {config?.onDelete && (
+              <Button variant="destructive" onClick={config.onDelete}>
+                Delete Widget
+              </Button>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="outline" onClick={() => handleSettingsOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={saveSettings}>Save</Button>
+            </div>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  // Reset playing state when video changes
+  useEffect(() => {
+    setIsPlaying(false);
+  }, [localConfig.videoId]);
+
+  return (
+    <div className={cn('widget-container h-full flex flex-col', isTiny ? 'widget-drag-handle' : 'p-2 md:p-3')}>
+      {!isTiny && (
+        <WidgetHeader
+          title={localConfig.title || defaultConfig.title}
+          onSettingsClick={readOnly ? undefined : () => setShowSettings(true)}
+          compact={isShort}
+        />
+      )}
+
+      {/* Size-branching render (most specific first) */}
+      {isTiny ? renderTiny()
+        : isShort ? renderShort()
+        : isApp ? renderApp()
+        : isWide && isTall ? renderPanel()
+        : isCompact ? renderCompact()
+        : renderDefault()}
+
+      {/* Settings modal (hidden in readOnly mode) */}
+      {!readOnly && renderSettings()}
     </div>
   );
 };
 
-export default YouTubeWidget; 
+export default YouTubeWidget;

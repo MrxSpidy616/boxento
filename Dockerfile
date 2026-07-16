@@ -8,10 +8,10 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package files
-COPY package.json ./
+COPY package.json bun.lock ./
 
-# Install dependencies and generate lockfile
-RUN bun install
+# Install dependencies from the committed lockfile
+RUN bun install --frozen-lockfile
 
 # Stage 3: Builder
 FROM deps AS builder
@@ -29,13 +29,27 @@ ARG VITE_FIREBASE_STORAGE_BUCKET="demo-bucket"
 ARG VITE_FIREBASE_MESSAGING_SENDER_ID="123456789"
 ARG VITE_FIREBASE_APP_ID="1:123456789:web:abcdef"
 
-# Create .env file for build time
-RUN echo "VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY" > .env && \
-    echo "VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN" >> .env && \
-    echo "VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID" >> .env && \
-    echo "VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET" >> .env && \
-    echo "VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID" >> .env && \
-    echo "VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID" >> .env
+# Base URL for local services (e.g., "http://localhost" or "https://mini.tailf2415.ts.net")
+ARG VITE_SERVICES_BASE_URL="http://localhost"
+
+# SQLite backend URL for self-hosted mode (e.g., "http://mini:3001/api")
+ARG VITE_SQLITE_API_URL=""
+
+# Build version shown in the footer. Pass `--build-arg VITE_BUILD_HASH=$(git rev-parse --short HEAD)`.
+ARG VITE_BUILD_HASH="docker"
+
+# Create .env file for build time using heredoc for readability
+RUN <<EOF cat > .env
+VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+VITE_SERVICES_BASE_URL=$VITE_SERVICES_BASE_URL
+VITE_SQLITE_API_URL=$VITE_SQLITE_API_URL
+VITE_BUILD_HASH=$VITE_BUILD_HASH
+EOF
 
 # Build the application
 ENV NODE_ENV=production

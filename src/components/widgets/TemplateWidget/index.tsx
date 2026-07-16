@@ -132,21 +132,21 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
         {/* Primary metric or status - the single most important piece of information */}
         <div className="text-center">
           <span className="block text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
       </div>
     );
   };
-  
+
   /**
    * Wide Small View (3x2)
-   * 
+   *
    * Guidelines:
    * - Show critical info plus one secondary element
    * - Optimize for horizontal layout
    * - Can show simple charts or mini-visualizations
    * - Example content: Status plus trend indicator, two related metrics
-   * 
+   *
    * @returns {JSX.Element} Wide small view content
    */
   const renderWideSmallView = () => {
@@ -155,27 +155,27 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
         {/* Primary metric (from small view) */}
         <div className="text-center">
           <span className="block text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
-        
+
         {/* Secondary metric - additional info we have space for in wide view */}
         <div className="text-center">
           <span className="block text-xl font-medium">18</span>
-          <span className="text-xs text-gray-500">Secondary</span>
+          <span className="text-xs text-muted-foreground">Secondary</span>
         </div>
       </div>
     );
   };
-  
+
   /**
    * Tall Small View (2x3)
-   * 
+   *
    * Guidelines:
    * - Show critical info plus one secondary element
    * - Optimize for vertical layout
    * - Can include a small trend indicator
    * - Example content: Status with contextual information
-   * 
+   *
    * @returns {JSX.Element} Tall small view content
    */
   const renderTallSmallView = () => {
@@ -184,7 +184,7 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
         {/* Primary metric (from small view) */}
         <div className="text-center">
           <span className="block text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
         
         {/* Status indicator - additional info we have space for in tall view */}
@@ -211,19 +211,19 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
     return (
       <div className="grid grid-cols-2 grid-rows-2 gap-2 h-full p-1">
         {/* Quadrant 1: Primary metric (from small view) */}
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
         
         {/* Quadrant 2: Secondary metric */}
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-xl font-medium">18</span>
-          <span className="text-xs text-gray-500">Secondary Metric</span>
+          <span className="text-xs text-muted-foreground">Secondary Metric</span>
         </div>
         
         {/* Quadrant 3: Status or contextual information */}
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <div className="flex items-center">
             <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
             <span className="text-sm">Status: Good</span>
@@ -231,10 +231,10 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
         </div>
         
         {/* Quadrant 4: Mini chart or time-based information */}
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500">Updated 5m ago</span>
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground">Updated 5m ago</span>
           {/* Placeholder for mini-chart */}
-          <div className="w-full h-8 bg-gray-200 dark:bg-gray-700 rounded mt-1"></div>
+          <div className="w-full h-8 bg-secondary rounded mt-1"></div>
         </div>
       </div>
     );
@@ -255,47 +255,47 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
     return (
       <div className="grid grid-cols-4 grid-rows-2 gap-2 h-full p-1">
         {/* First row: Key metrics */}
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
         
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-xl font-medium">18</span>
-          <span className="text-xs text-gray-500">Secondary</span>
+          <span className="text-xs text-muted-foreground">Secondary</span>
         </div>
         
-        <div className="col-span-2 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500 mb-1">Detailed Breakdown</span>
+        <div className="col-span-2 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground mb-1">Detailed Breakdown</span>
           <div className="w-full flex justify-around">
             <div className="text-center">
               <span className="block text-sm font-medium">10</span>
-              <span className="text-xs text-gray-500">A</span>
+              <span className="text-xs text-muted-foreground">A</span>
             </div>
             <div className="text-center">
               <span className="block text-sm font-medium">15</span>
-              <span className="text-xs text-gray-500">B</span>
+              <span className="text-xs text-muted-foreground">B</span>
             </div>
             <div className="text-center">
               <span className="block text-sm font-medium">17</span>
-              <span className="text-xs text-gray-500">C</span>
+              <span className="text-xs text-muted-foreground">C</span>
             </div>
           </div>
         </div>
         
         {/* Second row: Chart and status */}
-        <div className="col-span-3 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500">Trend Analysis</span>
+        <div className="col-span-3 bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground">Trend Analysis</span>
           {/* Placeholder for larger chart */}
-          <div className="w-full h-16 bg-gray-200 dark:bg-gray-700 rounded mt-1"></div>
+          <div className="w-full h-16 bg-secondary rounded mt-1"></div>
         </div>
         
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <div className="flex items-center mb-1">
             <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
             <span className="text-sm">Status: Good</span>
           </div>
-          <span className="text-xs text-gray-500">Updated 5m ago</span>
+          <span className="text-xs text-muted-foreground">Updated 5m ago</span>
         </div>
       </div>
     );
@@ -316,35 +316,35 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
     return (
       <div className="grid grid-cols-2 grid-rows-3 gap-2 h-full p-1">
         {/* Row 1: Key metrics */}
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
         
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-xl font-medium">18</span>
-          <span className="text-xs text-gray-500">Secondary Metric</span>
+          <span className="text-xs text-muted-foreground">Secondary Metric</span>
         </div>
         
         {/* Row 2: Status and updates */}
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <div className="flex items-center">
             <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
             <span className="text-sm">Status: Good</span>
           </div>
         </div>
         
-        <div className="flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500">Updated 5m ago</span>
+        <div className="flex flex-col items-center justify-center bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground">Updated 5m ago</span>
           {/* Placeholder for mini-chart */}
-          <div className="w-full h-8 bg-gray-200 dark:bg-gray-700 rounded mt-1"></div>
+          <div className="w-full h-8 bg-secondary rounded mt-1"></div>
         </div>
         
         {/* Row 3: Historical data (extra in tall view) */}
-        <div className="col-span-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500 mb-1">Historical Data</span>
-          <div className="w-full h-24 bg-gray-200 dark:bg-gray-700 rounded mt-1 p-2">
-            <div className="text-xs text-gray-600 dark:text-gray-400">
+        <div className="col-span-2 bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground mb-1">Historical Data</span>
+          <div className="w-full h-24 bg-secondary rounded mt-1 p-2">
+            <div className="text-xs text-muted-foreground">
               Last 7 days trend data visualization would appear here
             </div>
           </div>
@@ -368,51 +368,51 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
     return (
       <div className="grid grid-cols-4 grid-rows-4 gap-2 h-full p-1">
         {/* Header row: Key metrics */}
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-2xl font-bold">42</span>
-          <span className="text-xs text-gray-500">Key Metric</span>
+          <span className="text-xs text-muted-foreground">Key Metric</span>
         </div>
         
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <span className="text-xl font-medium">18</span>
-          <span className="text-xs text-gray-500">Secondary</span>
+          <span className="text-xs text-muted-foreground">Secondary</span>
         </div>
         
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
           <div className="flex items-center">
             <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
             <span className="text-sm">Status: Good</span>
           </div>
         </div>
         
-        <div className="col-span-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500">Updated 5m ago</span>
+        <div className="col-span-1 flex flex-col items-center justify-center bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground">Updated 5m ago</span>
           <div className="flex space-x-1 mt-1">
-            <button className="px-2 py-1 text-xs bg-blue-500 text-white rounded">Refresh</button>
-            <button className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Filter</button>
+            <Button variant="default" size="sm" className="px-2 py-1 text-xs h-auto">Refresh</Button>
+            <Button variant="secondary" size="sm" className="px-2 py-1 text-xs h-auto">Filter</Button>
           </div>
         </div>
         
         {/* Main chart area */}
-        <div className="col-span-3 row-span-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
+        <div className="col-span-3 row-span-2 bg-muted rounded-lg p-2">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm font-medium">Comprehensive Analysis</span>
             <div className="flex space-x-1">
-              <button className="px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100 rounded">Day</button>
-              <button className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Week</button>
-              <button className="px-2 py-1 text-xs bg-gray-200 dark:bg-gray-700 rounded">Month</button>
+              <Button variant="default" size="sm" className="px-2 py-1 text-xs h-auto">Day</Button>
+              <Button variant="secondary" size="sm" className="px-2 py-1 text-xs h-auto">Week</Button>
+              <Button variant="secondary" size="sm" className="px-2 py-1 text-xs h-auto">Month</Button>
             </div>
           </div>
           {/* Placeholder for large chart */}
-          <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="w-full h-32 bg-secondary rounded"></div>
         </div>
         
         {/* Side panel for detailed breakdown */}
-        <div className="col-span-1 row-span-2 bg-gray-50 dark:bg-gray-800 rounded-lg p-2 overflow-auto">
+        <div className="col-span-1 row-span-2 bg-muted rounded-lg p-2 overflow-auto">
           <span className="text-xs font-medium block mb-2">Detailed Breakdown</span>
           {/* Sample detailed metrics list */}
           {['Component A', 'Component B', 'Component C', 'Component D'].map((item, index) => (
-            <div key={index} className="flex justify-between items-center py-1 border-b border-gray-200 dark:border-gray-700">
+            <div key={index} className="flex justify-between items-center py-1 border-b border-border">
               <span className="text-xs">{item}</span>
               <span className="text-xs font-medium">{10 + index * 3}</span>
             </div>
@@ -420,31 +420,31 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
         </div>
         
         {/* Bottom row: Additional widgets */}
-        <div className="col-span-2 row-span-1 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500 mb-1">Related Metrics</span>
+        <div className="col-span-2 row-span-1 bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground mb-1">Related Metrics</span>
           <div className="flex justify-around mt-2">
             <div className="text-center">
               <span className="block text-sm font-medium">94%</span>
-              <span className="text-xs text-gray-500">Efficiency</span>
+              <span className="text-xs text-muted-foreground">Efficiency</span>
             </div>
             <div className="text-center">
               <span className="block text-sm font-medium">23</span>
-              <span className="text-xs text-gray-500">Issues</span>
+              <span className="text-xs text-muted-foreground">Issues</span>
             </div>
             <div className="text-center">
               <span className="block text-sm font-medium">8.5</span>
-              <span className="text-xs text-gray-500">Rating</span>
+              <span className="text-xs text-muted-foreground">Rating</span>
             </div>
           </div>
         </div>
         
-        <div className="col-span-2 row-span-1 bg-gray-50 dark:bg-gray-800 rounded-lg p-2">
-          <span className="text-xs text-gray-500 mb-1">Quick Actions</span>
+        <div className="col-span-2 row-span-1 bg-muted rounded-lg p-2">
+          <span className="text-xs text-muted-foreground mb-1">Quick Actions</span>
           <div className="grid grid-cols-2 gap-1 mt-1">
-            <button className="px-2 py-1 text-xs bg-blue-500 text-white rounded">Action 1</button>
-            <button className="px-2 py-1 text-xs bg-green-500 text-white rounded">Action 2</button>
-            <button className="px-2 py-1 text-xs bg-purple-500 text-white rounded">Action 3</button>
-            <button className="px-2 py-1 text-xs bg-yellow-500 text-white rounded">Action 4</button>
+            <Button variant="default" size="sm" className="px-2 py-1 text-xs h-auto">Action 1</Button>
+            <Button variant="secondary" size="sm" className="px-2 py-1 text-xs h-auto">Action 2</Button>
+            <Button variant="outline" size="sm" className="px-2 py-1 text-xs h-auto">Action 3</Button>
+            <Button variant="secondary" size="sm" className="px-2 py-1 text-xs h-auto">Action 4</Button>
           </div>
         </div>
       </div>
@@ -463,7 +463,7 @@ const TemplateWidget: React.FC<TemplateWidgetProps> = ({ width, height, config }
   const renderSettings = () => {
     return (
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="settings-dialog-content sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Template Widget Settings</DialogTitle>
           </DialogHeader>

@@ -1,19 +1,38 @@
 import { useState, useEffect, useRef, type FC, useCallback } from 'react';
-import { Cloud, CloudRain, CloudSnow, CloudLightning, Wind, Sun, SunDim, Droplets, Info } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter
-} from '../../ui/dialog';
+import { toast } from 'sonner';
+import { useVisibilityRefresh } from '../../../lib/useVisibilityRefresh';
+import { Cloud, CloudRain, CloudSnow, CloudLightning, Wind, Sun, SunDim, Droplets, Info, Search, MapPin, Loader2, Thermometer, Gauge, Sunrise, Sunset, Settings2 } from 'lucide-react';
+import { Skeleton } from '../../ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '../../ui/radio-group';
-import { Label } from '../../ui/label';
-import WidgetHeader from '../../widgets/common/WidgetHeader';
+import { WidgetSettingsDialog, WidgetSettingsDialogFooter } from '../../widgets/common/WidgetSettingsDialog';
+import { WidgetShell } from '../../widgets/common/WidgetShell';
 import { WeatherWidgetProps, WeatherData, WeatherWidgetConfig } from './types';
 import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
+import { Popover, PopoverAnchor, PopoverContent } from '../../ui/popover';
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '../../ui/field';
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from '../../ui/input-group';
 import { faviconService } from '@/lib/services/favicon';
+
+interface CitySearchResult {
+  id: number;
+  name: string;
+  country: string;
+  admin1?: string; // State/province
+  latitude: number;
+  longitude: number;
+}
 
 /**
  * Weather Widget Component
@@ -31,7 +50,11 @@ import { faviconService } from '@/lib/services/favicon';
  * @returns {JSX.Element} Weather widget component
  */
 const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshInterval = 15 }) => {
-  // State for weather data and UI
+  const isTiny = width === 1 && height === 1;
+  const isNarrowColumn = width === 1;
+  const isShort = height === 1 && width > 1;
+  const isApp = width >= 6 && height >= 6;
+  const readOnly = config?.readOnly ?? false;
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,10 +63,136 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   const [localConfig, setLocalConfig] = useState<WeatherWidgetConfig>(
     config || { id: '', location: 'New York', units: 'metric' }
   );
+  const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [citySearch, setCitySearch] = useState<string>('');
+  const [cityResults, setCityResults] = useState<CitySearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const widgetRef = useRef<HTMLDivElement | null>(null);
   const configRef = useRef<string>(''); // Track the last config for comparison
 
-  // Mock weather data for development/testing
+  /**
+   * Validate location exists using geocoding API
+   */
+  const validateLocation = useCallback(async (location: string): Promise<{ valid: boolean; error?: string }> => {
+    if (!location.trim()) {
+      return { valid: false, error: 'Location is required' };
+    }
+
+    try {
+      const response = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(location)}&count=1`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+
+      if (!response.ok) {
+        return { valid: false, error: 'Could not verify location' };
+      }
+
+      const data = await response.json();
+
+      if (!data.results || data.results.length === 0) {
+        return { valid: false, error: `Location "${location}" not found` };
+      }
+
+      return { valid: true };
+    } catch (err) {
+      if (err instanceof Error && err.name === 'TimeoutError') {
+        return { valid: false, error: 'Request timed out' };
+      }
+      return { valid: false, error: 'Could not verify location' };
+    }
+  }, []);
+
+  /**
+   * Search for cities using geocoding API
+   */
+  const searchCities = useCallback(async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setCityResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en`,
+        { signal: AbortSignal.timeout(10000) }
+      );
+
+      if (!response.ok) {
+        setCityResults([]);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const results: CitySearchResult[] = data.results.map((r: {
+          id: number;
+          name: string;
+          country: string;
+          admin1?: string;
+          latitude: number;
+          longitude: number;
+        }) => ({
+          id: r.id,
+          name: r.name,
+          country: r.country,
+          admin1: r.admin1,
+          latitude: r.latitude,
+          longitude: r.longitude,
+        }));
+        setCityResults(results);
+        setShowResults(true);
+      } else {
+        setCityResults([]);
+      }
+    } catch (err) {
+      console.error('City search error:', err);
+      setCityResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  /**
+   * Handle city search input with debounce
+   */
+  const handleCitySearchChange = useCallback((value: string) => {
+    setCitySearch(value);
+    setLocationError(null);
+    setShowResults(value.trim().length >= 2);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Debounce the search
+    searchTimeoutRef.current = setTimeout(() => {
+      searchCities(value);
+    }, 300);
+  }, [searchCities]);
+
+  /**
+   * Handle city selection from search results
+   */
+  const handleCitySelect = useCallback((city: CitySearchResult) => {
+    const locationName = city.admin1
+      ? `${city.name}, ${city.admin1}, ${city.country}`
+      : `${city.name}, ${city.country}`;
+
+    setLocalConfig(prev => ({ ...prev, location: city.name }));
+    setCitySearch(locationName);
+    setShowResults(false);
+    setCityResults([]);
+    setLocationError(null);
+  }, []);
+
   const mockWeatherData: WeatherData = {
     location: 'New York',
     temperature: 22,
@@ -158,7 +307,6 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     return 'Unknown weather condition';
   };
 
-  // Memoize the fetchWeather function to prevent unnecessary re-renders
   const fetchWeather = useCallback(async () => {
     setLoading(true);
     
@@ -251,7 +399,6 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     }
   }, [localConfig.location, localConfig.units]); // Only depend on location and units
 
-  // Update localConfig when config changes without creating a circular dependency
   useEffect(() => {
     if (config) {
       // Create a config signature to detect real changes
@@ -259,26 +406,24 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
       
       // Only update if there's a real change and not just a re-render
       if (configSignature !== configRef.current) {
-        console.log(`[WeatherWidget] Config changed to ${config.location}`);
         configRef.current = configSignature;
         setLocalConfig(config);
       }
     }
   }, [config]);
 
-  // Combine both useEffects into one
   useEffect(() => {
-    // Initial fetch
     fetchWeather();
-    
-    // Set up refresh interval if specified
-    if (refreshInterval > 0) {
-      const interval = setInterval(fetchWeather, refreshInterval * 60 * 1000);
-      return () => clearInterval(interval);
-    }
-  }, [fetchWeather, refreshInterval]); // Only depend on memoized fetchWeather and refreshInterval
+  }, [fetchWeather]);
 
-  // Fix the radio group value change handler
+  // Auto-refresh when tab becomes visible or at the configured interval
+  useVisibilityRefresh({
+    onRefresh: fetchWeather,
+    minHiddenTime: 60000, // Refresh if hidden for 1+ minute
+    refreshInterval: refreshInterval > 0 ? refreshInterval * 60 * 1000 : 0,
+    enabled: true
+  });
+
   const handleUnitsChange = useCallback((value: 'metric' | 'imperial') => {
     setLocalConfig(prev => ({...prev, units: value}));
   }, []);
@@ -304,7 +449,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   const getWeatherIcon = (condition: string, icon?: string): React.ReactElement => {
     // Default size and style
     const defaultSize = 24;
-    const className = "text-gray-700 dark:text-gray-300";
+    const className = "text-foreground";
     
     // Get WMO weather code if provided
     const weatherCode = icon ? parseInt(icon) : null;
@@ -378,9 +523,29 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    * @returns {JSX.Element} Loading indicator
    */
   const renderLoading = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full items-center justify-center">
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+      );
+    }
+
     return (
-      <div className="flex items-center justify-center h-full w-full">
-        <div className="animate-pulse rounded-full bg-gray-200 bg-opacity-50 dark:bg-gray-700 dark:bg-opacity-50 h-10 w-10"></div>
+      <div className="h-full w-full p-4 flex flex-col">
+        {/* Temperature and icon skeleton */}
+        <div className="flex items-center justify-between mb-4">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+        {/* Location skeleton */}
+        <Skeleton className="h-4 w-24 mb-2" />
+        {/* Condition skeleton */}
+        <Skeleton className="h-3 w-16 mb-4" />
+        {/* Forecast skeleton */}
+        <div className="flex-1 flex items-end space-x-2">
+          <Skeleton className="h-8 w-full" />
+        </div>
       </div>
     );
   };
@@ -391,13 +556,27 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    * @returns {JSX.Element} Error indicator
    */
   const renderError = () => {
+    if (isTiny) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
+          <Info className="text-muted-foreground" size={18} />
+          <p className="text-[10px] text-muted-foreground">Weather unavailable</p>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-full p-3 text-center">
-        <Info className="text-amber-500 mb-2" size={24} />
-        <p className="text-sm text-amber-500 mb-1">{error}</p>
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+        <Info className="text-muted-foreground mb-2" size={24} />
+        <p className="text-sm text-muted-foreground mb-1">{error}</p>
+        <p className="text-xs text-muted-foreground">
           Check your location or try again later.
         </p>
+        {isApp && !readOnly && (
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => setIsSettingsOpen(true)}>
+            Open Settings
+          </Button>
+        )}
       </div>
     );
   };
@@ -410,17 +589,21 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    */
   const renderMinimalView = () => {
     if (!weather) return null;
+    const shortLocation = weather.location.split(',')[0].trim();
     
     return (
-      <div className="flex flex-col items-center justify-center h-full px-2 py-3">
-        <div className="mb-1">
+      <div className="flex h-full flex-col items-center justify-center gap-1 px-1 text-center">
+        <div className="text-foreground">
           {getWeatherIcon(weather.condition, weather.icon)}
         </div>
-        <div className="text-2xl font-medium tracking-tight">
+        <div className="text-[2rem] font-semibold leading-[0.92] tracking-tight text-foreground">
           {formatTemperature(weather.temperature)}
         </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
-          {weather.location}
+        <div
+          className="max-w-[5.5rem] truncate whitespace-nowrap text-[11px] font-medium leading-[1.15] text-muted-foreground"
+          title={shortLocation}
+        >
+          {shortLocation}
         </div>
       </div>
     );
@@ -438,7 +621,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     return (
       <div className="flex h-full p-3">
         <div className="flex flex-col justify-center items-start flex-1">
-          <div className="text-sm text-gray-500 dark:text-gray-400 mb-1 truncate">
+          <div className="text-sm text-muted-foreground mb-1 truncate">
             {weather.location}
           </div>
           <div className="flex items-center">
@@ -447,21 +630,21 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             </span>
             {getWeatherIcon(weather.condition, weather.icon)}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {weather.condition}
           </div>
         </div>
         
         <div className="flex flex-col justify-center items-end text-right space-y-1">
-          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <div className="text-xs text-muted-foreground flex items-center">
             <span className="mr-1">Feels</span> 
             <span className="font-medium">{formatTemperature(weather.feelsLike)}</span>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <div className="text-xs text-muted-foreground flex items-center">
             <Droplets size={12} className="mr-1" /> 
             <span className="font-medium">{weather.humidity}%</span>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+          <div className="text-xs text-muted-foreground flex items-center">
             <Wind size={12} className="mr-1" /> 
             <span className="font-medium">{weather.windSpeed}</span>
             <span className="ml-1">{unit === 'celsius' ? 'm/s' : 'mph'}</span>
@@ -490,11 +673,11 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             <div className="text-xl font-medium tracking-tight">
               {formatTemperature(weather.temperature)}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">
+            <div className="text-xs text-muted-foreground">
               {weather.location}
             </div>
           </div>
-          <div className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+          <div className="ml-auto text-xs text-muted-foreground">
             Feels like {formatTemperature(weather.feelsLike)}
           </div>
         </div>
@@ -511,7 +694,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                   <div className="text-xs font-medium">
                     {Math.round(day.temp.max)}°
                   </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {Math.round(day.temp.min)}°
                   </div>
                 </div>
@@ -544,29 +727,29 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
             <div className="text-3xl font-medium tracking-tight mr-2">
               {formatTemperature(weather.temperature)}
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+            <div className="text-sm text-muted-foreground mb-1">
               Feels like {formatTemperature(weather.feelsLike)}
             </div>
             <div className="ml-auto">
               {getWeatherIcon(weather.condition, weather.icon)}
             </div>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {weather.description}
           </div>
         </div>
         
         <div className="grid grid-cols-3 gap-2 mb-3">
           <div className="rounded-md p-2 text-center">
-            <div className="text-xs text-gray-500 ">Humidity</div>
+            <div className="text-xs text-muted-foreground">Humidity</div>
             <div className="text-sm font-medium mt-1">{weather.humidity}%</div>
           </div>
           <div className="rounded-md p-2 text-center">
-            <div className="text-xs text-gray-500 ">Wind</div>
+            <div className="text-xs text-muted-foreground">Wind</div>
             <div className="text-sm font-medium mt-1">{weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}</div>
           </div>
           <div className="rounded-md p-2 text-center">
-            <div className="text-xs text-gray-500">Sunrise/Sunset</div>
+            <div className="text-xs text-muted-foreground">Sunrise/Sunset</div>
             <div className="text-xs font-medium mt-1">{sunriseTime} / {sunsetTime}</div>
           </div>
         </div>
@@ -582,7 +765,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                 </div>
                 <div className="text-xs w-16 text-right">
                   <span className="font-medium">{Math.round(day.temp.max)}°</span>
-                  <span className="text-gray-400 ml-1">{Math.round(day.temp.min)}°</span>
+                  <span className="text-muted-foreground ml-1">{Math.round(day.temp.min)}°</span>
                 </div>
               </div>
             ))}
@@ -615,7 +798,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         <div className="flex justify-between items-start mb-5">
           <div>
             <h3 className="text-lg font-medium">{weather.location}</h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {currentDate} • {currentTime}
             </div>
             <div className="text-sm mt-1">
@@ -630,7 +813,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
               <div className="text-3xl font-medium tracking-tight">
                 {formatTemperature(weather.temperature)}
               </div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">
+              <div className="text-sm text-muted-foreground">
                 Feels like {formatTemperature(weather.feelsLike)}
               </div>
             </div>
@@ -639,19 +822,19 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
         
         <div className="grid grid-cols-4 gap-3 mb-5">
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Humidity</div>
+            <div className="text-xs text-muted-foreground mb-1">Humidity</div>
             <div className="text-lg font-medium">{weather.humidity}%</div>
           </div>
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Wind</div>
+            <div className="text-xs text-muted-foreground mb-1">Wind</div>
             <div className="text-lg font-medium">{weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}</div>
           </div>
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Sunrise</div>
+            <div className="text-xs text-muted-foreground mb-1">Sunrise</div>
             <div className="text-lg font-medium">{sunriseTime}</div>
           </div>
           <div className="rounded-md p-3">
-            <div className="text-xs text-gray-500 mb-1">Sunset</div>
+            <div className="text-xs text-muted-foreground mb-1">Sunset</div>
             <div className="text-lg font-medium">{sunsetTime}</div>
           </div>
         </div>
@@ -668,11 +851,246 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
                 <div className="text-sm font-medium">
                   {Math.round(day.temp.max)}°
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">
+                <div className="text-xs text-muted-foreground">
                   {Math.round(day.temp.min)}°
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                <div className="text-xs text-muted-foreground mt-1 text-center">
                   {day.condition}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /**
+   * Renders a horizontal ribbon view for Nx1 short widgets
+   * Shows temperature and condition as compact chips in a single row
+   *
+   * @returns {JSX.Element} Ribbon view
+   */
+  const renderRibbonView = () => {
+    if (!weather) return null;
+    const shortLocation = weather.location.split(',')[0].trim();
+
+    return (
+      <div className="flex h-full items-center gap-2 px-2 overflow-hidden">
+        {/* Location chip */}
+        <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+          <MapPin size={10} className="text-muted-foreground" />
+          <span className="text-[11px] font-medium text-foreground truncate max-w-[5rem]">
+            {shortLocation}
+          </span>
+        </div>
+        {/* Temp + icon chip */}
+        <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+          <span className="text-foreground [&>svg]:!h-3 [&>svg]:!w-3">
+            {getWeatherIcon(weather.condition, weather.icon)}
+          </span>
+          <span className="text-[11px] font-semibold text-foreground">
+            {formatTemperature(weather.temperature)}
+          </span>
+        </div>
+        {/* Condition chip */}
+        <div className="flex items-center rounded-full bg-muted px-2 py-0.5 shrink-0">
+          <span className="text-[11px] text-muted-foreground">
+            {weather.condition}
+          </span>
+        </div>
+        {/* Humidity chip (shown when space allows) */}
+        {width >= 3 && (
+          <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+            <Droplets size={10} className="text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground">
+              {weather.humidity}%
+            </span>
+          </div>
+        )}
+        {/* Wind chip (shown when more space allows) */}
+        {width >= 4 && (
+          <div className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 shrink-0">
+            <Wind size={10} className="text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground">
+              {weather.windSpeed} {unit === 'celsius' ? 'm/s' : 'mph'}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * Renders a full weather app view for 6x6+ widgets
+   * Comprehensive display with current conditions prominently shown,
+   * hourly forecast timeline, 7-day detailed forecast grid, and weather details panel
+   *
+   * @returns {JSX.Element} Full app view
+   */
+  const renderAppView = () => {
+    if (!weather) return null;
+
+    const now = new Date();
+    const currentTime = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const currentDate = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const sunriseTime = new Date(weather.sunrise * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const sunsetTime = new Date(weather.sunset * 1000).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+    // Generate synthetic hourly data from current conditions + forecast
+    const hourlyData = Array.from({ length: 12 }, (_, i) => {
+      const hour = new Date(now.getTime() + i * 3600000);
+      // Gradually interpolate toward next day's forecast temp
+      const nextForecast = weather.forecast[0];
+      const progress = i / 12;
+      const tempRange = nextForecast ? nextForecast.temp.max - nextForecast.temp.min : 4;
+      const tempOffset = Math.sin(progress * Math.PI) * tempRange * 0.3;
+      return {
+        time: hour.toLocaleTimeString('en-US', { hour: 'numeric' }),
+        temp: Math.round(weather.temperature + tempOffset + (Math.random() - 0.5) * 2),
+        condition: i < 4 ? weather.condition : (nextForecast?.condition || weather.condition),
+        icon: i < 4 ? weather.icon : (nextForecast?.icon || weather.icon),
+      };
+    });
+
+    // Wind direction as compass
+    const windDirectionLabel = (() => {
+      const d = weather.windDirection;
+      if (d >= 337.5 || d < 22.5) return 'N';
+      if (d >= 22.5 && d < 67.5) return 'NE';
+      if (d >= 67.5 && d < 112.5) return 'E';
+      if (d >= 112.5 && d < 157.5) return 'SE';
+      if (d >= 157.5 && d < 202.5) return 'S';
+      if (d >= 202.5 && d < 247.5) return 'SW';
+      if (d >= 247.5 && d < 292.5) return 'W';
+      return 'NW';
+    })();
+
+    return (
+      <div className="flex flex-col h-full overflow-auto">
+        {/* App header bar */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 widget-drag-handle cursor-move">
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">{weather.location}</h2>
+            <p className="text-xs text-muted-foreground">{currentDate} &middot; {currentTime}</p>
+          </div>
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="settings-button rounded-full h-8 w-8"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                setIsSettingsOpen(true);
+              }}
+            >
+              <Settings2 size={16} className="text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+
+        {/* Current conditions - prominent */}
+        <div className="px-5 py-4 flex items-center gap-6">
+          <div className="text-foreground [&>svg]:!h-16 [&>svg]:!w-16">
+            {getWeatherIcon(weather.condition, weather.icon)}
+          </div>
+          <div>
+            <div className="text-5xl font-light tracking-tight text-foreground">
+              {formatTemperature(weather.temperature)}
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              {weather.description}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Feels like {formatTemperature(weather.feelsLike)}
+            </div>
+          </div>
+        </div>
+
+        {/* Hourly forecast timeline */}
+        <div className="px-5 py-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Hourly Forecast</h3>
+          <div className="flex gap-1 overflow-x-auto pb-1">
+            {hourlyData.map((h, i) => (
+              <div key={i} className="flex flex-col items-center min-w-[3.5rem] px-1.5 py-2 rounded-lg bg-muted">
+                <span className="text-[10px] text-muted-foreground mb-1">{i === 0 ? 'Now' : h.time}</span>
+                <span className="text-foreground [&>svg]:!h-4 [&>svg]:!w-4 my-1">
+                  {getWeatherIcon(h.condition, h.icon)}
+                </span>
+                <span className="text-xs font-medium text-foreground">{h.temp}°</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Weather details panel */}
+        <div className="px-5 py-3">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Weather Details</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
+              <Droplets size={18} className="text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Humidity</span>
+              <span className="text-lg font-semibold text-foreground">{weather.humidity}%</span>
+            </div>
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
+              <Wind size={18} className="text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Wind</span>
+              <span className="text-lg font-semibold text-foreground">{weather.windSpeed}</span>
+              <span className="text-[10px] text-muted-foreground">{unit === 'celsius' ? 'm/s' : 'mph'} {windDirectionLabel}</span>
+            </div>
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
+              <Thermometer size={18} className="text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Feels Like</span>
+              <span className="text-lg font-semibold text-foreground">{formatTemperature(weather.feelsLike)}</span>
+            </div>
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
+              <Sunrise size={18} className="text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Sunrise</span>
+              <span className="text-sm font-semibold text-foreground">{sunriseTime}</span>
+            </div>
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
+              <Sunset size={18} className="text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Sunset</span>
+              <span className="text-sm font-semibold text-foreground">{sunsetTime}</span>
+            </div>
+            <div className="rounded-xl bg-muted p-3 flex flex-col items-center">
+              <Gauge size={18} className="text-muted-foreground mb-1" />
+              <span className="text-xs text-muted-foreground">Pressure</span>
+              <span className="text-sm font-semibold text-foreground">--</span>
+              <span className="text-[10px] text-muted-foreground">hPa</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 7-day forecast grid (uses available 5-day data) */}
+        <div className="px-5 py-3 flex-1">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            {weather.forecast.length}-Day Forecast
+          </h3>
+          <div className="space-y-1">
+            {weather.forecast.map((day, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 rounded-lg bg-muted px-4 py-2.5"
+              >
+                <span className="text-sm font-medium text-foreground w-10">{day.day}</span>
+                <span className="text-foreground [&>svg]:!h-5 [&>svg]:!w-5 w-8 flex justify-center">
+                  {getWeatherIcon(day.condition, day.icon)}
+                </span>
+                <span className="text-xs text-muted-foreground flex-1">{day.description}</span>
+                {/* Temperature bar visualization */}
+                <div className="flex items-center gap-2 w-32">
+                  <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(day.temp.min)}°</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-secondary relative overflow-hidden">
+                    <div
+                      className="absolute h-full rounded-full bg-gradient-to-r from-blue-400 to-orange-400"
+                      style={{
+                        left: '0%',
+                        width: `${Math.max(20, ((day.temp.max - day.temp.min) / Math.max(1, day.temp.max)) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-foreground w-8">{Math.round(day.temp.max)}°</span>
                 </div>
               </div>
             ))}
@@ -685,7 +1103,7 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   /**
    * Determines which view to render based on widget dimensions
    * Adapts the content display to make optimal use of available space
-   * 
+   *
    * @returns {JSX.Element} The appropriate view for the current dimensions
    */
   const renderContent = () => {
@@ -698,8 +1116,14 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     }
     
     // Determine which view to render based on available space
-    // Using a more nuanced approach to sizing
-    if (width >= 4 && height >= 4) {
+    // Most specific first (icon → widget → app spectrum)
+    if (isTiny) {
+      return renderMinimalView();
+    } else if (isShort) {
+      return renderRibbonView();
+    } else if (isApp) {
+      return renderAppView();
+    } else if (width >= 4 && height >= 4) {
       return renderDetailedView();
     } else if (width >= 3 && height >= 3) {
       return renderVerticalForecastView();
@@ -714,43 +1138,102 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
 
   /**
    * Renders the settings content for the modal
-   * 
+   *
    * @returns {JSX.Element} Settings content
    */
   const renderSettingsContent = () => {
   return (
-    // Remove the outer fragment <>...</>
-    // The wrapping div with space-y-4 is now applied where this function is called
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="location-input">Location</Label>
-        <Input
-          id="location-input"
-          type="text"
-          placeholder="Enter city name"
-          value={localConfig.location || ''}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalConfig(prev => ({...prev, location: e.target.value}))}
-        />
-      </div>
+    <FieldGroup className="gap-4">
+      <Field data-invalid={Boolean(locationError)} className="gap-2">
+        <FieldLabel htmlFor="location-input">Location</FieldLabel>
+        <Popover
+          open={showResults && citySearch.length >= 2}
+          onOpenChange={(open) => {
+            if (!open) {
+              setShowResults(false);
+            }
+          }}
+        >
+          <PopoverAnchor asChild>
+            <InputGroup>
+              <InputGroupAddon>
+                <Search aria-hidden="true" />
+              </InputGroupAddon>
+              <InputGroupInput
+                id="location-input"
+                type="text"
+                placeholder="Search for a city..."
+                value={citySearch || localConfig.location || ''}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  handleCitySearchChange(e.target.value);
+                }}
+                onFocus={() => {
+                  if (citySearch.length >= 2 || cityResults.length > 0) {
+                    setShowResults(true);
+                  }
+                }}
+                aria-invalid={Boolean(locationError)}
+              />
+              {isSearching && (
+                <InputGroupAddon align="inline-end">
+                  <Loader2 aria-hidden="true" className="animate-spin" />
+                </InputGroupAddon>
+              )}
+            </InputGroup>
+          </PopoverAnchor>
 
-      <div className="space-y-2">
-        <Label>Temperature Units</Label>
+          <PopoverContent align="start" className="w-[min(28rem,calc(100vw-4rem))] max-h-60 overflow-y-auto p-1">
+            {cityResults.length > 0 ? (
+              <div className="flex flex-col">
+                {cityResults.map((city) => (
+                  <Button
+                    key={city.id}
+                    type="button"
+                    variant="ghost"
+                    className="h-auto justify-start gap-2 rounded-sm px-3 py-2 text-left"
+                    onClick={() => handleCitySelect(city)}
+                  >
+                    <MapPin data-icon="inline-start" className="mt-0.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium">{city.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {city.admin1 ? `${city.admin1}, ` : ''}{city.country}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            ) : (
+              <p className="px-3 py-2 text-sm text-muted-foreground">
+                No cities found for "{citySearch}"
+              </p>
+            )}
+          </PopoverContent>
+        </Popover>
+        <FieldError>{locationError}</FieldError>
+        <FieldDescription>
+          Start typing to search for any city worldwide
+        </FieldDescription>
+      </Field>
+
+      <FieldSet className="gap-2">
+        <FieldLegend variant="label" className="mb-0">Temperature Units</FieldLegend>
         <RadioGroup
           value={localConfig.units || 'metric'}
           onValueChange={handleUnitsChange}
+          className="gap-2"
         >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="metric" id="metric" />
-            <Label htmlFor="metric">Celsius (°C)</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="imperial" id="imperial" />
-            <Label htmlFor="imperial">Fahrenheit (°F)</Label>
-          </div>
+          <Field orientation="horizontal" className="gap-2">
+            <RadioGroupItem value="metric" id="weather-units-metric" />
+            <FieldLabel htmlFor="weather-units-metric">Celsius (°C)</FieldLabel>
+          </Field>
+          <Field orientation="horizontal" className="gap-2">
+            <RadioGroupItem value="imperial" id="weather-units-imperial" />
+            <FieldLabel htmlFor="weather-units-imperial">Fahrenheit (°F)</FieldLabel>
+          </Field>
         </RadioGroup>
-      </div>
-    </>
-    // Remove the closing fragment </>
+      </FieldSet>
+    </FieldGroup>
   );
 };
 
@@ -759,55 +1242,70 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
    * 
    * @returns {JSX.Element} Settings footer
    */
+  const handleSaveSettings = async () => {
+    // Validate location before saving
+    setIsValidating(true);
+    setLocationError(null);
+
+    const result = await validateLocation(localConfig.location || '');
+
+    setIsValidating(false);
+
+    if (!result.valid) {
+      setLocationError(result.error || 'Invalid location');
+      toast.error('Invalid location', {
+        description: result.error,
+        duration: 4000,
+      });
+      return;
+    }
+
+    // Save settings via onUpdate callback
+    if (config?.onUpdate) {
+      config.onUpdate(localConfig);
+    }
+
+    // Apply the local config settings
+    setUnit(localConfig.units === 'imperial' ? 'fahrenheit' : 'celsius');
+    setIsSettingsOpen(false);
+
+    // Trigger a weather refresh with new settings
+    setLoading(true);
+    setTimeout(() => {
+      fetchWeather();
+    }, 300);
+  };
+
+  const resetSearchState = () => {
+    setCitySearch('');
+    setCityResults([]);
+    setShowResults(false);
+    setLocationError(null);
+  };
+
+  const resetSettings = () => {
+    if (config) {
+      setLocalConfig(config);
+    }
+    resetSearchState();
+    setIsSettingsOpen(false);
+  };
+
   const renderSettingsFooter = () => {
     return (
-      <div className="flex justify-between w-full">
-        {config?.onDelete && (
-          <Button
-            variant="destructive"
-            onClick={() => {
-              if (config.onDelete) {
-                config.onDelete();
-              }
-            }}
-            aria-label="Delete this widget"
-          >
-            Delete
-          </Button>
-        )}
-        
-        <div className="flex">
-          <Button
-            variant="default"
-            onClick={() => {
-              // Save settings via onUpdate callback (will use configManager in App.tsx)
-              if (config?.onUpdate) {
-                console.log('[WeatherWidget] Saving local config to parent component');
-                config.onUpdate(localConfig);
-              }
-              
-              // Apply the local config settings
-              setUnit(localConfig.units === 'imperial' ? 'fahrenheit' : 'celsius');
-              setIsSettingsOpen(false);
-              
-              // Trigger a weather refresh with new settings
-              console.log('[WeatherWidget] Triggering weather refresh with new settings');
-              setLoading(true);
-              
-              // Short delay to ensure all state updates are processed
-              setTimeout(() => {
-                fetchWeather();
-              }, 300);
-            }}
-          >
-            Save
-          </Button>
-        </div>
-      </div>
+      <WidgetSettingsDialogFooter
+        onDelete={config?.onDelete ? () => config.onDelete?.() : undefined}
+        onCancel={resetSettings}
+        onSave={() => {
+          void handleSaveSettings();
+        }}
+        saveDisabled={isValidating}
+        savePending={isValidating}
+        savePendingLabel="Validating..."
+      />
     );
   };
 
-  // Update favicon when weather data changes
   useEffect(() => {
     if (weather && !loading && !error) {
       // Update favicon with current temperature
@@ -815,7 +1313,6 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
     }
   }, [weather, loading, error, localConfig.units]);
 
-  // Clean up favicon when component unmounts
   useEffect(() => {
     return () => {
       faviconService.clearWeatherInfo();
@@ -823,35 +1320,36 @@ const WeatherWidget: FC<WeatherWidgetProps> = ({ width, height, config, refreshI
   }, []);
 
   return (
-    <div ref={widgetRef} className="widget-container h-full flex flex-col">
-      <WidgetHeader 
-        title="Weather" 
-        onSettingsClick={() => setIsSettingsOpen(true)}
-      />
-      
-      <div className="flex-1 overflow-hidden rounded-md m-1">
-        {renderContent()}
-      </div>
+    <WidgetShell
+      ref={widgetRef}
+      title={isNarrowColumn ? undefined : 'Weather'}
+      isTiny={isTiny}
+      hideHeader={isApp || isNarrowColumn}
+      compactHeader={isShort || width === 1 || height === 1}
+      onSettingsClick={readOnly ? undefined : () => setIsSettingsOpen(true)}
+      contentClassName={isTiny ? 'rounded-md p-2' : isApp ? '' : 'rounded-md'}
+    >
+      {renderContent()}
       
       {isSettingsOpen && (
-        <Dialog open={isSettingsOpen} onOpenChange={(open: boolean) => setIsSettingsOpen(open)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Weather Settings</DialogTitle>
-            </DialogHeader>
-            {/* Add a div with space-y-4 inside the py-4 container */}
-            <div className="py-4">
-              <div className="space-y-4">
-                {renderSettingsContent()}
-              </div>
-            </div>
-            <DialogFooter>
-              {renderSettingsFooter()}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <WidgetSettingsDialog
+          open={isSettingsOpen}
+          onOpenChange={(open: boolean) => {
+            if (!open) {
+              resetSettings();
+              return;
+            }
+            setIsSettingsOpen(true);
+            resetSearchState();
+          }}
+          title="Weather Settings"
+          bodyClassName="flex flex-col gap-4 px-1"
+          footer={renderSettingsFooter()}
+        >
+          {renderSettingsContent()}
+        </WidgetSettingsDialog>
       )}
-    </div>
+    </WidgetShell>
   );
 };
 

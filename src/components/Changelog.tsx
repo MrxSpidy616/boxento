@@ -10,13 +10,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ChangelogData } from '@/types/changelog';
-import { Bell, Sparkles } from 'lucide-react';
-
-const LAST_VIEWED_KEY = 'boxento-changelog-last-viewed';
+import { Sparkles } from 'lucide-react';
 
 const parseChangelog = async (): Promise<ChangelogData> => {
     try {
-        const response = await fetch('/CHANGELOG.md');
+        // Add cache-busting to ensure we get the latest changelog
+        const response = await fetch(`/CHANGELOG.md?v=${__BUILD_HASH__}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -65,52 +64,24 @@ const parseChangelog = async (): Promise<ChangelogData> => {
 
 export function Changelog() {
     const [changelog, setChangelog] = useState<ChangelogData>({ versions: [] });
-    const [hasNewUpdates, setHasNewUpdates] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
         const loadChangelog = async () => {
             const data = await parseChangelog();
             setChangelog(data);
-            
-            // Check if there are new updates
-            const lastViewed = localStorage.getItem(LAST_VIEWED_KEY);
-            if (data.versions.length > 0) {
-                const latestVersion = data.versions[0];
-                const latestVersionDate = new Date(latestVersion.date).getTime();
-                const lastViewedDate = lastViewed ? parseInt(lastViewed) : 0;
-                
-                setHasNewUpdates(latestVersionDate > lastViewedDate);
-            }
         };
         loadChangelog();
     }, []);
 
-    const handleOpenChange = (open: boolean) => {
-        setIsOpen(open);
-        if (open && changelog.versions.length > 0) {
-            // Mark as viewed
-            const latestVersion = changelog.versions[0];
-            const latestVersionDate = new Date(latestVersion.date).getTime();
-            localStorage.setItem(LAST_VIEWED_KEY, latestVersionDate.toString());
-            setHasNewUpdates(false);
-        }
-    };
-
     return (
-        <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <Dialog>
             <DialogTrigger asChild>
-                <Button 
-                    variant="outline" 
-                    size="icon" 
+                <Button
+                    variant="outline"
+                    size="icon"
                     className="relative h-9 w-9 rounded-full"
                 >
-                    <Bell className="h-4 w-4" />
-                    {hasNewUpdates && (
-                        <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-                        </span>
-                    )}
+                    <Sparkles className="h-4 w-4" />
                 </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[625px]">

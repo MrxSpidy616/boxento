@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { auth } from '../lib/firebase';
 import { userDashboardService } from '../lib/firestoreService';
+import { TIMING, STORAGE_KEYS } from '../lib/constants';
 
 type FaviconMode = 'simple' | 'smart';
 type ThemeMode = 'light' | 'dark' | 'system';
@@ -83,7 +84,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
             });
             
             // Also update localStorage for offline access
-            localStorage.setItem('boxento-app-settings', JSON.stringify(firestoreSettings));
+            localStorage.setItem(STORAGE_KEYS.APP_SETTINGS, JSON.stringify(firestoreSettings));
           } else {
             // No settings in Firestore yet
             const localSettings = loadFromLocalStorage();
@@ -123,7 +124,7 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   // Helper function to load settings from localStorage
   const loadFromLocalStorage = (): AppSettings => {
     try {
-      const savedSettings = localStorage.getItem('boxento-app-settings');
+      const savedSettings = localStorage.getItem(STORAGE_KEYS.APP_SETTINGS);
       if (savedSettings) {
         const parsedSettings = JSON.parse(savedSettings);
         return { ...defaultSettings, ...parsedSettings };
@@ -137,24 +138,23 @@ export function AppSettingsProvider({ children }: { children: React.ReactNode })
   // Save settings to localStorage and Firestore
   const saveSettings = async (newSettings: AppSettings) => {
     // Save to localStorage immediately
-    localStorage.setItem('boxento-app-settings', JSON.stringify(newSettings));
-    
+    localStorage.setItem(STORAGE_KEYS.APP_SETTINGS, JSON.stringify(newSettings));
+
     // Save to Firestore if user is logged in (with debounce)
     if (auth?.currentUser) {
       if (settingsUpdateTimeout) {
         clearTimeout(settingsUpdateTimeout);
       }
-      
+
       const timeout = setTimeout(async () => {
         try {
           // Convert AppSettings to Record<string, unknown> to match Firestore service
           const settingsRecord = { ...newSettings } as unknown as Record<string, unknown>;
           await userDashboardService.saveAppSettings(settingsRecord);
-          console.log('App settings saved to Firestore');
         } catch (error) {
           console.error('Error saving app settings to Firestore:', error);
         }
-      }, 500);
+      }, TIMING.SAVE_DEBOUNCE_MS);
       
       setSettingsUpdateTimeout(timeout);
     }

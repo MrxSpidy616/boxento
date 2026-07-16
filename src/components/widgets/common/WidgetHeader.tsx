@@ -1,11 +1,21 @@
 import React, { ReactNode } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+import {
+  getWidgetHeaderClassName,
+  getWidgetHeaderContentClassName,
+  getWidgetHeaderIconClassName,
+  getWidgetHeaderSettingsButtonClassName,
+  getWidgetHeaderTitleClassName,
+} from './widgetHeaderStyles';
 
 interface WidgetHeaderProps {
   title?: string;
   icon?: ReactNode;
   onSettingsClick?: () => void;
   children?: ReactNode;
+  compact?: boolean;
 }
 
 /**
@@ -18,25 +28,38 @@ const WidgetHeader = ({
   title, 
   icon, 
   onSettingsClick, 
-  children 
+  children,
+  compact = false,
 }: WidgetHeaderProps): React.ReactElement => {
   return (
-    <div className="flex justify-between items-center p-2 md:p-2 cursor-move widget-drag-handle">
-      <div className="flex items-center space-x-1 md:space-x-2">
-        {icon && <div className="text-gray-500 dark:text-slate-400 text-xs md:text-sm">{icon}</div>}
-        {title && <h3 className="text-xs md:text-sm font-medium text-gray-800 dark:text-slate-100">{title}</h3>}
+    <div className={getWidgetHeaderClassName(compact)}>
+      <div className={getWidgetHeaderContentClassName(compact)}>
+        {icon && (
+          <div className={getWidgetHeaderIconClassName(compact)}>
+            {icon}
+          </div>
+        )}
+        {title && (
+          <h3 className={getWidgetHeaderTitleClassName(compact)}>
+            {title}
+          </h3>
+        )}
         {children}
       </div>
       {onSettingsClick && (
-        <button 
-          className="settings-button p-0.5 md:p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full"
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={title ? `Open ${title} settings` : 'Open widget settings'}
+          className={getWidgetHeaderSettingsButtonClassName(compact)}
           onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
             onSettingsClick();
           }}
         >
-          <Settings size={14} className="text-gray-500 dark:text-slate-400" />
-        </button>
+          <Settings2 aria-hidden="true" />
+        </Button>
       )}
     </div>
   );
